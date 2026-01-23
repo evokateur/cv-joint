@@ -171,9 +171,10 @@ def create_app():
                     gr.Markdown("### Saved CVs")
                     gr.Markdown("Click a row to view details")
                     cv_list = gr.Dataframe(
-                        headers=["Identifier", "Name", "Profession"],
+                        headers=["Date", "Identifier", "Name", "Profession"],
                         label="All CVs",
                         interactive=False,
+                        column_widths=["15%", "25%", "30%", "30%"],
                     )
                     refresh_cvs_btn = gr.Button("Refresh List")
 
@@ -181,14 +182,14 @@ def create_app():
                 def analyze_cv(file, path):
                     file_path = file.name if file else path
                     if not file_path:
-                        return None, "", False, gr.update(visible=False), ""
+                        return None, "", False, gr.update(visible=False), "⚠ Please provide a file or path"
 
                     cv_data, identifier = service.create_cv(file_path)
                     is_saved = False
-                    return cv_data, identifier, is_saved, gr.update(visible=True), ""
+                    return cv_data, identifier, is_saved, gr.update(visible=True), "✓ Analysis complete"
 
                 def view_saved_cv(evt: gr.SelectData):
-                    identifier = evt.row_value[0]  # First column is identifier
+                    identifier = evt.row_value[1]  # Second column is identifier (after Date)
 
                     if not identifier:
                         return None, "", True, gr.update(visible=False), ""
@@ -213,7 +214,12 @@ def create_app():
                         metadata = service.save_cv(cv_data, identifier)
                         cvs = service.get_cvs()
                         cv_list_data = [
-                            [c.get("identifier", ""), c.get("name", ""), c.get("profession", "")]
+                            [
+                                c.get("created_at", "")[:10] if c.get("created_at") else "",
+                                c.get("identifier", ""),
+                                c.get("name", ""),
+                                c.get("profession", ""),
+                            ]
                             for c in cvs
                         ]
                         return (
@@ -228,12 +234,21 @@ def create_app():
                 def load_cvs():
                     cvs = service.get_cvs()
                     cv_list_data = [
-                        [c.get("identifier", ""), c.get("name", ""), c.get("profession", "")]
+                        [
+                            c.get("created_at", "")[:10] if c.get("created_at") else "",
+                            c.get("identifier", ""),
+                            c.get("name", ""),
+                            c.get("profession", ""),
+                        ]
                         for c in cvs
                     ]
                     return cv_list_data
 
+                # Analyze CV - clear previous results first, then run analysis
                 analyze_cv_btn.click(
+                    fn=lambda: (None, "", False, gr.update(visible=False), "⏳ Analyzing CV..."),
+                    outputs=[cv_result, cv_identifier, cv_is_saved, cv_save_controls, save_cv_status],
+                ).then(
                     fn=analyze_cv,
                     inputs=[cv_file, cv_path],
                     outputs=[cv_result, cv_identifier, cv_is_saved, cv_save_controls, save_cv_status],
