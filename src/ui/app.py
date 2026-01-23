@@ -1,5 +1,5 @@
 import gradio as gr
-from services.optimization_service import CvOptimizationService
+from services.agency_service import AgencyService
 from services.knowledge_chat import KnowledgeChatService
 from config.settings import get_chat_config
 
@@ -7,12 +7,12 @@ from config.settings import get_chat_config
 def create_app():
     """Create and configure the Gradio application."""
 
-    service = CvOptimizationService()
+    service = AgencyService()
     chat_service = KnowledgeChatService()
     chat_config = get_chat_config()
 
     with gr.Blocks(title="CV Agents") as app:
-        gr.Markdown("# CV Agents - Job-Optimized CV Generation")
+        gr.Markdown("# CV Agency - AI/RAG powered job posting and CV analysis\n")
 
         with gr.Tabs():
             # Tab 1: Job Postings
@@ -23,7 +23,9 @@ def create_app():
                         label="Job Posting URL",
                         placeholder="https://...",
                     )
-                    analyze_job_btn = gr.Button("Analyze Job Posting", variant="primary")
+                    analyze_job_btn = gr.Button(
+                        "Analyze Job Posting", variant="primary"
+                    )
 
                 with gr.Group():
                     gr.Markdown("### Results")
@@ -52,11 +54,23 @@ def create_app():
                 # Event handlers for Job Postings tab
                 def analyze_job(url):
                     if not url:
-                        return None, "", False, gr.update(visible=False), "⚠ Please enter a URL"
+                        return (
+                            None,
+                            "",
+                            False,
+                            gr.update(visible=False),
+                            "⚠ Please enter a URL",
+                        )
 
                     job_data, identifier = service.create_job_posting(url)
                     is_saved = False
-                    return job_data, identifier, is_saved, gr.update(visible=True), "✓ Analysis complete"
+                    return (
+                        job_data,
+                        identifier,
+                        is_saved,
+                        gr.update(visible=True),
+                        "✓ Analysis complete",
+                    )
 
                 def view_saved_job(evt: gr.SelectData):
                     identifier = evt.row_value[4]  # Last column is identifier
@@ -66,30 +80,58 @@ def create_app():
 
                     job_posting = service.repository.get_job_posting(identifier)
                     if not job_posting:
-                        return None, "", "", True, gr.update(visible=False), f"⚠ Job posting not found"
+                        return (
+                            None,
+                            "",
+                            "",
+                            True,
+                            gr.update(visible=False),
+                            f"⚠ Job posting not found",
+                        )
 
                     job_data = job_posting.model_dump()
                     is_saved = True
 
-                    return job_data, "", identifier, is_saved, gr.update(visible=False), f"✓ Loaded: {identifier}"
+                    return (
+                        job_data,
+                        "",
+                        identifier,
+                        is_saved,
+                        gr.update(visible=False),
+                        f"✓ Loaded: {identifier}",
+                    )
 
                 def save_job(job_data, identifier, is_saved):
                     if is_saved:
-                        return "ℹ Job posting is already saved", "", None, True, gr.update(visible=False)
+                        return (
+                            "ℹ Job posting is already saved",
+                            "",
+                            None,
+                            True,
+                            gr.update(visible=False),
+                        )
 
                     if not job_data or not identifier:
-                        return "⚠ Please analyze a job posting first and provide an identifier", "", None, False, gr.update(visible=True)
+                        return (
+                            "⚠ Please analyze a job posting first and provide an identifier",
+                            "",
+                            None,
+                            False,
+                            gr.update(visible=True),
+                        )
 
                     try:
                         metadata = service.save_job_posting(job_data, identifier)
                         jobs = service.get_job_postings()
                         job_list_data = [
                             [
-                                j.get("created_at", "")[:10] if j.get("created_at") else "",  # Just the date part
+                                j.get("created_at", "")[:10]
+                                if j.get("created_at")
+                                else "",  # Just the date part
                                 j.get("company", ""),
                                 j.get("title", ""),
                                 j.get("url", ""),
-                                j.get("identifier", "")
+                                j.get("identifier", ""),
                             ]
                             for j in jobs
                         ]
@@ -101,17 +143,25 @@ def create_app():
                             gr.update(visible=False),
                         )
                     except Exception as e:
-                        return f"✗ Error saving job posting: {str(e)}", "", None, False, gr.update(visible=True)
+                        return (
+                            f"✗ Error saving job posting: {str(e)}",
+                            "",
+                            None,
+                            False,
+                            gr.update(visible=True),
+                        )
 
                 def load_jobs():
                     jobs = service.get_job_postings()
                     job_list_data = [
                         [
-                            j.get("created_at", "")[:10] if j.get("created_at") else "",  # Just the date part
+                            j.get("created_at", "")[:10]
+                            if j.get("created_at")
+                            else "",  # Just the date part
                             j.get("company", ""),
                             j.get("title", ""),
                             j.get("url", ""),
-                            j.get("identifier", "")
+                            j.get("identifier", ""),
                         ]
                         for j in jobs
                     ]
@@ -119,23 +169,54 @@ def create_app():
 
                 # Analyze job posting - clear previous results first, then run analysis
                 analyze_job_btn.click(
-                    fn=lambda: (None, "", False, gr.update(visible=False), "⏳ Analyzing job posting..."),
-                    outputs=[job_result, job_identifier, job_is_saved, job_save_controls, save_job_status],
+                    fn=lambda: (
+                        None,
+                        "",
+                        False,
+                        gr.update(visible=False),
+                        "⏳ Analyzing job posting...",
+                    ),
+                    outputs=[
+                        job_result,
+                        job_identifier,
+                        job_is_saved,
+                        job_save_controls,
+                        save_job_status,
+                    ],
                 ).then(
                     fn=analyze_job,
                     inputs=[job_url],
-                    outputs=[job_result, job_identifier, job_is_saved, job_save_controls, save_job_status],
+                    outputs=[
+                        job_result,
+                        job_identifier,
+                        job_is_saved,
+                        job_save_controls,
+                        save_job_status,
+                    ],
                 )
 
                 job_list.select(
                     fn=view_saved_job,
-                    outputs=[job_result, job_url, job_identifier, job_is_saved, job_save_controls, save_job_status],
+                    outputs=[
+                        job_result,
+                        job_url,
+                        job_identifier,
+                        job_is_saved,
+                        job_save_controls,
+                        save_job_status,
+                    ],
                 )
 
                 save_job_btn.click(
                     fn=save_job,
                     inputs=[job_result, job_identifier, job_is_saved],
-                    outputs=[save_job_status, job_url, job_list, job_is_saved, job_save_controls],
+                    outputs=[
+                        save_job_status,
+                        job_url,
+                        job_list,
+                        job_is_saved,
+                        job_save_controls,
+                    ],
                 )
 
                 refresh_jobs_btn.click(fn=load_jobs, outputs=[job_list])
@@ -147,7 +228,9 @@ def create_app():
             with gr.Tab("Curriculum Vitae"):
                 with gr.Group():
                     gr.Markdown("### Import CV")
-                    cv_file = gr.File(label="CV File", file_types=[".json", ".yaml", ".txt"])
+                    cv_file = gr.File(
+                        label="CV File", file_types=[".json", ".yaml", ".txt"]
+                    )
                     cv_path = gr.Textbox(
                         label="Or File Path",
                         placeholder="/path/to/cv.json",
@@ -182,40 +265,78 @@ def create_app():
                 def analyze_cv(file, path):
                     file_path = file.name if file else path
                     if not file_path:
-                        return None, "", False, gr.update(visible=False), "⚠ Please provide a file or path"
+                        return (
+                            None,
+                            "",
+                            False,
+                            gr.update(visible=False),
+                            "⚠ Please provide a file or path",
+                        )
 
                     cv_data, identifier = service.create_cv(file_path)
                     is_saved = False
-                    return cv_data, identifier, is_saved, gr.update(visible=True), "✓ Analysis complete"
+                    return (
+                        cv_data,
+                        identifier,
+                        is_saved,
+                        gr.update(visible=True),
+                        "✓ Analysis complete",
+                    )
 
                 def view_saved_cv(evt: gr.SelectData):
-                    identifier = evt.row_value[1]  # Second column is identifier (after Date)
+                    identifier = evt.row_value[
+                        1
+                    ]  # Second column is identifier (after Date)
 
                     if not identifier:
                         return None, "", True, gr.update(visible=False), ""
 
                     cv = service.repository.get_cv(identifier)
                     if not cv:
-                        return None, "", True, gr.update(visible=False), "⚠ CV not found"
+                        return (
+                            None,
+                            "",
+                            True,
+                            gr.update(visible=False),
+                            "⚠ CV not found",
+                        )
 
                     cv_data = cv.model_dump()
                     is_saved = True
 
-                    return cv_data, identifier, is_saved, gr.update(visible=False), f"✓ Loaded: {identifier}"
+                    return (
+                        cv_data,
+                        identifier,
+                        is_saved,
+                        gr.update(visible=False),
+                        f"✓ Loaded: {identifier}",
+                    )
 
                 def save_cv(cv_data, identifier, is_saved):
                     if is_saved:
-                        return "ℹ CV is already saved", None, True, gr.update(visible=False)
+                        return (
+                            "ℹ CV is already saved",
+                            None,
+                            True,
+                            gr.update(visible=False),
+                        )
 
                     if not cv_data or not identifier:
-                        return "⚠ Please analyze a CV first and provide an identifier", None, False, gr.update(visible=True)
+                        return (
+                            "⚠ Please analyze a CV first and provide an identifier",
+                            None,
+                            False,
+                            gr.update(visible=True),
+                        )
 
                     try:
                         metadata = service.save_cv(cv_data, identifier)
                         cvs = service.get_cvs()
                         cv_list_data = [
                             [
-                                c.get("created_at", "")[:10] if c.get("created_at") else "",
+                                c.get("created_at", "")[:10]
+                                if c.get("created_at")
+                                else "",
                                 c.get("identifier", ""),
                                 c.get("name", ""),
                                 c.get("profession", ""),
@@ -229,7 +350,12 @@ def create_app():
                             gr.update(visible=False),
                         )
                     except Exception as e:
-                        return f"✗ Error saving CV: {str(e)}", None, False, gr.update(visible=True)
+                        return (
+                            f"✗ Error saving CV: {str(e)}",
+                            None,
+                            False,
+                            gr.update(visible=True),
+                        )
 
                 def load_cvs():
                     cvs = service.get_cvs()
@@ -246,17 +372,41 @@ def create_app():
 
                 # Analyze CV - clear previous results first, then run analysis
                 analyze_cv_btn.click(
-                    fn=lambda: (None, "", False, gr.update(visible=False), "⏳ Analyzing CV..."),
-                    outputs=[cv_result, cv_identifier, cv_is_saved, cv_save_controls, save_cv_status],
+                    fn=lambda: (
+                        None,
+                        "",
+                        False,
+                        gr.update(visible=False),
+                        "⏳ Analyzing CV...",
+                    ),
+                    outputs=[
+                        cv_result,
+                        cv_identifier,
+                        cv_is_saved,
+                        cv_save_controls,
+                        save_cv_status,
+                    ],
                 ).then(
                     fn=analyze_cv,
                     inputs=[cv_file, cv_path],
-                    outputs=[cv_result, cv_identifier, cv_is_saved, cv_save_controls, save_cv_status],
+                    outputs=[
+                        cv_result,
+                        cv_identifier,
+                        cv_is_saved,
+                        cv_save_controls,
+                        save_cv_status,
+                    ],
                 )
 
                 cv_list.select(
                     fn=view_saved_cv,
-                    outputs=[cv_result, cv_identifier, cv_is_saved, cv_save_controls, save_cv_status],
+                    outputs=[
+                        cv_result,
+                        cv_identifier,
+                        cv_is_saved,
+                        cv_save_controls,
+                        save_cv_status,
+                    ],
                 )
 
                 save_cv_btn.click(
@@ -311,13 +461,19 @@ def create_app():
                 def load_job_choices():
                     jobs = service.get_job_postings()
                     return gr.Dropdown(
-                        choices=[(f"{j['company']} - {j['title']}", j["identifier"]) for j in jobs]
+                        choices=[
+                            (f"{j['company']} - {j['title']}", j["identifier"])
+                            for j in jobs
+                        ]
                     )
 
                 def load_cv_choices():
                     cvs = service.get_cvs()
                     return gr.Dropdown(
-                        choices=[(f"{c['name']} ({c['profession']})", c["identifier"]) for c in cvs]
+                        choices=[
+                            (f"{c['name']} ({c['profession']})", c["identifier"])
+                            for c in cvs
+                        ]
                     )
 
                 def run_optimization(job_id, cv_id):
@@ -346,7 +502,9 @@ def create_app():
                     outputs=[optimization_status, optimization_result],
                 )
 
-                refresh_optimizations_btn.click(fn=load_optimizations, outputs=[optimization_list])
+                refresh_optimizations_btn.click(
+                    fn=load_optimizations, outputs=[optimization_list]
+                )
 
                 # Load optimizations and choices on startup
                 app.load(fn=load_job_choices, outputs=[job_dropdown])
@@ -392,7 +550,10 @@ def create_app():
 
                 def generate_pdf(optimization_id, cv_json, template):
                     if not optimization_id and not cv_json:
-                        return "⚠ Please select an optimization or upload a CV JSON", None
+                        return (
+                            "⚠ Please select an optimization or upload a CV JSON",
+                            None,
+                        )
 
                     result = service.generate_pdf(optimization_id)
                     status = f"✓ PDF generated: {result.get('pdf_path', '')}"
@@ -450,7 +611,7 @@ def create_app():
 
                     result = "**📚 Retrieved Context:**\n\n"
                     for doc in context_docs:
-                        source = doc.metadata.get('source', 'Unknown source')
+                        source = doc.metadata.get("source", "Unknown source")
                         result += f"**Source:** `{source}`\n\n"
                         result += doc.page_content + "\n\n---\n\n"
                     return result
@@ -462,15 +623,19 @@ def create_app():
 
                     last_message = history[-1]["content"]
                     prior = history[:-1]
-                    answer, context_docs = chat_service.answer_question(last_message, prior)
+                    answer, context_docs = chat_service.answer_question(
+                        last_message, prior
+                    )
                     history.append({"role": "assistant", "content": answer})
 
                     # Track this exchange with its sources
-                    exchanges.append({
-                        "question": last_message,
-                        "answer": answer,
-                        "context_docs": context_docs
-                    })
+                    exchanges.append(
+                        {
+                            "question": last_message,
+                            "answer": answer,
+                            "context_docs": context_docs,
+                        }
+                    )
 
                     return history, format_context(context_docs), exchanges
 
@@ -491,10 +656,10 @@ def create_app():
                         markdown += f"## Q{i}: {exchange['question']}\n\n"
                         markdown += f"**Answer:**\n\n{exchange['answer']}\n\n"
 
-                        if exchange['context_docs']:
+                        if exchange["context_docs"]:
                             markdown += "**Sources:**\n\n"
-                            for doc in exchange['context_docs']:
-                                source = doc.metadata.get('source', 'Unknown source')
+                            for doc in exchange["context_docs"]:
+                                source = doc.metadata.get("source", "Unknown source")
                                 markdown += f"- `{source}`\n"
                                 markdown += f"  > {doc.page_content[:200]}...\n\n"
 
@@ -502,7 +667,10 @@ def create_app():
 
                     # Write to temporary file
                     import tempfile
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", suffix=".md", delete=False
+                    ) as f:
                         f.write(markdown)
                         temp_path = f.name
 

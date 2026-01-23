@@ -2,9 +2,9 @@
 Quick test to verify the job posting analyzer works.
 """
 
-from services.optimization_service import CvOptimizationService
+from services.agency_service import AgencyService
 
-service = CvOptimizationService()
+service = AgencyService()
 
 # Use the same URL from the job_analysis script
 url = "https://app.welcometothejungle.com/dashboard/jobs/oA1SArxV"

@@ -4,9 +4,9 @@ from services.analyzers.cv_analyzer import CvAnalyzer
 from repositories.filesystem_repository import FileSystemRepository
 
 
-class CvOptimizationService:
+class AgencyService:
     """
-    Service layer for CV optimization operations.
+    Service layer for CV agency operations.
 
     This class provides the application boundary between the UI and domain logic.
     All methods accept and return JSON-serializable dictionaries.
