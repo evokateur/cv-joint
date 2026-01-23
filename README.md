@@ -6,8 +6,8 @@ Track job postings, create targeted CV data, render CVs with LaTeX
 
 - Creates structured Job Postings from URLs
 - Creates structured CV data from text files
-- Creates optimized CV data for a job posting
-- Renders CV data in LaTeX PDF files
+- Creates optimized CV data for a job posting (in progress)
+- Renders CV data in LaTeX PDF files (in progress)
 
 ## Implementation
 
