@@ -30,10 +30,14 @@ class CvOptimizationService:
             tuple of (job_posting_data, suggested_identifier)
         """
         job_posting = self.job_posting_analyzer.analyze(url)
-        identifier = self._generate_job_identifier(job_posting.company, job_posting.title)
+        identifier = self._generate_job_identifier(
+            job_posting.company, job_posting.title
+        )
         return job_posting.model_dump(), identifier
 
-    def save_job_posting(self, job_posting_data: dict[str, Any], identifier: str) -> dict[str, Any]:
+    def save_job_posting(
+        self, job_posting_data: dict[str, Any], identifier: str
+    ) -> dict[str, Any]:
         """
         Save a job posting to the repository.
 
@@ -109,6 +113,10 @@ class CvOptimizationService:
         """
         Save a CV to the repository.
 
+        Handles identifier collisions by appending a number suffix if the
+        identifier already exists. This allows re-analyzing the same CV
+        without overwriting the previous analysis.
+
         Args:
             cv_data: CV data dict (from create_cv)
             identifier: Identifier to use for this CV
@@ -119,6 +127,19 @@ class CvOptimizationService:
         from models import CurriculumVitae
 
         cv = CurriculumVitae(**cv_data)
+
+        # Check for identifier collision
+        if self.repository.get_cv(identifier):
+            # Find next available identifier by appending number
+            counter = 2
+            original_identifier = identifier
+            while True:
+                candidate_identifier = f"{original_identifier}-{counter}"
+                if not self.repository.get_cv(candidate_identifier):
+                    identifier = candidate_identifier
+                    break
+                counter += 1
+
         metadata = self.repository.save_cv(cv, identifier)
         return metadata
 
@@ -143,9 +164,7 @@ class CvOptimizationService:
         """
         return self.repository.list_cvs()
 
-    def create_optimization(
-        self, job_posting_id: str, cv_id: str
-    ) -> dict[str, Any]:
+    def create_optimization(self, job_posting_id: str, cv_id: str) -> dict[str, Any]:
         """
         Create a CV optimization for a job posting.
 
@@ -184,13 +203,13 @@ class CvOptimizationService:
             {
                 "identifier": "automattic-senior-engineer-2024-11-06",
                 "job_posting": "Automattic - Senior Engineer",
-                "cv": "Wesley Aptekar-Cassels",
+                "cv": "Septimus Fall",
                 "date": "2024-11-06",
             },
             {
                 "identifier": "google-staff-swe-2024-11-05",
                 "job_posting": "Google - Staff SWE",
-                "cv": "Wesley Aptekar-Cassels",
+                "cv": "Fritzi Ritz",
                 "date": "2024-11-05",
             },
         ]
