@@ -1,6 +1,13 @@
+"""
+Shared configuration utilities and models.
+
+Base utilities (AgentSettings, ChatSettings, BaseConfig, load_yaml_config) are defined here
+and imported by analyzer crews for their own settings.
+"""
+
 from pathlib import Path
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 import yaml
 
 
@@ -11,34 +18,11 @@ class AgentSettings(BaseModel):
     temperature: float = Field(ge=0.0, le=2.0, description="LLM temperature (0.0-2.0)")
 
 
-class RagSettings(BaseModel):
-    """Configuration for RAG (Retrieval-Augmented Generation)"""
+class ChatSettings(BaseModel):
+    """Configuration for chat/conversation models"""
 
-    embedding_model: str = Field(min_length=1)
-    collection_name: str = Field(min_length=1)
-    num_results: int = Field(gt=0, description="Number of results to retrieve")
-    chunk_size: int = Field(ge=100, description="Chunk size for text splitting")
-    chunk_overlap: int = Field(ge=0, description="Overlap between chunks")
-
-    @field_validator("chunk_overlap")
-    @classmethod
-    def overlap_less_than_size(cls, v, info):
-        if "chunk_size" in info.data and v >= info.data["chunk_size"]:
-            raise ValueError("chunk_overlap must be less than chunk_size")
-        return v
-
-
-class PathSettings(BaseModel):
-    """Configuration for file paths"""
-
-    knowledge_base: str
-    vector_db: str
-
-
-class SettingsModel(BaseModel):
-    agents: dict[str, AgentSettings]
-    rag: RagSettings
-    paths: PathSettings
+    model: str = Field(min_length=1, description="LLM model name for chat")
+    temperature: float = Field(ge=0.0, le=2.0, description="LLM temperature (0.0-2.0)")
 
 
 def load_yaml_config(config_dir: Path) -> dict:
@@ -77,7 +61,7 @@ def deep_merge(base: dict, override: dict) -> None:
 class BaseConfig:
     """Base configuration class with common initialization and agent setting access"""
 
-    def __init__(self, config_dir: Path, settings_model: type[SettingsModel]):
+    def __init__(self, config_dir: Path, settings_model: type[BaseModel]):
         load_dotenv()
         yaml_config = load_yaml_config(config_dir)
         self._settings = settings_model(**yaml_config)
@@ -88,3 +72,29 @@ class BaseConfig:
         if agent is None:
             raise ValueError(f"Agent '{agent_name}' not found in settings.yaml")
         return getattr(agent, setting)
+
+
+# Main application settings
+
+
+class Settings(BaseModel):
+    """Main application configuration model"""
+
+    chat: ChatSettings
+
+
+class Config(BaseConfig):
+    def __init__(self):
+        super().__init__(Path(__file__).parent, Settings)
+
+
+def get_chat_config() -> dict:
+    """Get chat configuration from YAML, validated with Pydantic"""
+    config_dir = Path(__file__).parent
+    yaml_config = load_yaml_config(config_dir)
+    settings = Settings(**yaml_config)
+
+    return {
+        "model": settings.chat.model,
+        "temperature": settings.chat.temperature,
+    }

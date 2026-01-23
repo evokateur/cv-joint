@@ -1,6 +1,6 @@
 from pathlib import Path
 from pydantic import BaseModel
-from shared.config import AgentSettings, BaseConfig
+from config.settings import AgentSettings, BaseConfig
 
 
 class Settings(BaseModel):

@@ -5,7 +5,7 @@ CLI entry point for the Gradio UI.
 
 def main():
     """Launch the Gradio UI."""
-    from ui.gradio_app import launch
+    from ui.app import launch
 
     launch()
 
