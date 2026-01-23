@@ -6,6 +6,7 @@ and imported by analyzer crews for their own settings.
 """
 
 from pathlib import Path
+from typing import Optional
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 import yaml
@@ -23,6 +24,14 @@ class ChatSettings(BaseModel):
 
     model: str = Field(min_length=1, description="LLM model name for chat")
     temperature: float = Field(ge=0.0, le=2.0, description="LLM temperature (0.0-2.0)")
+
+
+class McpServerSettings(BaseModel):
+    """Configuration for an MCP server"""
+
+    command: str = Field(description="Command to run the MCP server")
+    args: list[str] = Field(default_factory=list, description="Command arguments")
+    env: dict[str, str] = Field(default_factory=dict, description="Environment variables")
 
 
 def load_yaml_config(config_dir: Path) -> dict:
@@ -81,6 +90,7 @@ class Settings(BaseModel):
     """Main application configuration model"""
 
     chat: ChatSettings
+    mcp: Optional[dict[str, McpServerSettings]] = None
 
 
 class Config(BaseConfig):
@@ -98,3 +108,20 @@ def get_chat_config() -> dict:
         "model": settings.chat.model,
         "temperature": settings.chat.temperature,
     }
+
+
+def get_mcp_config(server_name: str) -> Optional[McpServerSettings]:
+    """Get MCP server configuration by name, or None if not configured."""
+    config_dir = Path(__file__).parent
+    yaml_config = load_yaml_config(config_dir)
+    settings = Settings(**yaml_config)
+
+    if settings.mcp is None:
+        return None
+
+    return settings.mcp.get(server_name)
+
+
+def is_mcp_configured(server_name: str = "rag-knowledge") -> bool:
+    """Check if an MCP server is configured."""
+    return get_mcp_config(server_name) is not None
