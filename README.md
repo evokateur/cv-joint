@@ -17,7 +17,7 @@ Track job postings, create targeted CV data, render CVs with LaTeX
 
 - Gradio tabbed UI
 
-- CVs are made with Jinja2 using custom delimiters that play well with LaTeX:
+- PDF CVs are rendered with Jinja2 using custom delimiters that play well with LaTeX:
 
   |              | customized | standard jinja2 |
   | ------------ | ---------- | --------------- |
