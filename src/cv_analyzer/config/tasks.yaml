@@ -1,0 +1,35 @@
+cv_analysis_task:
+  description: >
+    Parse and structure the CV/resume data from the provided file path ({candidate_cv_path})
+    into a standardized CurriculumVitae schema. Follow these rules:
+
+    **1. Data Extraction**
+    - Parse the input file (text format: JSON, YAML, or plain text)
+    - Extract all relevant information including personal details, experience, education, skills
+
+    **2. Schema Compliance**
+    - Structure data according to the CurriculumVitae Pydantic model
+    - Ensure all required fields are populated
+    - Organize skills into appropriate categories (Languages, Technologies, Patterns & Principles)
+
+    **3. Experience Categorization**
+    - Separate main experience from additional/earlier experience
+    - Extract detailed responsibilities as individual bullet points
+    - Preserve dates, locations, and company information
+
+    **4. Skills Organization**
+    - Group technical skills into logical categories
+    - Distinguish between programming languages, frameworks, tools, and methodologies
+    - Extract both hard and soft skills appropriately
+
+    **5. Data Quality**
+    - Normalize formatting and terminology
+    - Ensure consistency in date formats, location formats
+    - Preserve all quantifiable achievements and metrics
+
+    Output must be a valid CurriculumVitae object that matches the established schema.
+  expected_output: >
+    A structured CurriculumVitae JSON object with all sections properly organized
+    and compliant with the established schema, ready for optimization processing.
+  output_file: "{output_directory}/original_cv.json"
+  agent: cv_analyst

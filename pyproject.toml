@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cv-agency"
+version = "0.1.0"
+description = "Job posting tracker, CV renderer, and AI-powered optimization system"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic",
+    "beautifulsoup4",
+    "crewai",
+    "crewai-tools",
+    "gradio",
+    "python-dotenv",
+    "jinja2",
+    "langchain",
+    "langchain_community",
+    "langchain-core",
+    "langchain-openai",
+    "pydantic",
+    "pyyaml",
+    "requests",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio",
+]
+
+[project.scripts]
+cv-agency = "ui.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning:pydantic.*:",
+]
+
+[tool.uv]
+required-environments = [
+  "sys_platform == 'darwin' and platform_machine == 'x86_64'"
+]

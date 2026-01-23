@@ -1,0 +1,60 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Cover Letter Data",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "Full name of the applicant"
+        },
+        "contact": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string",
+                    "description": "City of residence"
+                },
+                "state": {
+                    "type": "string",
+                    "description": "State of residence (abbreviated)"
+                },
+                "phone": {
+                    "type": "string",
+                    "description": "Phone number in format +1-XXX-XXX-XXXX"
+                },
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email address"
+                }
+            },
+            "required": ["city", "state", "phone", "email"],
+            "additionalProperties": false
+        },
+        "company": {
+            "type": "string",
+            "description": "Name of the target company"
+        },
+        "position": {
+            "type": "string",
+            "description": "Title of the position being applied for"
+        },
+        "paragraphs": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "minItems": 1,
+            "description": "Main paragraphs of the cover letter"
+        },
+        "alternate_paragraphs": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Alternative paragraphs that can be used in place of main paragraphs"
+        }
+    },
+    "required": ["name", "contact", "company", "position", "paragraphs"],
+    "additionalProperties": false
+}

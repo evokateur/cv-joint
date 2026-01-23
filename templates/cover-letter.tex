@@ -1,0 +1,39 @@
+\documentclass[10pt]{letter}
+
+\usepackage{geometry}
+
+\geometry{
+	paper=a4paper, % Paper size, change to letterpaper for US letter size
+	top=2cm, % Top margin
+	bottom=2.5cm, % Bottom margin
+	left=3.25cm, % Left margin
+	right=3.25cm, % Right margin
+	%showframe, % Uncomment to show how the type block is set on the page
+}
+
+\begin{document}
+
+\begin{letter}{}
+
+\begin{center}
+\large\bfseries % Font size and styling
+    (( name )) \\
+    (( contact.city )) (( contact.state )) \\
+    (( contact.phone ))  \\
+    (( contact.email )) \\
+\end{center}
+
+\date{\raggedright\today} % Left-aligned date of the letter, use \today for the current date
+\vspace{1cm} % Vertical whitespace
+
+\signature{ (( name )) } % Your name for the signature at the bottom
+
+\opening{Dear Hiring Manager,}
+    (# for paragraph in paragraphs #)
+    (( paragraph ))
+    (# endfor #)
+\closing{Sincerely,}
+
+\end{letter}
+
+\end{document}

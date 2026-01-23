@@ -1,0 +1,7 @@
+# Default configuration for Job Posting Analyzer crew
+# Override locally by creating settings.local.yaml (gitignored)
+
+agents:
+  job_analyst:
+    model: "gpt-4o-mini"
+    temperature: 0.7

@@ -1,0 +1,21 @@
+{
+    "name": "Wesley Hinkle",
+    "contact": {
+        "city": "Oakland",
+        "state": "CA",
+        "phone": "+1-510-384-8010",
+        "email": "wesley@evokateur.net"
+    },
+    "company": "FrobozzCo",
+    "position": "Sr. Magic Gunk Developer",
+    "paragraphs": [
+        "I am writing to express my interest in the xXposition position at xXcompany. With over 20 years of experience as a software developer, I have developed a strong foundation in building software, web, and mobile applications, with a special focus on creating solutions for workers' unions across the U.S. I have worked with a variety of users, from union members to contractors, helping them manage complex operations like reciprocity, benefits tracking, and pension estimation.",
+        "My most recent role involved implementing crucial development infrastructure improvements, such as establishing version control and enhancing the team’s collaborative practices. Initially, there was no system in place to track the source code, which led to inefficiencies and \"in-place\" fixes that made it difficult to maintain the codebase. I took the initiative to build and configure a GitLab server from the ground up, migrating it to Omnibus to streamline development workflows. This change allowed for a smooth transition to remote work for the team and helped manage dependencies effectively, ensuring that deployments were consistent and error-free. My commitment to improving team processes not only improved code management but also enhanced the overall developer experience by making the codebase more understandable, maintainable, and easier to track.",
+        "I am particularly excited about this opportunity at xXcompany because it aligns with my passion for clean, maintainable code and systems design. I thrive when working with abstract concepts, and I have a genuine interest in modeling domains and understanding the relationships between system components. I enjoy building solutions that make sense both to users and developers, ensuring they are not only effective but also easy to understand and extend. The challenge of working with well-defined use cases and domain models is one I truly enjoy, and I am eager to bring my expertise in database management, object-oriented programming, and API design to your team.",
+        "Your company’s commitment to fostering a team-oriented environment with strong best practices and methodologies resonates with me. I thrive in teams that value bottom-up system thinking and clear, structured communication. I believe my approach to developing clean, testable, and maintainable code, combined with my focus on problem-solving and quality, would be an excellent fit for your team. I look forward to the possibility of contributing to xXcompany and working alongside like-minded professionals who value craftsmanship in software development.",
+        "Thank you for considering my application. I would be thrilled to discuss how my experience and strengths can contribute to the continued success of xXcompany."
+    ],
+    "alternate_paragraphs": [
+        "A key example of my ability to maintain good communication despite being initially not included in technical discussions occurred during a project where the client and web designer were in regular communication, but I was not involved in these conversations. The design phase was completed, and I was presented with designs of the webpage that the client liked, but the design didn’t align with the technical requirements. Upon closer inspection, I found that the functionality described was overly simplified and didn't match what was needed for development. To address this, I listened to meeting recordings and used a transcription tool to understand the conversations better. From this, I derived the necessary use cases and identified the gaps between the client’s expectations and what needed to be coded. As a result, the site was successfully built with the required functionality, demonstrating my ability to bridge communication gaps and ensure the project met technical standards."
+    ]
+}

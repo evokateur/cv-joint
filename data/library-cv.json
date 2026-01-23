@@ -1,0 +1,106 @@
+{
+    "name": "Wesley Hinkle",
+    "contact": {
+        "city": "Oakland",
+        "state": "CA",
+        "email": "wesley@evokateur.net",
+        "phone": "+1-510-384-8010",
+        "linkedin": "linkedin.com/in/wesley-c-hinkle",
+        "github": "github.com/evokateur"
+    },
+    "profession": "Technical Support \\& Information Services",
+    "core_expertise": [
+        "Customer Service \\& User Support",
+        "Information Organization",
+        "Technical Troubleshooting"
+    ],
+    "summary_of_qualifications": [
+        "Friendly and detail-oriented professional with a strong technical background and experience supporting end-users and maintaining accurate records. Adept at learning new systems quickly, explaining procedures clearly, and working with diverse communities. Proven ability to manage multiple tasks efficiently, assist users with hardware and software, and support team operations in fast-paced environments. Looking to contribute my organizational strengths and service mindset in a Library Aide role."
+    ],
+    "education": [
+        {
+            "degree": "Bachelor of Arts in Cognitive Science (Credit Hours Completed)",
+            "coursework": "Interdisciplinary program combining Computer Science, Linguistics, Philosophy of Mind, Cognitive Psychology, and Neuroscience",
+            "institution": "University of California, Berkeley",
+            "location": "Berkeley, CA",
+            "start_date": "2006",
+            "end_date": "2009"
+        }
+    ],
+    "experience": [
+        {
+            "title": "Backend Developer (Technical Support \\& Records Management Emphasis)",
+            "company": "MultiEmployer, Inc.",
+            "location": "Berkeley, CA",
+            "start_date": "April 2009",
+            "end_date": "July 2024",
+            "responsibilities": [
+                "Provided internal support to staff using backend tools and applications; documented clear usage instructions and fielded common technical issues.",
+                "Assisted colleagues and non-technical users with understanding software processes, maintaining a collaborative and patient communication style.",
+                "Developed structured data systems to ensure consistent tracking of member benefits, dues payments, and related records.",
+                "Maintained organized, auditable release and version control schedules using Git, ensuring precise documentation and recovery procedures.",
+                "Trained team members on best practices for versioning, data hygiene, and automated workflows to increase reliability and reduce errors.",
+                "Set up and maintained technical environments, helping less technical coworkers use shared systems across a variety of legacy and modern tools."
+            ]
+        }
+    ],
+    "additional_experience": [
+        {
+            "title": "Research Assistant \\& Programmer",
+            "company": "Center for the Built Environment",
+            "location": "Berkeley, CA",
+            "start_date": "2007",
+            "end_date": "2012"
+        },
+        {
+            "title": "Software Engineer",
+            "company": "Synovation",
+            "location": "Modesto, CA",
+            "start_date": "2001",
+            "end_date": "2002"
+        },
+        {
+            "title": "Programmer",
+            "company": "American Medical Response",
+            "location": "Modesto, CA",
+            "start_date": "1998",
+            "end_date": "2001"
+        }
+    ],
+    "areas_of_expertise": [
+        {
+            "name": "Technical \\& Service Skills",
+            "skills": [
+                "User Support \\& Troubleshooting",
+                "Data Entry \\& Record Accuracy",
+                "Process Documentation",
+                "Task Prioritization",
+                "Written \\& Verbal Communication",
+                "Computer Literacy (PC, Office, Database Systems)"
+            ]
+        },
+        {
+            "name": "Software \\& Systems (Familiar)",
+            "skills": [
+                "PHP",
+                "Python",
+                "SQL",
+                "Shell Scripting",
+                "MySQL",
+                "PostgreSQL",
+                "GitLab",
+                "Microsoft Office"
+            ]
+        }
+    ],
+    "languages": [
+        {
+            "language": "English",
+            "level": "Native"
+        },
+        {
+            "language": "French",
+            "level": "A2-B1"
+        }
+    ]
+}

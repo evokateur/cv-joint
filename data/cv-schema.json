@@ -1,0 +1,216 @@
+{
+    "$schema": "http://json-schema.org/draft-06/schema#",
+    "$ref": "#/definitions/CvSchema",
+    "definitions": {
+        "CvSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "contact": {
+                    "$ref": "#/definitions/Contact"
+                },
+                "profession": {
+                    "type": "string"
+                },
+                "core_expertise": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "summary_of_qualifications": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "education": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Education"
+                    }
+                },
+                "experience": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Experience"
+                    }
+                },
+                "additional_experience": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Experience"
+                    }
+                },
+                "areas_of_expertise": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/AreasOfExpertise"
+                    }
+                },
+                "languages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Language"
+                    }
+                }
+            },
+            "required": [
+                "additional_experience",
+                "areas_of_expertise",
+                "contact",
+                "core_expertise",
+                "education",
+                "experience",
+                "languages",
+                "name",
+                "profession",
+                "summary_of_qualifications"
+            ],
+            "title": "CvSchema"
+        },
+        "Experience": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "title": {
+                    "type": "string"
+                },
+                "company": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "responsibilities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "company",
+                "end_date",
+                "location",
+                "start_date",
+                "title"
+            ],
+            "title": "Experience"
+        },
+        "AreasOfExpertise": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "name",
+                "skills"
+            ],
+            "title": "AreasOfExpertise"
+        },
+        "Contact": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "linkedin": {
+                    "type": "string"
+                },
+                "github": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "city",
+                "email",
+                "github",
+                "linkedin",
+                "phone",
+                "state"
+            ],
+            "title": "Contact"
+        },
+        "Education": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "degree": {
+                    "type": "string"
+                },
+                "coursework": {
+                    "type": "string"
+                },
+                "institution": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string",
+                    "format": "integer"
+                },
+                "end_date": {
+                    "type": "string",
+                    "format": "integer"
+                }
+            },
+            "required": [
+                "coursework",
+                "degree",
+                "end_date",
+                "institution",
+                "location",
+                "start_date"
+            ],
+            "title": "Education"
+        },
+        "Language": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "language": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "language",
+                "level"
+            ],
+            "title": "Language"
+        }
+    }
+}

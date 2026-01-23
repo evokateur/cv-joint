@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=./cv-schema.json
+
+name: Wesley Hinkle
+contact:
+  city: Oakland
+  state: CA
+  email: wesley@evokateur.net
+  phone: +1-510-384-8010
+  linkedin: wesley-c-hinkle
+  github: evokateur
+profession: Software Engineer
+core_expertise:
+  - Backend Development
+  - "API Design & implementation"
+  - Data Modeling
+summary_of_qualifications:
+  - Backend Engineer with extensive experience in data integration and transformation, skilled in modeling domains and designing relational schemas. Successfully led projects involving complex operations like dues collection and benefits tracking for workers' unions, impacting thousands of employees. Adept at overcoming challenges with inconsistent data and varying system requirements, aiming to leverage expertise in structured, scalable solutions to enhance backend systems.
+education:
+  - degree: Bachelor of Arts in Cognitive Science (Credit Hours Completed)
+    coursework: Interdisciplinary program combining Computer Science, Linguistics, Philosophy of Mind, Cognitive Psychology, and Neuroscience
+    institution: University of California, Berkeley
+    location: Berkeley, CA
+    start_date: "2006"
+    end_date: "2009"
+experience:
+  - title: Backend Developer
+    company: MultiEmployer, Inc.
+    location: Berkeley, CA
+    start_date: April 2009
+    end_date: July 2024
+    responsibilities:
+      - Developed enterprise applications, designed and implemented REST APIs for third-party integrations, built and maintained application APIs for client mobile apps
+      - Led domain modeling efforts for enterprise processes such as employer union remittances, dues collection, and ACH transactions by documenting domain models, creating structured data representations, and developing use cases to ensure a shared understanding amongst team members
+      - Engineered data migration processes by writing scripts to map legacy data from various systems into relational schema, enabling modernization while supporting backward compatibility for legacy systems
+      - Led the implementation of version control infrastructure by setting up and managing GitLab, migrating from source code install to Omnibus, then migrating from MySQL to PostgreSQL
+      - Refactored and untangled legacy codebases to improve modularity and maintainability and designed Git workflows with a structured release tag schema to enable seamless tracking, rollback, and deployment of code
+      - Managed development environments using a fork of Laravel Homestead and Vagrant, creating build scripts to handle dependencies and configure infrastructure for 10+ legacy applications with unique server requirements
+      - Automated deployment tasks using shell scripts and cron jobs, optimized build pipelines for reliable application deployment, and leveraged AWS services (EC2, RDS) for cloud hosting and database management
+      - Integrated WordPress with PHP frameworks, developing Git workflow strategy, scripts for plugin dependencies, and scripts for dev environment provisioning and deployment using Migrate DB Pro
+additional_experience:
+  - title: "Research Assistant & Programmer"
+    company: Center for the Built Environment
+    location: Berkeley, CA
+    start_date: "2007"
+    end_date: "2012"
+  - title: Software Engineer
+    company: Synovation
+    location: Modesto, CA
+    start_date: "2001"
+    end_date: "2002"
+  - title: Programmer
+    company: American Medical Response
+    location: Modesto, CA
+    start_date: "1998"
+    end_date: "2001"
+areas_of_expertise:
+  - name: Languages
+    skills:
+      - PHP
+      - JavaScript
+      - Python
+      - SQL
+      - Shell Scripting
+  - name: Technologies
+    skills:
+      - FastAPI
+      - Laravel
+      - Symfony
+      - MySQL
+      - PostgreSQL
+      - MSSQL
+      - Nginx
+      - Apache
+      - Gitlab
+      - IIS
+  - name: "Patterns & Principles"
+    skills:
+      - MVC
+      - REST
+      - DDD
+      - Clean Architecture
+languages:
+  - language: English
+    level: Native
+  - language: French
+    level: A2-B1

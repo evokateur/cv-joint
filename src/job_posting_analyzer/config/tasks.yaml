@@ -1,0 +1,52 @@
+job_analysis_task:
+  description: >
+    Analyze the job posting at the EXACT URL provided ({job_posting_url}).
+
+    CRITICAL CONSTRAINTS:
+    - ONLY analyze the exact URL provided - DO NOT search for alternative job postings
+    - DO NOT use SerperDevTool or any search capabilities
+    - If the URL is inaccessible or does not contain job posting content, follow the failure protocol below
+
+    FAILURE PROTOCOL:
+    If you cannot access the URL or it does not contain valid job posting content:
+    - Set title to "ERROR: Could not retrieve job posting"
+    - Set company to "Unknown"
+    - Set industry to "Unknown"
+    - Set description to "Failed to access URL: {job_posting_url}"
+    - Set experience_level to "unknown"
+    - Leave all other fields empty or with default values
+    - DO NOT attempt to find similar job postings elsewhere
+
+    If the URL IS accessible and contains job posting content, extract structured
+    information into the JobPosting schema following these rules:
+
+    **1. Metadata**
+    - Extract job title, company name, industry, full description, and experience level.
+
+    **2. Requirements**
+    - Extract degrees, certifications, and explicit "years of experience" requirements.
+    - Identify hard requirements (licenses, mandatory credentials).
+
+    **3. Skills**
+    - Technical skills: programming languages, frameworks, cloud platforms, tools.
+    - Soft skills: communication, teamwork, leadership, problem-solving.
+    - Preferred skills: "nice-to-have" extras.
+
+    **4. Responsibilities**
+    - Bullet out day-to-day tasks, focusing on specific duties (not vague culture blurbs).
+
+    **5. ATS Alignment**
+    - Keywords: important phrases used in the posting for filtering.
+    - Tools/tech stack: specific named technologies (AWS, Docker, React, etc).
+
+    **6. Normalization**
+    - Deduplicate terms (merge "Python 3" and "Python").
+    - Expand acronyms if possible (e.g., "CI/CD" -> "Continuous Integration / Continuous Deployment").
+    - Filter out vague corporate jargon ("fast-paced environment", "great culture").
+
+    Output must be a valid JobPosting object.
+  expected_output: >
+    A validated JobPosting object with all fields populated where possible,
+    ensuring consistency and ATS-awareness.
+  output_file: "{output_directory}/job_posting.json"
+  agent: job_analyst
