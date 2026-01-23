@@ -1,8 +1,6 @@
 # CV Agency
 
-Systematically tracks job postings and creates targeted CVs using AI-powered analysis and LaTeX PDF generation.
-
----
+Track job postings, create targeted CV data, render CVs with LaTeX
 
 ## Features
 
