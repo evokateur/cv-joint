@@ -12,7 +12,7 @@ dependencies = [
     "beautifulsoup4",
     "crewai",
     "crewai-tools",
-    "gradio",
+    "gradio<6.0.0",
     "python-dotenv",
     "jinja2",
     "langchain",
@@ -32,6 +32,8 @@ dev = [
 
 [project.scripts]
 cv-agency = "ui.cli:main"
+build-cv = "builder.cli:main_cv"
+build-cover-letter = "builder.cli:main_cover_letter"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,11 +1,9 @@
 import json
 import os
 from datetime import datetime
+from models.schema import JobPosting, CurriculumVitae
 from pathlib import Path
 from typing import Any, Optional
-
-from models.schema import JobPosting
-from models import CurriculumVitae
 
 
 class FileSystemRepository:
@@ -73,11 +71,13 @@ class FileSystemRepository:
         Path(file_path).parent.mkdir(parents=True, exist_ok=True)
 
         with open(file_path, "w") as f:
-            json.dump(job_posting.model_dump(mode='json'), f, indent=2)
+            json.dump(job_posting.model_dump(mode="json"), f, indent=2)
 
         collection = self._load_collection(self.job_postings_collection)
 
-        existing = next((item for item in collection if item["identifier"] == identifier), None)
+        existing = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
 
         now = datetime.now().isoformat()
 
@@ -93,7 +93,10 @@ class FileSystemRepository:
         }
 
         if existing:
-            collection = [item if item["identifier"] != identifier else metadata for item in collection]
+            collection = [
+                item if item["identifier"] != identifier else metadata
+                for item in collection
+            ]
         else:
             collection.append(metadata)
 
@@ -112,7 +115,9 @@ class FileSystemRepository:
             JobPosting domain object or None if not found
         """
         collection = self._load_collection(self.job_postings_collection)
-        metadata = next((item for item in collection if item["identifier"] == identifier), None)
+        metadata = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
 
         if not metadata:
             return None
@@ -175,11 +180,13 @@ class FileSystemRepository:
         Path(file_path).parent.mkdir(parents=True, exist_ok=True)
 
         with open(file_path, "w") as f:
-            json.dump(cv.model_dump(mode='json'), f, indent=2)
+            json.dump(cv.model_dump(mode="json"), f, indent=2)
 
         collection = self._load_collection(self.cvs_collection)
 
-        existing = next((item for item in collection if item["identifier"] == identifier), None)
+        existing = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
 
         now = datetime.now().isoformat()
 
@@ -193,7 +200,10 @@ class FileSystemRepository:
         }
 
         if existing:
-            collection = [item if item["identifier"] != identifier else metadata for item in collection]
+            collection = [
+                item if item["identifier"] != identifier else metadata
+                for item in collection
+            ]
         else:
             collection.append(metadata)
 
@@ -212,7 +222,9 @@ class FileSystemRepository:
             CurriculumVitae domain object or None if not found
         """
         collection = self._load_collection(self.cvs_collection)
-        metadata = next((item for item in collection if item["identifier"] == identifier), None)
+        metadata = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
 
         if not metadata:
             return None
