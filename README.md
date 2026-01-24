@@ -4,10 +4,11 @@ Track job postings, create targeted CV data, render CVs with LaTeX
 
 ## Features
 
-- Creates structured Job Postings from URLs
-- Creates structured CV data from text files
-- Creates optimized CV data for a job posting (in progress)
-- Renders CV data in LaTeX PDF files (in progress)
+- Create structured Job Postings from URLs
+- Create structured CV data from text files
+- Chat with RAG knowledge base MCP integration
+- Create optimized CV data for a job posting (in progress)
+- Render CV data in LaTeX PDF files (in progress)
 
 ## Implementation
 
@@ -59,6 +60,31 @@ Configure environment variables:
 
 ```sh
 cp sample.env .env # Edit .env and add API keys
+```
+
+### Configuring RAG equipped chat (optional)
+
+Create `src/config/settings.local.yaml` and add configuration, e.g.:
+
+```yaml
+# overrides settings in src/config/settings.yaml
+
+chat: # optional
+  model: "gpt-4o-mini" # default
+  temperature: 0.7 # default
+
+mcp:
+  rag-knowledge:
+    command: "/Users/footpad/.local/bin/uv"
+    args:
+      - "run"
+      - "--directory"
+      - "/Users/footpad/code/rag-knowledge-mcp"
+      - "python"
+      - "rag_knowledge_mcp.py"
+    tool_name: "rag_search_knowledge" # required for LLM context
+    env:
+      LOG_LEVEL: "INFO"
 ```
 
 ## Usage
