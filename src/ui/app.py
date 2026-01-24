@@ -625,14 +625,14 @@ def create_app():
                             result += doc.page_content + "\n\n---\n\n"
                         return result
 
-                    def chat(history, exchanges):
+                    async def chat(history, exchanges):
                         """Handle chat interaction with RAG."""
                         if not history:
                             return history, "*No context retrieved*", exchanges
 
                         last_message = history[-1]["content"]
                         prior = history[:-1]
-                        answer, context_docs = chat_service.answer_question(
+                        answer, context_docs = await chat_service.answer_question(
                             last_message, prior
                         )
                         history.append({"role": "assistant", "content": answer})

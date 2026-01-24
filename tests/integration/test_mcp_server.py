@@ -38,6 +38,7 @@ def test_mcp_server_connection():
     assert hasattr(result, "tools")
 
     tool_names = [tool.name for tool in result.tools]
-    assert "rag_search_knowledge" in tool_names, (
-        f"Expected 'rag_search_knowledge' tool, got: {tool_names}"
+    expected_tool = mcp_config.tool_name
+    assert expected_tool in tool_names, (
+        f"Expected '{expected_tool}' tool, got: {tool_names}"
     )

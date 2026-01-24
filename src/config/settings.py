@@ -32,6 +32,7 @@ class McpServerSettings(BaseModel):
     command: str = Field(description="Command to run the MCP server")
     args: list[str] = Field(default_factory=list, description="Command arguments")
     env: dict[str, str] = Field(default_factory=dict, description="Environment variables")
+    tool_name: str = Field(description="Name of the search tool to call")
 
 
 def load_yaml_config(config_dir: Path) -> dict:
@@ -83,45 +84,48 @@ class BaseConfig:
         return getattr(agent, setting)
 
 
-# Main application settings
+# Separate config models for independent validation
 
 
-class Settings(BaseModel):
-    """Main application configuration model"""
+class ChatConfig(BaseModel):
+    """Chat configuration - validated independently"""
 
     chat: ChatSettings
-    mcp: Optional[dict[str, McpServerSettings]] = None
 
 
-class Config(BaseConfig):
-    def __init__(self):
-        super().__init__(Path(__file__).parent, Settings)
+class McpConfig(BaseModel):
+    """MCP configuration - validated independently"""
+
+    mcp: dict[str, McpServerSettings]
 
 
 def get_chat_config() -> dict:
     """Get chat configuration from YAML, validated with Pydantic"""
     config_dir = Path(__file__).parent
     yaml_config = load_yaml_config(config_dir)
-    settings = Settings(**yaml_config)
+    config = ChatConfig(**yaml_config)
 
     return {
-        "model": settings.chat.model,
-        "temperature": settings.chat.temperature,
+        "model": config.chat.model,
+        "temperature": config.chat.temperature,
     }
 
 
 def get_mcp_config(server_name: str) -> Optional[McpServerSettings]:
-    """Get MCP server configuration by name, or None if not configured."""
+    """Get MCP server configuration by name, or None if not configured or invalid."""
     config_dir = Path(__file__).parent
     yaml_config = load_yaml_config(config_dir)
-    settings = Settings(**yaml_config)
 
-    if settings.mcp is None:
+    if "mcp" not in yaml_config:
         return None
 
-    return settings.mcp.get(server_name)
+    try:
+        config = McpConfig(**yaml_config)
+        return config.mcp.get(server_name)
+    except Exception:
+        return None
 
 
 def is_mcp_configured(server_name: str = "rag-knowledge") -> bool:
-    """Check if an MCP server is configured."""
+    """Check if an MCP server is fully configured."""
     return get_mcp_config(server_name) is not None
