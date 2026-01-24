@@ -13,7 +13,7 @@ def create_app():
     chat_service = KnowledgeChatService() if mcp_available else None
 
     with gr.Blocks(title="CV Agents") as app:
-        gr.Markdown("# CV Agency - AI/RAG powered job posting and CV analysis\n")
+        gr.Markdown("# CV Agency\n## AI/RAG powered job posting and CV analysis\n")
 
         with gr.Tabs():
             # Tab 1: Job Postings
@@ -110,6 +110,7 @@ def create_app():
                             None,
                             True,
                             gr.update(visible=False),
+                            None,
                         )
 
                     if not job_data or not identifier:
@@ -119,6 +120,7 @@ def create_app():
                             None,
                             False,
                             gr.update(visible=True),
+                            job_data,
                         )
 
                     try:
@@ -142,6 +144,7 @@ def create_app():
                             job_list_data,
                             True,
                             gr.update(visible=False),
+                            None,
                         )
                     except Exception as e:
                         return (
@@ -150,6 +153,7 @@ def create_app():
                             None,
                             False,
                             gr.update(visible=True),
+                            job_data,
                         )
 
                 def load_jobs():
@@ -217,6 +221,7 @@ def create_app():
                         job_list,
                         job_is_saved,
                         job_save_controls,
+                        job_result,
                     ],
                 )
 
@@ -320,6 +325,7 @@ def create_app():
                             None,
                             True,
                             gr.update(visible=False),
+                            None,
                         )
 
                     if not cv_data or not identifier:
@@ -328,6 +334,7 @@ def create_app():
                             None,
                             False,
                             gr.update(visible=True),
+                            cv_data,
                         )
 
                     try:
@@ -349,6 +356,7 @@ def create_app():
                             cv_list_data,
                             True,
                             gr.update(visible=False),
+                            None,
                         )
                     except Exception as e:
                         return (
@@ -356,6 +364,7 @@ def create_app():
                             None,
                             False,
                             gr.update(visible=True),
+                            cv_data,
                         )
 
                 def load_cvs():
@@ -413,7 +422,7 @@ def create_app():
                 save_cv_btn.click(
                     fn=save_cv,
                     inputs=[cv_result, cv_identifier, cv_is_saved],
-                    outputs=[save_cv_status, cv_list, cv_is_saved, cv_save_controls],
+                    outputs=[save_cv_status, cv_list, cv_is_saved, cv_save_controls, cv_result],
                 )
 
                 refresh_cvs_btn.click(fn=load_cvs, outputs=[cv_list])
@@ -600,7 +609,9 @@ def create_app():
                                 show_label=False,
                             )
                             with gr.Row():
-                                export_btn = gr.Button("📥 Export to Markdown", size="sm")
+                                export_btn = gr.Button(
+                                    "📥 Export to Markdown", size="sm"
+                                )
                                 export_file = gr.File(label="Download", visible=False)
 
                         with gr.Column(scale=1):
@@ -668,7 +679,9 @@ def create_app():
                             if exchange["context_docs"]:
                                 markdown += "**Sources:**\n\n"
                                 for doc in exchange["context_docs"]:
-                                    source = doc.metadata.get("source", "Unknown source")
+                                    source = doc.metadata.get(
+                                        "source", "Unknown source"
+                                    )
                                     markdown += f"- `{source}`\n"
                                     markdown += f"  > {doc.page_content[:200]}...\n\n"
 
