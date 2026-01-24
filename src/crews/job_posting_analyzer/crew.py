@@ -4,7 +4,7 @@ from crewai.agents.agent_builder.base_agent import BaseAgent
 from crewai_tools import SerperDevTool, ScrapeWebsiteTool
 from typing import List
 from models.schema import JobPosting
-from job_posting_analyzer.config.settings import get_config
+from crews.job_posting_analyzer.config.settings import get_config
 
 
 @CrewBase

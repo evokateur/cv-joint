@@ -4,7 +4,7 @@ import pytest
 @pytest.mark.integration
 def test_job_posting_analyzer_crew_instantiates():
     """Test that JobPostingAnalyzer crew can be instantiated with its config"""
-    from job_posting_analyzer.crew import JobPostingAnalyzer
+    from crews.job_posting_analyzer.crew import JobPostingAnalyzer
 
     crew = JobPostingAnalyzer()
     assert crew is not None
@@ -16,7 +16,7 @@ def test_job_posting_analyzer_crew_instantiates():
 @pytest.mark.integration
 def test_cv_analyzer_crew_instantiates():
     """Test that CvAnalyzer crew can be instantiated with its config"""
-    from cv_analyzer.crew import CvAnalyzer
+    from crews.cv_analyzer.crew import CvAnalyzer
 
     crew = CvAnalyzer()
     assert crew is not None

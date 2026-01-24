@@ -4,7 +4,7 @@ import tempfile
 # Disable CrewAI tracing to prevent 20s timeout prompt
 os.environ["CREWAI_TRACING_ENABLED"] = "false"
 
-from cv_analyzer.crew import CvAnalyzer as CvAnalyzerCrew
+from crews.cv_analyzer.crew import CvAnalyzer as CvAnalyzerCrew
 from models import CurriculumVitae
 
 

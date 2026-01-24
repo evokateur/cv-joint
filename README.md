@@ -18,7 +18,7 @@ Track job postings, create targeted CV data, render CVs with LaTeX
 
 - Gradio tabbed UI
 
-- PDF CVs are rendered with Jinja2 using custom delimiters that play well with LaTeX:
+- PDF CVs are rendered using Jinja2 with custom delimiters that play well with LaTeX:
 
   |              | customized | standard jinja2 |
   | ------------ | ---------- | --------------- |
@@ -32,19 +32,20 @@ Simplified project structure:
 ```sh
 .
 ├── collections # persisted entities
-├── output # LaTeX PDF output
 ├── src
 │   ├── builder # LaTeX PDF rendering
-│   ├── cv_analyzer # CrewAI crew
-│   ├── job_posting_analyzer # CrewAI crew
+│   ├── config
+│   ├── crews # CrewAI crews
+│   │   ├── cv_analyzer
+│   │   └── job_posting_analyzer
 │   ├── models
 │   ├── repositories
 │   ├── services
-│   │   └── analyzers # facades for CrewAI crews
+│   │   └── analyzers # crew facades
 │   └── ui # Gradio app
-├── templates
-    ├── cover-letter.tex
-    └── cv.tex
+└── templates
+    ├── cover-letter.tex
+    └── cv.tex
 ```
 
 ## Setup

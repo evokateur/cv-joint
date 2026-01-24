@@ -4,7 +4,7 @@ import tempfile
 # Disable CrewAI tracing to prevent 20s timeout prompt
 os.environ["CREWAI_TRACING_ENABLED"] = "false"
 
-from job_posting_analyzer.crew import JobPostingAnalyzer as JobPostingAnalyzerCrew
+from crews.job_posting_analyzer.crew import JobPostingAnalyzer as JobPostingAnalyzerCrew
 from models.schema import JobPosting
 
 

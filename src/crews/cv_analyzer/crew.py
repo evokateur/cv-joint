@@ -4,7 +4,7 @@ from crewai.agents.agent_builder.base_agent import BaseAgent
 from crewai_tools import FileReadTool
 from typing import List
 from models import CurriculumVitae
-from cv_analyzer.config.settings import get_config
+from crews.cv_analyzer.config.settings import get_config
 
 
 @CrewBase
