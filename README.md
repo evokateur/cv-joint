@@ -6,7 +6,7 @@ Track job postings, create targeted CV data, render CVs with LaTeX
 
 - Create structured data from Job Posting URLs
 - Create structured CV data from text files
-- Chat with RAG knowledge base
+- RAG knowledge base equipped chat
 - Optimize CV data for job postings (in progress)
 - Create PDFs from CV data with LaTeX (in progress)
 
