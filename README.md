@@ -89,7 +89,7 @@ mcp:
 ## Usage
 
 ```sh
-uv run cv-agency
+uv run agency
 ```
 
 A browser window should open to `http://localhost:7860`.
