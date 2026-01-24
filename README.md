@@ -62,7 +62,7 @@ Configure environment variables:
 cp sample.env .env # Edit .env and add API keys
 ```
 
-Configure [RAG knowledge base MCP server](https://github.com/evokateur/rag-knowledge-mcp) in `src/config/settings.local.yaml`, e.g.:
+Configure [knowledge base MCP server](https://github.com/evokateur/rag-knowledge-mcp) in `src/config/settings.local.yaml`, e.g.:
 
 ```yaml
 # overrides settings in src/config/settings.yaml
