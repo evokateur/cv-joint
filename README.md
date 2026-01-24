@@ -4,11 +4,11 @@ Track job postings, create targeted CV data, render CVs with LaTeX
 
 ## Features
 
-- Create structured Job Postings from URLs
+- Create structured data from Job Posting URLs
 - Create structured CV data from text files
 - Chat with RAG knowledge base integration
-- Create optimized CV data for a job posting (in progress)
-- Render CV data in LaTeX PDF files (in progress)
+- Optimize CV data for job postings (in progress)
+- Create PDFs from CV data with LaTeX (in progress)
 
 ## Implementation
 
