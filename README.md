@@ -6,7 +6,7 @@ Track job postings, create targeted CV data, render CVs with LaTeX
 
 - Create structured Job Postings from URLs
 - Create structured CV data from text files
-- Chat with RAG knowledge base MCP integration
+- Chat with [RAG knowledge base MCP](https://github.com/evokateur/rag-knowledge-mcp) integration
 - Create optimized CV data for a job posting (in progress)
 - Render CV data in LaTeX PDF files (in progress)
 
