@@ -6,7 +6,7 @@ Track job postings, create targeted CV data, render CVs with LaTeX
 
 - Create structured Job Postings from URLs
 - Create structured CV data from text files
-- Chat with [RAG knowledge base MCP](https://github.com/evokateur/rag-knowledge-mcp) integration
+- Chat with RAG knowledge base integration
 - Create optimized CV data for a job posting (in progress)
 - Render CV data in LaTeX PDF files (in progress)
 
@@ -62,9 +62,7 @@ Configure environment variables:
 cp sample.env .env # Edit .env and add API keys
 ```
 
-### Configuring RAG equipped chat (optional)
-
-Create `src/config/settings.local.yaml` and add configuration, e.g.:
+Configure [RAG knowledge base MCP server](https://github.com/evokateur/rag-knowledge-mcp) in `src/config/settings.local.yaml`, e.g.:
 
 ```yaml
 # overrides settings in src/config/settings.yaml
