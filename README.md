@@ -1,6 +1,6 @@
-# CV Agency
+# CV Joint
 
-Track job postings, create targeted CV data, render CVs with LaTeX
+Track job postings, create targeted CVs, render them with LaTeX, achieve constant velocity.
 
 ## Features
 
@@ -12,13 +12,13 @@ Track job postings, create targeted CV data, render CVs with LaTeX
 
 ## Implementation
 
-- Analysis and structured output by CrewAI crews
+- Analysis and structured output with CrewAI
 
-- Pydantic for defining job postings, CVs, and structured outputs.
+- Pydantic for defining domain objects and structured outputs
 
 - Gradio tabbed UI
 
-- PDF CVs are rendered using Jinja2 with custom delimiters that play well with LaTeX:
+- CVs are rendered using Jinja2 with custom delimiters that play well with LaTeX:
 
   |              | customized | standard jinja2 |
   | ------------ | ---------- | --------------- |
@@ -31,18 +31,21 @@ Simplified project structure:
 
 ```sh
 .
-├── collections # persisted entities
 ├── src
 │   ├── builder # LaTeX PDF rendering
 │   ├── config
 │   ├── crews # CrewAI crews
-│   │   ├── cv_analyzer
-│   │   └── job_posting_analyzer
+│   │   ├── cv_analysis
+│   │   └── job_posting_analysis
 │   ├── models
 │   ├── repositories
+│   │   └── filesystem.py
 │   ├── services
 │   │   └── analyzers # crew facades
-│   └── ui # Gradio app
+│   │   └── application.py
+│   └── ui
+│   │   └── app.py # Gradio
+│   │   └── cli.py
 └── templates
     ├── cover-letter.tex
     └── cv.tex
@@ -63,7 +66,7 @@ Configure environment variables:
 cp sample.env .env # Edit .env and add API keys
 ```
 
-Configure [knowledge base MCP server](https://github.com/evokateur/rag-knowledge-mcp) in `src/config/settings.local.yaml`, e.g.:
+Configure a [knowledge base MCP server](https://github.com/evokateur/rag-knowledge-mcp) in `src/config/settings.local.yaml`, e.g.:
 
 ```yaml
 # overrides settings in src/config/settings.yaml
@@ -89,7 +92,7 @@ mcp:
 ## Usage
 
 ```sh
-uv run agency
+uv run joint
 ```
 
-A browser window should open to `http://localhost:7860`.
+A browser window should open at [`http://localhost:7860`](http://localhost:7860)
