@@ -69,9 +69,9 @@ cp sample.env .env # Edit .env and add API keys
 Configure a [knowledge base MCP server](https://github.com/evokateur/rag-knowledge-mcp) in `src/config/settings.local.yaml`, e.g.:
 
 ```yaml
-chat: # optional, defaults set in src/config/settings.yaml
-  model: "gpt-4o-mini" # default value
-  temperature: 0.7 # default value
+chat: # optional, defaults in src/config/settings.yaml
+  model: "gpt-4o-mini"
+  temperature: 0.7
 
 mcp:
   rag-knowledge:
