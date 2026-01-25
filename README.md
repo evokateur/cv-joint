@@ -69,21 +69,19 @@ cp sample.env .env # Edit .env and add API keys
 Configure a [knowledge base MCP server](https://github.com/evokateur/rag-knowledge-mcp) in `src/config/settings.local.yaml`, e.g.:
 
 ```yaml
-# overrides settings in src/config/settings.yaml
-
-chat: # optional
-  model: "gpt-4o-mini" # default
-  temperature: 0.7 # default
+chat: # optional, defaults set in src/config/settings.yaml
+  model: "gpt-4o-mini" # default value
+  temperature: 0.7 # default value
 
 mcp:
   rag-knowledge:
-    command: "/Users/footpad/.local/bin/uv"
+    command: "/absolute/path/to/uv"
     args:
       - "run"
       - "--directory"
-      - "/Users/footpad/code/rag-knowledge-mcp"
+      - "/absolute/path/to/rag_mcp_project"
       - "python"
-      - "rag_knowledge_mcp.py"
+      - "rag_knowledge_mcp.py" # e.g.
     tool_name: "rag_search_knowledge" # required for LLM context
     env:
       LOG_LEVEL: "INFO"
