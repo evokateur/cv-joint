@@ -39,7 +39,9 @@ def create_app():
                             label="Save As",
                             placeholder="company-position",
                         )
-                        save_job_btn = gr.Button("Save Job Posting")
+                        with gr.Row():
+                            save_job_btn = gr.Button("Save Job Posting", variant="primary")
+                            discard_job_btn = gr.Button("Discard Analysis", variant="stop")
                         save_job_status = gr.Textbox(label="Status", interactive=False)
 
                 with gr.Group():
@@ -65,6 +67,7 @@ def create_app():
                             False,
                             gr.update(visible=False),
                             "⚠ Please enter a URL",
+                            gr.update(variant="primary"),
                         )
 
                     job_data, identifier = service.create_job_posting(url)
@@ -75,6 +78,7 @@ def create_app():
                         is_saved,
                         gr.update(visible=True),
                         "✓ Analysis complete",
+                        gr.update(variant="secondary"),
                     )
 
                 def view_saved_job(evt: gr.SelectData):
@@ -115,6 +119,7 @@ def create_app():
                             True,
                             gr.update(visible=False),
                             None,
+                            gr.update(interactive=False, variant="primary"),
                         )
 
                     if not job_data or not identifier:
@@ -125,6 +130,7 @@ def create_app():
                             False,
                             gr.update(visible=True),
                             job_data,
+                            gr.update(variant="secondary"),
                         )
 
                     try:
@@ -149,6 +155,7 @@ def create_app():
                             True,
                             gr.update(visible=False),
                             None,
+                            gr.update(interactive=False, variant="primary"),
                         )
                     except Exception as e:
                         return (
@@ -158,6 +165,7 @@ def create_app():
                             False,
                             gr.update(visible=True),
                             job_data,
+                            gr.update(variant="secondary"),
                         )
 
                 def load_jobs():
@@ -207,6 +215,7 @@ def create_app():
                         job_is_saved,
                         job_save_controls,
                         save_job_status,
+                        analyze_job_btn,
                     ],
                 )
 
@@ -232,6 +241,28 @@ def create_app():
                         job_is_saved,
                         job_save_controls,
                         job_result,
+                        analyze_job_btn,
+                    ],
+                )
+
+                discard_job_btn.click(
+                    fn=lambda: (
+                        None,
+                        "",
+                        "",
+                        False,
+                        gr.update(visible=False),
+                        "",
+                        gr.update(interactive=False, variant="primary"),
+                    ),
+                    outputs=[
+                        job_result,
+                        job_url,
+                        job_identifier,
+                        job_is_saved,
+                        job_save_controls,
+                        save_job_status,
+                        analyze_job_btn,
                     ],
                 )
 
@@ -263,7 +294,9 @@ def create_app():
                             label="Save As",
                             placeholder="name",
                         )
-                        save_cv_btn = gr.Button("Save CV")
+                        with gr.Row():
+                            save_cv_btn = gr.Button("Save CV", variant="primary")
+                            discard_cv_btn = gr.Button("Discard Analysis", variant="stop")
                         save_cv_status = gr.Textbox(label="Status", interactive=False)
 
                 with gr.Group():
@@ -287,6 +320,7 @@ def create_app():
                             False,
                             gr.update(visible=False),
                             "⚠ Please provide a file or path",
+                            gr.update(variant="primary"),
                         )
 
                     cv_data, identifier = service.create_cv(file_path)
@@ -297,6 +331,7 @@ def create_app():
                         is_saved,
                         gr.update(visible=True),
                         "✓ Analysis complete",
+                        gr.update(variant="secondary"),
                     )
 
                 def view_saved_cv(evt: gr.SelectData):
@@ -338,6 +373,7 @@ def create_app():
                             None,
                             None,
                             "",
+                            gr.update(interactive=False, variant="primary"),
                         )
 
                     if not cv_data or not identifier:
@@ -349,6 +385,7 @@ def create_app():
                             cv_data,
                             None,
                             None,
+                            gr.update(variant="secondary"),
                         )
 
                     try:
@@ -373,6 +410,7 @@ def create_app():
                             None,
                             None,
                             "",
+                            gr.update(interactive=False, variant="primary"),
                         )
                     except Exception as e:
                         return (
@@ -383,6 +421,7 @@ def create_app():
                             cv_data,
                             None,
                             None,
+                            gr.update(variant="secondary"),
                         )
 
                 def load_cvs():
@@ -440,6 +479,7 @@ def create_app():
                         cv_is_saved,
                         cv_save_controls,
                         save_cv_status,
+                        analyze_cv_btn,
                     ],
                 )
 
@@ -465,6 +505,30 @@ def create_app():
                         cv_result,
                         cv_file,
                         cv_path,
+                        analyze_cv_btn,
+                    ],
+                )
+
+                discard_cv_btn.click(
+                    fn=lambda: (
+                        None,
+                        None,
+                        gr.update(value="", visible=True),
+                        "",
+                        False,
+                        gr.update(visible=False),
+                        "",
+                        gr.update(interactive=False, variant="primary"),
+                    ),
+                    outputs=[
+                        cv_result,
+                        cv_file,
+                        cv_path,
+                        cv_identifier,
+                        cv_is_saved,
+                        cv_save_controls,
+                        save_cv_status,
+                        analyze_cv_btn,
                     ],
                 )
 
