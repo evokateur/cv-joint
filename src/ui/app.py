@@ -1,4 +1,5 @@
 import gradio as gr
+import validators
 from services.agency_service import AgencyService
 from services.knowledge_chat import KnowledgeChatService
 from config.settings import get_chat_config, is_mcp_configured
@@ -25,7 +26,7 @@ def create_app():
                         placeholder="https://...",
                     )
                     analyze_job_btn = gr.Button(
-                        "Analyze Job Posting", variant="primary"
+                        "Analyze Job Posting", variant="primary", interactive=False
                     )
 
                 with gr.Group():
@@ -53,6 +54,9 @@ def create_app():
                     refresh_jobs_btn = gr.Button("Refresh List")
 
                 # Event handlers for Job Postings tab
+                def is_valid_url(url):
+                    return validators.url(url) is True
+
                 def analyze_job(url):
                     if not url:
                         return (
@@ -172,6 +176,12 @@ def create_app():
                     ]
                     return job_list_data
 
+                job_url.change(
+                    fn=lambda url: gr.update(interactive=is_valid_url(url)),
+                    inputs=[job_url],
+                    outputs=[analyze_job_btn],
+                )
+
                 # Analyze job posting - clear previous results first, then run analysis
                 analyze_job_btn.click(
                     fn=lambda: (
@@ -241,7 +251,7 @@ def create_app():
                         label="Or File Path",
                         placeholder="/path/to/cv.json",
                     )
-                    analyze_cv_btn = gr.Button("Analyze CV", variant="primary")
+                    analyze_cv_btn = gr.Button("Analyze CV", variant="primary", interactive=False)
 
                 with gr.Group():
                     gr.Markdown("### Results")
@@ -380,6 +390,23 @@ def create_app():
                     ]
                     return cv_list_data
 
+                def has_cv_input(file, path):
+                    return file is not None or bool(path)
+
+                cv_file.change(
+                    fn=lambda file, path: (
+                        gr.update(interactive=has_cv_input(file, path)),
+                        gr.update(visible=file is None),
+                    ),
+                    inputs=[cv_file, cv_path],
+                    outputs=[analyze_cv_btn, cv_path],
+                )
+                cv_path.change(
+                    fn=lambda file, path: gr.update(interactive=has_cv_input(file, path)),
+                    inputs=[cv_file, cv_path],
+                    outputs=[analyze_cv_btn],
+                )
+
                 # Analyze CV - clear previous results first, then run analysis
                 analyze_cv_btn.click(
                     fn=lambda: (
@@ -422,7 +449,13 @@ def create_app():
                 save_cv_btn.click(
                     fn=save_cv,
                     inputs=[cv_result, cv_identifier, cv_is_saved],
-                    outputs=[save_cv_status, cv_list, cv_is_saved, cv_save_controls, cv_result],
+                    outputs=[
+                        save_cv_status,
+                        cv_list,
+                        cv_is_saved,
+                        cv_save_controls,
+                        cv_result,
+                    ],
                 )
 
                 refresh_cvs_btn.click(fn=load_cvs, outputs=[cv_list])
