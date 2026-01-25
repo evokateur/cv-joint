@@ -79,7 +79,7 @@ mcp:
     args:
       - "run"
       - "--directory"
-      - "/absolute/path/to/rag_mcp_project"
+      - "/absolute/path/to/rag-mcp-project"
       - "python"
       - "rag_knowledge_mcp.py" # e.g.
     tool_name: "rag_search_knowledge" # required for LLM context
