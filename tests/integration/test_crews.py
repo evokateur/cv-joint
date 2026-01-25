@@ -3,10 +3,10 @@ import pytest
 
 @pytest.mark.integration
 def test_job_posting_analyzer_crew_instantiates():
-    """Test that JobPostingAnalyzer crew can be instantiated with its config"""
-    from crews.job_posting_analyzer.crew import JobPostingAnalyzer
+    """Test that JobPostingAnalysisCrew crew can be instantiated with its config"""
+    from crews import JobPostingAnalysisCrew
 
-    crew = JobPostingAnalyzer()
+    crew = JobPostingAnalysisCrew()
     assert crew is not None
     assert hasattr(crew, "crew")
     assert hasattr(crew, "job_analyst")
@@ -15,10 +15,10 @@ def test_job_posting_analyzer_crew_instantiates():
 
 @pytest.mark.integration
 def test_cv_analyzer_crew_instantiates():
-    """Test that CvAnalyzer crew can be instantiated with its config"""
-    from crews.cv_analyzer.crew import CvAnalyzer
+    """Test that CvAnalysisCrew crew can be instantiated with its config"""
+    from crews import CvAnalysisCrew
 
-    crew = CvAnalyzer()
+    crew = CvAnalysisCrew()
     assert crew is not None
     assert hasattr(crew, "crew")
     assert hasattr(crew, "cv_analyst")
@@ -28,8 +28,8 @@ def test_cv_analyzer_crew_instantiates():
 @pytest.mark.integration
 def test_service_layer_instantiates():
     """Test that service layer analyzers can be instantiated"""
-    from services.analyzers.job_posting_analyzer import JobPostingAnalyzer
-    from services.analyzers.cv_analyzer import CvAnalyzer
+    from services.analyzers import JobPostingAnalyzer
+    from services.analyzers import CvAnalyzer
 
     job_analyzer = JobPostingAnalyzer()
     cv_analyzer = CvAnalyzer()
