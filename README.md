@@ -31,7 +31,6 @@ Simplified project structure:
 
 ```sh
 .
-├── collections # persisted entities
 ├── src
 │   ├── builder # LaTeX PDF rendering
 │   ├── config
@@ -39,13 +38,14 @@ Simplified project structure:
 │   │   ├── cv_analysis
 │   │   └── job_posting_analysis
 │   ├── models
-│   │   └── schema.py
 │   ├── repositories
 │   │   └── filesystem.py
 │   ├── services
 │   │   └── analyzers # crew facades
 │   │   └── application.py
-│   └── ui # Gradio app
+│   └── ui
+│   │   └── app.py # Gradio
+│   │   └── cli.py
 └── templates
     ├── cover-letter.tex
     └── cv.tex
