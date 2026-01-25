@@ -1,20 +1,20 @@
 import gradio as gr
 import validators
-from services.agency_service import AgencyService
-from services.knowledge_chat import KnowledgeChatService
+from services import ApplicationService
+from services import KnowledgeChatService
 from config.settings import get_chat_config, is_mcp_configured
 
 
 def create_app():
     """Create and configure the Gradio application."""
 
-    service = AgencyService()
+    service = ApplicationService()
     chat_config = get_chat_config()
     mcp_available = is_mcp_configured("rag-knowledge")
     chat_service = KnowledgeChatService() if mcp_available else None
 
-    with gr.Blocks(title="CV Agents") as app:
-        gr.Markdown("# CV Agency\n## AI/RAG powered job posting and CV analysis\n")
+    with gr.Blocks(title="CV Joint") as app:
+        gr.Markdown("# CV Joint\n## AI/RAG powered job posting and CV analysis\n")
 
         with gr.Tabs():
             # Tab 1: Job Postings
@@ -40,8 +40,12 @@ def create_app():
                             placeholder="company-position",
                         )
                         with gr.Row():
-                            save_job_btn = gr.Button("Save Job Posting", variant="primary")
-                            discard_job_btn = gr.Button("Discard Analysis", variant="stop")
+                            save_job_btn = gr.Button(
+                                "Save Job Posting", variant="primary"
+                            )
+                            discard_job_btn = gr.Button(
+                                "Discard Analysis", variant="stop"
+                            )
                         save_job_status = gr.Textbox(label="Status", interactive=False)
 
                 with gr.Group():
@@ -282,7 +286,9 @@ def create_app():
                         label="Or File Path",
                         placeholder="/path/to/cv.json",
                     )
-                    analyze_cv_btn = gr.Button("Analyze CV", variant="primary", interactive=False)
+                    analyze_cv_btn = gr.Button(
+                        "Analyze CV", variant="primary", interactive=False
+                    )
 
                 with gr.Group():
                     gr.Markdown("### Results")
@@ -296,7 +302,9 @@ def create_app():
                         )
                         with gr.Row():
                             save_cv_btn = gr.Button("Save CV", variant="primary")
-                            discard_cv_btn = gr.Button("Discard Analysis", variant="stop")
+                            discard_cv_btn = gr.Button(
+                                "Discard Analysis", variant="stop"
+                            )
                         save_cv_status = gr.Textbox(label="Status", interactive=False)
 
                 with gr.Group():
@@ -449,7 +457,9 @@ def create_app():
                     outputs=[analyze_cv_btn, cv_path],
                 )
                 cv_path.change(
-                    fn=lambda file, path: gr.update(interactive=has_cv_input(file, path)),
+                    fn=lambda file, path: gr.update(
+                        interactive=has_cv_input(file, path)
+                    ),
                     inputs=[cv_file, cv_path],
                     outputs=[analyze_cv_btn],
                 )

@@ -4,7 +4,7 @@ import tempfile
 # Disable CrewAI tracing to prevent 20s timeout prompt
 os.environ["CREWAI_TRACING_ENABLED"] = "false"
 
-from crews.job_posting_analyzer.crew import JobPostingAnalyzer as JobPostingAnalyzerCrew
+from crews import JobPostingAnalysisCrew
 from models.schema import JobPosting
 
 
@@ -31,7 +31,7 @@ class JobPostingAnalyzer:
                 "output_directory": temp_dir,
             }
 
-            crew = JobPostingAnalyzerCrew()
+            crew = JobPostingAnalysisCrew()
             result = crew.crew().kickoff(inputs=inputs)
 
             if not isinstance(result.pydantic, JobPosting):

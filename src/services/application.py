@@ -1,12 +1,12 @@
 from typing import Any
-from services.analyzers.job_posting_analyzer import JobPostingAnalyzer
-from services.analyzers.cv_analyzer import CvAnalyzer
-from repositories.filesystem_repository import FileSystemRepository
+from services.analyzers import JobPostingAnalyzer
+from services.analyzers import CvAnalyzer
+from repositories import FileSystemRepository
 
 
-class AgencyService:
+class ApplicationService:
     """
-    Service layer for CV agency operations.
+    Service layer for CV Joint operations.
 
     This class provides the application boundary between the UI and domain logic.
     All methods accept and return JSON-serializable dictionaries.

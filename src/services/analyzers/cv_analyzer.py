@@ -4,7 +4,7 @@ import tempfile
 # Disable CrewAI tracing to prevent 20s timeout prompt
 os.environ["CREWAI_TRACING_ENABLED"] = "false"
 
-from crews.cv_analyzer.crew import CvAnalyzer as CvAnalyzerCrew
+from crews import CvAnalysisCrew
 from models import CurriculumVitae
 
 
@@ -31,7 +31,7 @@ class CvAnalyzer:
                 "output_directory": temp_dir,
             }
 
-            crew = CvAnalyzerCrew()
+            crew = CvAnalysisCrew()
             result = crew.crew().kickoff(inputs=inputs)
 
             if not isinstance(result.pydantic, CurriculumVitae):
