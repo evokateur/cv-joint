@@ -95,4 +95,4 @@ mcp:
 uv run joint
 ```
 
-A browser window should open to [`http://localhost:7860`](http://localhost:7860)
+A browser window should open at [`http://localhost:7860`](http://localhost:7860)
