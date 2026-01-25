@@ -336,6 +336,8 @@ def create_app():
                             True,
                             gr.update(visible=False),
                             None,
+                            None,
+                            "",
                         )
 
                     if not cv_data or not identifier:
@@ -345,6 +347,8 @@ def create_app():
                             False,
                             gr.update(visible=True),
                             cv_data,
+                            None,
+                            None,
                         )
 
                     try:
@@ -367,6 +371,8 @@ def create_app():
                             True,
                             gr.update(visible=False),
                             None,
+                            None,
+                            "",
                         )
                     except Exception as e:
                         return (
@@ -375,6 +381,8 @@ def create_app():
                             False,
                             gr.update(visible=True),
                             cv_data,
+                            None,
+                            None,
                         )
 
                 def load_cvs():
@@ -455,6 +463,8 @@ def create_app():
                         cv_is_saved,
                         cv_save_controls,
                         cv_result,
+                        cv_file,
+                        cv_path,
                     ],
                 )
 
