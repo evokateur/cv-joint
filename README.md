@@ -34,7 +34,7 @@ Simplified project structure:
 ├── src
 │   ├── builder # LaTeX PDF rendering
 │   ├── config
-│   ├── crews # CrewAI crews
+│   ├── crews
 │   │   ├── cv_analysis
 │   │   └── job_posting_analysis
 │   ├── models
