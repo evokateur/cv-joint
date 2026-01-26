@@ -63,28 +63,32 @@ uv sync --extra dev # for tests, etc
 Configure environment variables:
 
 ```sh
-cp sample.env .env # Edit .env and add API keys
+cp sample.env .env # edit .env and add API keys
 ```
 
-Configure a [knowledge base MCP server](https://github.com/evokateur/rag-knowledge-mcp) in `src/config/settings.local.yaml`, e.g.:
+Extend `src/config/settings.yaml` with `src/config/settings.local.yaml` and configure an [MCP server](https://github.com/evokateur/rag-knowledge-mcp).
 
 ```yaml
-chat: # optional, ⬇️ defaults in src/config/settings.yaml
-  model: "gpt-4o-mini"
-  temperature: 0.7
-
-mcp:
+mcp: # example
   rag-knowledge:
     command: "/absolute/path/to/uv"
     args:
       - "run"
       - "--directory"
-      - "/absolute/path/to/rag-mcp-project"
+      - "/absolute/path/to/mcp-server-project"
       - "python"
-      - "rag_knowledge_mcp.py" # e.g.
-    tool_name: "rag_search_knowledge" # required for LLM context
+      - "rag_knowledge_mcp.py"
+    tool_name: "rag_search_knowledge" # used in LLM context
     env:
       LOG_LEVEL: "INFO"
+```
+
+Override the chat model as needed.
+
+```yaml
+chat: # defaults
+  model: "gpt-4o-mini"
+  temperature: 0.7
 ```
 
 ## Usage

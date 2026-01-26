@@ -4,9 +4,8 @@
 chat:
   model: "gpt-4o-mini"
   temperature: 0.7
-
-# MCP server configuration (optional)
-# Configure in settings.local.yaml with your actual paths:
+# MCP server configuration example
+# Configure in settings.local.yaml with actual values:
 #
 # mcp:
 #   rag-knowledge:
@@ -17,5 +16,6 @@ chat:
 #       - "/absolute/path/to/mcp-server-project"
 #       - "python"
 #       - "rag_knowledge_mcp.py"
+#     tool_name: "rag_search_knowledge"
 #     env:
 #       LOG_LEVEL: "INFO"
