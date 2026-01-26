@@ -16,6 +16,6 @@ chat:
 #       - "/absolute/path/to/mcp-server-project"
 #       - "python"
 #       - "rag_knowledge_mcp.py"
-#     tool_name: "rag_search_knowledge"
 #     env:
 #       LOG_LEVEL: "INFO"
+#     x-tool-name: "rag_search_knowledge"

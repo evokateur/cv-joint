@@ -32,7 +32,7 @@ class McpServerSettings(BaseModel):
     command: str = Field(description="Command to run the MCP server")
     args: list[str] = Field(default_factory=list, description="Command arguments")
     env: dict[str, str] = Field(default_factory=dict, description="Environment variables")
-    tool_name: str = Field(description="Name of the search tool to call")
+    tool_name: str = Field(alias="x-tool-name", description="Name of the search tool to call")
 
 
 def load_yaml_config(config_dir: Path) -> dict:
