@@ -1,4 +1,4 @@
-.PHONY: test clean
+.PHONY: test clean dev-env
 
 OPEN =
 ifeq ($(shell uname), Darwin)
@@ -25,6 +25,9 @@ clean:
 	rm -f output/*.log
 	rm -f output/*.out
 	rm -f output/*.synctex.gz
+
+dev-env:
+	uv sync --extra dev
 
 test:
 	uv run pytest tests/ --tb=short
