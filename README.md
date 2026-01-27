@@ -60,16 +60,19 @@ uv sync # or..
 uv sync --extra dev # for tests, etc
 ```
 
-Configure environment variables:
+Set environment variables:
 
 ```sh
 cp sample.env .env # edit .env and add API keys
 ```
 
-Extend `src/config/settings.yaml` with `src/config/settings.local.yaml` and configure an [MCP server](https://github.com/evokateur/rag-knowledge-mcp):
+Configuration is extended/overridden in `~/.cv-joint/settings.yaml` using module specific paths as needed:
 
 ```yaml
-mcp: # example
+chat:
+  model: "gpt-4o"
+
+mcp: # not in default configuration
   rag-knowledge:
     command: "/absolute/path/to/uv"
     args:
@@ -81,15 +84,15 @@ mcp: # example
     env:
       LOG_LEVEL: "INFO"
     x-tool-name: "rag_search_knowledge"
+
+crews:
+  cv_analysis:
+    agents:
+      cv_analyst:
+        model: "gpt-4o"
 ```
 
-Override the chat model as necessary.
-
-```yaml
-chat: # defaults
-  model: "gpt-4o-mini"
-  temperature: 0.7
-```
+To see all merged configuration: `uv run joint --show-config`
 
 ## Usage
 

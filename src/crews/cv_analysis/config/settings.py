@@ -10,7 +10,7 @@ class Settings(BaseModel):
 
 class Config(BaseConfig):
     def __init__(self):
-        super().__init__(Path(__file__).parent, Settings)
+        super().__init__(Path(__file__).parent, Settings, "crews.cv_analysis")
 
     @property
     def cv_analyst_model(self) -> str:

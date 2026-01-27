@@ -35,12 +35,19 @@ class McpServerSettings(BaseModel):
     tool_name: str = Field(alias="x-tool-name", description="Name of the search tool to call")
 
 
-def load_yaml_config(config_dir: Path) -> dict:
+USER_CONFIG_FILE = Path.home() / ".cv-joint" / "settings.yaml"
+
+
+def load_yaml_config(config_dir: Path, user_config_path: Optional[str] = None) -> dict:
     """Load settings from YAML files with override hierarchy:
-    settings.yaml -> settings.local.yaml
+    settings.yaml -> settings.local.yaml -> ~/.cv-joint/settings.yaml
 
     YAML files are the single source of truth for configuration.
     Environment variables are only used for API keys (secrets).
+
+    Args:
+        config_dir: Directory containing settings.yaml and optional settings.local.yaml
+        user_config_path: Dot-separated path to extract from user config (e.g., "crews.cv_analysis")
     """
     settings_file = config_dir / "settings.yaml"
     local_settings_file = config_dir / "settings.local.yaml"
@@ -55,6 +62,17 @@ def load_yaml_config(config_dir: Path) -> dict:
         with open(local_settings_file) as f:
             local_config = yaml.safe_load(f) or {}
             deep_merge(config, local_config)
+
+    if USER_CONFIG_FILE.exists():
+        with open(USER_CONFIG_FILE) as f:
+            user_config = yaml.safe_load(f) or {}
+            if user_config_path:
+                for key in user_config_path.split("."):
+                    user_config = user_config.get(key, {})
+                    if not isinstance(user_config, dict):
+                        user_config = {}
+                        break
+            deep_merge(config, user_config)
 
     return config
 
@@ -71,9 +89,14 @@ def deep_merge(base: dict, override: dict) -> None:
 class BaseConfig:
     """Base configuration class with common initialization and agent setting access"""
 
-    def __init__(self, config_dir: Path, settings_model: type[BaseModel]):
+    def __init__(
+        self,
+        config_dir: Path,
+        settings_model: type[BaseModel],
+        user_config_path: Optional[str] = None,
+    ):
         load_dotenv()
-        yaml_config = load_yaml_config(config_dir)
+        yaml_config = load_yaml_config(config_dir, user_config_path)
         self._settings = settings_model(**yaml_config)
 
     def _get_agent_setting(self, agent_name: str, setting: str):
@@ -129,3 +152,33 @@ def get_mcp_config(server_name: str) -> Optional[McpServerSettings]:
 def is_mcp_configured(server_name: str = "rag-knowledge") -> bool:
     """Check if an MCP server is fully configured."""
     return get_mcp_config(server_name) is not None
+
+
+def get_merged_config() -> dict:
+    """Get fully merged configuration from all sources for display.
+
+    Collects configs from:
+    - src/config/settings.yaml (chat, mcp)
+    - src/crews/*/config/settings.yaml (crew-specific agents)
+    - ~/.cv-joint/settings.yaml (user overrides)
+
+    Returns nested dict with explicit paths for user config format.
+    """
+    config_dir = Path(__file__).parent
+    crews_dir = config_dir.parent / "crews"
+
+    merged = {}
+
+    base_config = load_yaml_config(config_dir)
+    deep_merge(merged, base_config)
+
+    if crews_dir.exists():
+        for crew_dir in crews_dir.iterdir():
+            crew_settings = crew_dir / "config" / "settings.yaml"
+            if crew_settings.exists():
+                crew_config = load_yaml_config(crew_dir / "config", f"crews.{crew_dir.name}")
+                if "crews" not in merged:
+                    merged["crews"] = {}
+                merged["crews"][crew_dir.name] = crew_config
+
+    return merged

@@ -1,11 +1,12 @@
 # Application configuration
-# Override locally by creating settings.local.yaml (gitignored)
+# Override in ~/.cv-joint/settings.yaml
 
 chat:
   model: "gpt-4o-mini"
   temperature: 0.7
-# MCP server configuration example
-# Configure in settings.local.yaml with actual values:
+
+# MCP server configuration (required for Knowledge Chat)
+# Configure in ~/.cv-joint/settings.yaml:
 #
 # mcp:
 #   rag-knowledge:
