@@ -1,4 +1,4 @@
-.PHONY: test clean dev-env
+.PHONY: test clean setup setup-dev
 
 OPEN =
 ifeq ($(shell uname), Darwin)
@@ -26,7 +26,10 @@ clean:
 	rm -f output/*.out
 	rm -f output/*.synctex.gz
 
-dev-env:
+setup:
+	uv sync
+
+setup-dev:
 	uv sync --extra dev
 
 test:
