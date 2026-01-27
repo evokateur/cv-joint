@@ -56,8 +56,8 @@ Simplified project structure:
 Initial setup:
 
 ```sh
-uv sync # or..
-uv sync --extra dev # for tests, etc
+make setup # or..
+make setup-dev # for tests, etc
 ```
 
 Set environment variables:
