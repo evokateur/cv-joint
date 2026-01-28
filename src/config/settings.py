@@ -124,7 +124,7 @@ class ChatConfig(BaseModel):
 class McpConfig(BaseModel):
     """MCP configuration - validated independently"""
 
-    mcp: dict[str, McpServerSettings] = Field(alias="mcpServers")
+    mcp: dict[str, Optional[McpServerSettings]] = Field(alias="mcpServers")
 
 
 def get_chat_config() -> dict:
@@ -140,18 +140,11 @@ def get_chat_config() -> dict:
 
 
 def get_mcp_config(server_name: str) -> Optional[McpServerSettings]:
-    """Get MCP server configuration by name, or None if not configured or invalid."""
+    """Get MCP server configuration by name, or None if not configured."""
     config_dir = Path(__file__).parent
     yaml_config = load_yaml_config(config_dir)
-
-    if "mcpServers" not in yaml_config:
-        return None
-
-    try:
-        config = McpConfig(**yaml_config)
-        return config.mcp.get(server_name)
-    except Exception:
-        return None
+    config = McpConfig(**yaml_config)
+    return config.mcp.get(server_name)
 
 
 def is_mcp_configured(server_name: str = "rag-knowledge") -> bool:

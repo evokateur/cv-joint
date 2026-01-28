@@ -66,20 +66,22 @@ Set environment variables:
 cp sample.env .env # edit .env and add API keys
 ```
 
+Configure the `rag-knowledge` MCP server for RAG functions (see below).
+
 Configuration override hierarchy:
 
 1. `src/*/config/settings.yaml` (defaults)
-2. `~/.cv-joint/settings.yaml` (user config, synced via dotfiles)
+2. `~/.cv-joint/settings.yaml` (user config for dotfiles)
 3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
 
-Example `~/.cv-joint/settings.yaml` (MCP server required, others shown are defaults):
+Example user settings, defaults shown except where noted:
 
 ```yaml
 chat:
   model: "gpt-4o"
 
-mcpServers: # not in default settings
-  rag-knowledge:
+mcpServers:
+  rag-knowledge: # null in default settings
     command: "/absolute/path/to/uv"
     args:
       - "run"

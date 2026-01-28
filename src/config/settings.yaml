@@ -5,8 +5,11 @@ chat:
   model: "gpt-4o-mini"
   temperature: 0.7
 
-# MCP server configuration (required for Knowledge Chat)
-# Configure in ~/.cv-joint/settings.yaml:
+mcpServers:
+  rag-knowledge: null # required for RAG functions
+
+# Configure 'rag-knowledge' server in ~/.cv-joint/settings.yaml
+#  or settings.local.yaml in this directory, e.g.:
 #
 # mcpServers:
 #   rag-knowledge:
