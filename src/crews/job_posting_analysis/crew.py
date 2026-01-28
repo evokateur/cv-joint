@@ -5,7 +5,7 @@ from crewai_tools import ScrapeWebsiteTool
 
 from .tools import ScrapeFileTool
 from typing import List
-from models.schema import JobPosting
+from models import JobPosting
 from .config.settings import get_config
 
 

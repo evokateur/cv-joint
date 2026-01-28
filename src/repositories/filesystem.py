@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from models.schema import JobPosting, CurriculumVitae
+from models import JobPosting, CurriculumVitae
 from pathlib import Path
 from typing import Any, Optional
 

@@ -56,7 +56,7 @@ class ApplicationService:
         Returns:
             Collection metadata dict
         """
-        from models.schema import JobPosting
+        from models import JobPosting
 
         job_posting = JobPosting(**job_posting_data)
 

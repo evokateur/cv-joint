@@ -4,7 +4,7 @@ import warnings
 
 from datetime import datetime
 
-from crews.job_posting_analyzer.crew import JobPostingAnalyzer
+from .crew import JobPostingAnalysisCrew
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
@@ -21,7 +21,7 @@ def run():
     inputs = {"topic": "AI LLMs", "current_year": str(datetime.now().year)}
 
     try:
-        JobPostingAnalyzer().crew().kickoff(inputs=inputs)
+        JobPostingAnalysisCrew().crew().kickoff(inputs=inputs)
     except Exception as e:
         raise Exception(f"An error occurred while running the crew: {e}")
 
@@ -32,7 +32,7 @@ def train():
     """
     inputs = {"topic": "AI LLMs", "current_year": str(datetime.now().year)}
     try:
-        JobPostingAnalyzer().crew().train(
+        JobPostingAnalysisCrew().crew().train(
             n_iterations=int(sys.argv[1]), filename=sys.argv[2], inputs=inputs
         )
 
@@ -45,7 +45,7 @@ def replay():
     Replay the crew execution from a specific task.
     """
     try:
-        JobPostingAnalyzer().crew().replay(task_id=sys.argv[1])
+        JobPostingAnalysisCrew().crew().replay(task_id=sys.argv[1])
 
     except Exception as e:
         raise Exception(f"An error occurred while replaying the crew: {e}")
@@ -58,7 +58,7 @@ def test():
     inputs = {"topic": "AI LLMs", "current_year": str(datetime.now().year)}
 
     try:
-        JobPostingAnalyzer().crew().test(
+        JobPostingAnalysisCrew().crew().test(
             n_iterations=int(sys.argv[1]), eval_llm=sys.argv[2], inputs=inputs
         )
 
@@ -89,7 +89,7 @@ def run_with_trigger():
     }
 
     try:
-        result = JobPostingAnalyzer().crew().kickoff(inputs=inputs)
+        result = JobPostingAnalysisCrew().crew().kickoff(inputs=inputs)
         return result
     except Exception as e:
         raise Exception(f"An error occurred while running the crew with trigger: {e}")
