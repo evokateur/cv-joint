@@ -14,7 +14,7 @@ def create_app():
     chat_service = KnowledgeChatService() if mcp_available else None
 
     with gr.Blocks(title="CV Joint") as app:
-        gr.Markdown("# CV Joint\n## AI/RAG powered job posting and CV analysis\n")
+        gr.Markdown("# CV Joint\n## Agentic job posting and CV analysis\n")
 
         with gr.Tabs():
             # Tab 1: Job Postings
@@ -26,7 +26,7 @@ def create_app():
                         placeholder="https://...",
                     )
                     with gr.Accordion(
-                        "Optional content file (for saved CAPTCHA-protected content)",
+                        "(Optional) file with CAPTCHA-protected content:",
                         open=False,
                     ):
                         job_content_file = gr.File(
@@ -712,13 +712,15 @@ def create_app():
                         "### ⚠️ MCP Server Not Configured\n\n"
                         "The knowledge base chat requires an MCP server to be configured.\n\n"
                         "Add the `rag-knowledge` MCP server configuration to "
-                        "`src/config/settings.local.yaml`. See `settings.yaml` for an example."
+                        "`~/.cv-joint/settings.yaml`. See `src/config/settings.yaml` for an example."
                     )
                 else:
-                    gr.Markdown("### 💬 Chat with Your Knowledge Base")
                     gr.Markdown(
-                        "Ask questions about your experience, skills, and projects. "
-                        "The AI will search your knowledge base and provide relevant answers."
+                        f"### 💬 Chat with **{chat_config['model']}** about your work history"
+                    )
+                    gr.Markdown(
+                        "Ask questions about your experience, skills, and projects; "
+                        f"**{chat_config['model']}** will search your knowledge base and provide relevant answers."
                     )
 
                     with gr.Row():
@@ -794,7 +796,7 @@ def create_app():
                         if not exchanges:
                             return gr.update(visible=False)
 
-                        markdown = "# Knowledge Base Chat Export\n\n"
+                        markdown = "# CV Joint Agent Chat Export\n\n"
                         markdown += f"*Exported: {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
                         markdown += "---\n\n"
 
