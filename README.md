@@ -66,13 +66,13 @@ Set environment variables:
 cp sample.env .env # edit .env and add API keys
 ```
 
-Configuration is extended/overridden in `~/.cv-joint/settings.yaml` using module specific paths as needed:
+Default settings are extended/overridden in `~/.cv-joint/settings.yaml`:
 
 ```yaml
 chat:
   model: "gpt-4o"
 
-mcpServers: # not in default configuration
+mcpServers: # not in default settings
   rag-knowledge:
     command: "/absolute/path/to/uv"
     args:
@@ -93,7 +93,7 @@ crews:
 
 repositories:
   filesystem:
-    data_dir: "./data" # default
+    data_dir: "./data"
 ```
 
 Data directory structure:
