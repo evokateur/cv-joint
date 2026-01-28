@@ -119,7 +119,7 @@ class ChatConfig(BaseModel):
 class McpConfig(BaseModel):
     """MCP configuration - validated independently"""
 
-    mcp: dict[str, McpServerSettings]
+    mcp: dict[str, McpServerSettings] = Field(alias="mcpServers")
 
 
 def get_chat_config() -> dict:
@@ -139,7 +139,7 @@ def get_mcp_config(server_name: str) -> Optional[McpServerSettings]:
     config_dir = Path(__file__).parent
     yaml_config = load_yaml_config(config_dir)
 
-    if "mcp" not in yaml_config:
+    if "mcpServers" not in yaml_config:
         return None
 
     try:

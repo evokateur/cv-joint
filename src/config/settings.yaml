@@ -8,7 +8,7 @@ chat:
 # MCP server configuration (required for Knowledge Chat)
 # Configure in ~/.cv-joint/settings.yaml:
 #
-# mcp:
+# mcpServers:
 #   rag-knowledge:
 #     command: "/absolute/path/to/uv"
 #     args:

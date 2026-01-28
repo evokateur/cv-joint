@@ -72,7 +72,7 @@ Configuration is extended/overridden in `~/.cv-joint/settings.yaml` using module
 chat:
   model: "gpt-4o"
 
-mcp: # not in default configuration
+mcpServers: # not in default configuration
   rag-knowledge:
     command: "/absolute/path/to/uv"
     args:
