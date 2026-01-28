@@ -54,6 +54,6 @@ settings.local.yaml
 *.bak
 
 knowledge-base
-job_postings
+job-postings
 cvs
 collections

@@ -1,0 +1,5 @@
+# Repository configuration
+# Override in ~/.cv-joint/settings.yaml under repositories.filesystem
+
+filesystem:
+  data_dir: "./data"

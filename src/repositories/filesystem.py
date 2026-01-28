@@ -5,6 +5,8 @@ from models import JobPosting, CurriculumVitae
 from pathlib import Path
 from typing import Any, Optional
 
+from repositories.config.settings import get_config
+
 
 class FileSystemRepository:
     """
@@ -14,21 +16,25 @@ class FileSystemRepository:
     can be stored anywhere on the filesystem.
     """
 
-    def __init__(self, collections_dir: Optional[str] = None):
+    def __init__(self, data_dir: Optional[str] = None):
         """
         Initialize the repository.
 
         Args:
-            collections_dir: Directory to store collection metadata files.
-                           Defaults to 'collections/' in project root.
+            data_dir: Root directory for all repository data.
+                      Defaults to configured value or current working directory.
         """
-        if collections_dir is None:
-            collections_dir = os.path.join(os.getcwd(), "collections")
+        if data_dir is None:
+            config = get_config()
+            data_dir = config.data_dir
+            if data_dir == ".":
+                data_dir = os.getcwd()
 
-        self.collections_dir = Path(collections_dir)
+        self.data_dir = Path(data_dir).expanduser()
+        self.collections_dir = self.data_dir / "collections"
         self.collections_dir.mkdir(parents=True, exist_ok=True)
 
-        self.job_postings_collection = self.collections_dir / "job_postings.json"
+        self.job_postings_collection = self.collections_dir / "job-postings.json"
         self.cvs_collection = self.collections_dir / "cvs.json"
 
     def _load_collection(self, collection_file: Path) -> list[dict[str, Any]]:
@@ -44,11 +50,19 @@ class FileSystemRepository:
         with open(collection_file, "w") as f:
             json.dump(collection, f, indent=2)
 
+    FILE_NAMES = {
+        "job-postings": "job-posting.json",
+        "cvs": "cv.json",
+    }
+
     def _generate_default_path(self, collection_name: str, identifier: str) -> str:
-        """Generate default file path for a domain object."""
-        default_dir = self.collections_dir.parent / collection_name
-        default_dir.mkdir(parents=True, exist_ok=True)
-        return str(default_dir / identifier / f"{identifier}.json")
+        """Generate default relative file path for a domain object."""
+        filename = self.FILE_NAMES.get(collection_name, f"{collection_name}.json")
+        return f"{collection_name}/{identifier}/{filename}"
+
+    def _resolve_path(self, relative_path: str) -> Path:
+        """Resolve a relative path against data_dir."""
+        return self.data_dir / relative_path
 
     def save_job_posting(
         self, job_posting: JobPosting, identifier: str, file_path: Optional[str] = None
@@ -65,12 +79,12 @@ class FileSystemRepository:
             Collection metadata dict for this job posting
         """
         if file_path is None:
-            file_path = self._generate_default_path("job_postings", identifier)
+            file_path = self._generate_default_path("job-postings", identifier)
 
-        file_path = os.path.abspath(file_path)
-        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        absolute_path = self._resolve_path(file_path)
+        absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(file_path, "w") as f:
+        with open(absolute_path, "w") as f:
             json.dump(job_posting.model_dump(mode="json"), f, indent=2)
 
         collection = self._load_collection(self.job_postings_collection)
@@ -122,7 +136,8 @@ class FileSystemRepository:
         if not metadata:
             return None
 
-        with open(metadata["filepath"], "r") as f:
+        absolute_path = self._resolve_path(metadata["filepath"])
+        with open(absolute_path, "r") as f:
             data = json.load(f)
 
         return JobPosting(**data)
@@ -176,10 +191,10 @@ class FileSystemRepository:
         if file_path is None:
             file_path = self._generate_default_path("cvs", identifier)
 
-        file_path = os.path.abspath(file_path)
-        Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+        absolute_path = self._resolve_path(file_path)
+        absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(file_path, "w") as f:
+        with open(absolute_path, "w") as f:
             json.dump(cv.model_dump(mode="json"), f, indent=2)
 
         collection = self._load_collection(self.cvs_collection)
@@ -229,7 +244,8 @@ class FileSystemRepository:
         if not metadata:
             return None
 
-        with open(metadata["filepath"], "r") as f:
+        absolute_path = self._resolve_path(metadata["filepath"])
+        with open(absolute_path, "r") as f:
             data = json.load(f)
 
         return CurriculumVitae(**data)

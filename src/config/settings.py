@@ -160,12 +160,15 @@ def get_merged_config() -> dict:
     Collects configs from:
     - src/config/settings.yaml (chat, mcp)
     - src/crews/*/config/settings.yaml (crew-specific agents)
+    - src/repositories/config/settings.yaml (repository settings)
     - ~/.cv-joint/settings.yaml (user overrides)
 
     Returns nested dict with explicit paths for user config format.
     """
     config_dir = Path(__file__).parent
-    crews_dir = config_dir.parent / "crews"
+    src_dir = config_dir.parent
+    crews_dir = src_dir / "crews"
+    repositories_dir = src_dir / "repositories"
 
     merged = {}
 
@@ -180,5 +183,10 @@ def get_merged_config() -> dict:
                 if "crews" not in merged:
                     merged["crews"] = {}
                 merged["crews"][crew_dir.name] = crew_config
+
+    repositories_settings = repositories_dir / "config" / "settings.yaml"
+    if repositories_settings.exists():
+        repo_config = load_yaml_config(repositories_dir / "config", "repositories")
+        merged["repositories"] = repo_config
 
     return merged

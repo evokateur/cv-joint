@@ -90,6 +90,21 @@ crews:
     agents:
       cv_analyst:
         model: "gpt-4o"
+
+repositories:
+  filesystem:
+    data_dir: "./data" # default
+```
+
+Data directory structure:
+
+```
+data/
+├── collections/
+│   ├── job-postings.json
+│   └── cvs.json
+├── job-postings/{identifier}/job-posting.json
+└── cvs/{identifier}/cv.json
 ```
 
 To see all merged configuration: `uv run joint --show-config`
