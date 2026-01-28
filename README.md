@@ -74,7 +74,7 @@ Configuration override hierarchy:
 2. `~/.cv-joint/settings.yaml` (user config for dotfiles)
 3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
 
-Example user settings, defaults shown except where noted:
+Example user settings, unnecessary defaults shown except where noted:
 
 ```yaml
 chat:
