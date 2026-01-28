@@ -1,5 +1,4 @@
 import gradio as gr
-import os
 import validators
 from services import ApplicationService
 from services import KnowledgeChatService
@@ -26,10 +25,13 @@ def create_app():
                         label="Job Posting URL",
                         placeholder="https://...",
                     )
-                    with gr.Accordion("Content file (optional)", open=False):
-                        job_content_file = gr.Textbox(
-                            label="Local file path",
-                            placeholder="/path/to/job-posting.html",
+                    with gr.Accordion(
+                        "Optional content file (for saved CAPTCHA-protected content)",
+                        open=False,
+                    ):
+                        job_content_file = gr.File(
+                            label="Upload job posting content",
+                            file_types=[".html", ".htm", ".txt", ".md"],
                         )
                     analyze_job_btn = gr.Button(
                         "Analyze Job Posting", variant="primary", interactive=False
@@ -69,16 +71,6 @@ def create_app():
                 def is_valid_url(url):
                     return validators.url(url) is True
 
-                def is_valid_file(path):
-                    return os.path.isfile(path)
-
-                def can_analyze(url, content_file):
-                    if not is_valid_url(url):
-                        return False
-                    if content_file and not is_valid_file(content_file):
-                        return False
-                    return True
-
                 def analyze_job(url, content_file):
                     if not url:
                         return (
@@ -90,9 +82,8 @@ def create_app():
                             gr.update(variant="primary"),
                         )
 
-                    job_data, identifier = service.create_job_posting(
-                        url, content_file if content_file else None
-                    )
+                    content_path = content_file.name if content_file else None
+                    job_data, identifier = service.create_job_posting(url, content_path)
                     is_saved = False
                     return (
                         job_data,
@@ -207,14 +198,8 @@ def create_app():
                     return job_list_data
 
                 job_url.change(
-                    fn=lambda url, path: gr.update(interactive=can_analyze(url, path)),
-                    inputs=[job_url, job_content_file],
-                    outputs=[analyze_job_btn],
-                )
-
-                job_content_file.change(
-                    fn=lambda url, path: gr.update(interactive=can_analyze(url, path)),
-                    inputs=[job_url, job_content_file],
+                    fn=lambda url: gr.update(interactive=is_valid_url(url)),
+                    inputs=[job_url],
                     outputs=[analyze_job_btn],
                 )
 
