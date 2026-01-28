@@ -67,7 +67,7 @@ cp sample.env .env # edit .env and add API keys
 ```
 
 Extend/override settings by creating `~/.cv-joint/settings.yaml`   
-and configuring an MCP server (other settings shown are defaults):
+and configuring an MCP server (other examples shown are defaults):
 
 ```yaml
 chat:
