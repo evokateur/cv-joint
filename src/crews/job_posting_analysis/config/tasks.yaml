@@ -1,24 +1,11 @@
 job_analysis_task:
   description: >
-    Analyze the job posting at the EXACT URL provided ({job_posting_url}).
+    Analyze the job posting at {job_posting_url}.
 
-    CRITICAL CONSTRAINTS:
-    - ONLY analyze the exact URL provided - DO NOT search for alternative job postings
-    - DO NOT use SerperDevTool or any search capabilities
-    - If the URL is inaccessible or does not contain job posting content, follow the failure protocol below
+    If a content file is provided ({content_file}), read the content from that local
+    file instead of fetching from the URL. The URL is still the canonical source.
 
-    FAILURE PROTOCOL:
-    If you cannot access the URL or it does not contain valid job posting content:
-    - Set title to "ERROR: Could not retrieve job posting"
-    - Set company to "Unknown"
-    - Set industry to "Unknown"
-    - Set description to "Failed to access URL: {job_posting_url}"
-    - Set experience_level to "unknown"
-    - Leave all other fields empty or with default values
-    - DO NOT attempt to find similar job postings elsewhere
-
-    If the URL IS accessible and contains job posting content, extract structured
-    information into the JobPosting schema following these rules:
+    Extract structured information into the JobPosting schema:
 
     **1. Metadata**
     - Extract job title, company name, industry, full description, and experience level.

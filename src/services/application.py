@@ -17,7 +17,9 @@ class ApplicationService:
         self.cv_analyzer = CvAnalyzer()
         self.repository = repository or FileSystemRepository()
 
-    def create_job_posting(self, url: str) -> tuple[dict[str, Any], str]:
+    def create_job_posting(
+        self, url: str, content_file: str = None
+    ) -> tuple[dict[str, Any], str]:
         """
         Analyze a job posting URL and create a structured JobPosting.
 
@@ -25,11 +27,12 @@ class ApplicationService:
 
         Args:
             url: Job posting URL to analyze
+            content_file: Optional local file path to use instead of fetching URL
 
         Returns:
             tuple of (job_posting_data, suggested_identifier)
         """
-        job_posting = self.job_posting_analyzer.analyze(url)
+        job_posting = self.job_posting_analyzer.analyze(url, content_file)
         identifier = self._generate_job_identifier(
             job_posting.company, job_posting.title
         )

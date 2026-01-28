@@ -15,12 +15,13 @@ class JobPostingAnalyzer:
     This class abstracts the CrewAI implementation details from the service layer.
     """
 
-    def analyze(self, url: str) -> JobPosting:
+    def analyze(self, url: str, content_file: str = None) -> JobPosting:
         """
         Analyze a job posting URL and return structured JobPosting data.
 
         Args:
             url: Job posting URL to analyze
+            content_file: Optional local file path to use instead of fetching URL
 
         Returns:
             JobPosting Pydantic model with extracted data
@@ -28,6 +29,7 @@ class JobPostingAnalyzer:
         with tempfile.TemporaryDirectory() as temp_dir:
             inputs = {
                 "job_posting_url": url,
+                "content_file": content_file,
                 "output_directory": temp_dir,
             }
 

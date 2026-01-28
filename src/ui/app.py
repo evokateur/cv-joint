@@ -23,9 +23,14 @@ def create_app():
                 with gr.Group():
                     gr.Markdown("### Create New Job Posting")
                     job_url = gr.Textbox(
-                        label="Job Posting URL or File Path",
-                        placeholder="https://... or /path/to/file.txt",
+                        label="Job Posting URL",
+                        placeholder="https://...",
                     )
+                    with gr.Accordion("Content file (optional)", open=False):
+                        job_content_file = gr.Textbox(
+                            label="Local file path",
+                            placeholder="/path/to/job-posting.html",
+                        )
                     analyze_job_btn = gr.Button(
                         "Analyze Job Posting", variant="primary", interactive=False
                     )
@@ -61,10 +66,20 @@ def create_app():
                     refresh_jobs_btn = gr.Button("Refresh List")
 
                 # Event handlers for Job Postings tab
-                def is_valid_url_or_filepath(url):
-                    return validators.url(url) is True or os.path.isfile(url)
+                def is_valid_url(url):
+                    return validators.url(url) is True
 
-                def analyze_job(url):
+                def is_valid_file(path):
+                    return os.path.isfile(path)
+
+                def can_analyze(url, content_file):
+                    if not is_valid_url(url):
+                        return False
+                    if content_file and not is_valid_file(content_file):
+                        return False
+                    return True
+
+                def analyze_job(url, content_file):
                     if not url:
                         return (
                             None,
@@ -75,7 +90,9 @@ def create_app():
                             gr.update(variant="primary"),
                         )
 
-                    job_data, identifier = service.create_job_posting(url)
+                    job_data, identifier = service.create_job_posting(
+                        url, content_file if content_file else None
+                    )
                     is_saved = False
                     return (
                         job_data,
@@ -190,8 +207,14 @@ def create_app():
                     return job_list_data
 
                 job_url.change(
-                    fn=lambda url: gr.update(interactive=is_valid_url_or_filepath(url)),
-                    inputs=[job_url],
+                    fn=lambda url, path: gr.update(interactive=can_analyze(url, path)),
+                    inputs=[job_url, job_content_file],
+                    outputs=[analyze_job_btn],
+                )
+
+                job_content_file.change(
+                    fn=lambda url, path: gr.update(interactive=can_analyze(url, path)),
+                    inputs=[job_url, job_content_file],
                     outputs=[analyze_job_btn],
                 )
 
@@ -213,7 +236,7 @@ def create_app():
                     ],
                 ).then(
                     fn=analyze_job,
-                    inputs=[job_url],
+                    inputs=[job_url, job_content_file],
                     outputs=[
                         job_result,
                         job_identifier,
