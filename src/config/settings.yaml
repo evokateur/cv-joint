@@ -1,5 +1,5 @@
 # Application configuration
-# Override in ~/.cv-joint/settings.yaml
+# Override hierarchy: settings.yaml -> ~/.cv-joint/settings.yaml -> settings.local.yaml
 
 chat:
   model: "gpt-4o-mini"

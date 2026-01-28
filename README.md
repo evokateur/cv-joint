@@ -66,8 +66,13 @@ Set environment variables:
 cp sample.env .env # edit .env and add API keys
 ```
 
-Extend/override settings by creating `~/.cv-joint/settings.yaml`   
-and configure an MCP server (other examples shown are defaults):
+Configuration override hierarchy:
+
+1. `src/*/config/settings.yaml` (defaults)
+2. `~/.cv-joint/settings.yaml` (user config, synced via dotfiles)
+3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
+
+Example `~/.cv-joint/settings.yaml` (MCP server required, others shown are defaults):
 
 ```yaml
 chat:

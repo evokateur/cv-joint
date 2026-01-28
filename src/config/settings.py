@@ -8,7 +8,7 @@ and imported by analyzer crews for their own settings.
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import yaml
 
 
@@ -34,13 +34,18 @@ class McpServerSettings(BaseModel):
     env: dict[str, str] = Field(default_factory=dict, description="Environment variables")
     tool_name: str = Field(alias="x-tool-name", description="Name of the search tool to call")
 
+    @field_validator("command")
+    @classmethod
+    def expand_command_path(cls, v: str) -> str:
+        return str(Path(v).expanduser())
+
 
 USER_CONFIG_FILE = Path.home() / ".cv-joint" / "settings.yaml"
 
 
 def load_yaml_config(config_dir: Path, user_config_path: Optional[str] = None) -> dict:
     """Load settings from YAML files with override hierarchy:
-    settings.yaml -> settings.local.yaml -> ~/.cv-joint/settings.yaml
+    settings.yaml -> ~/.cv-joint/settings.yaml -> settings.local.yaml
 
     YAML files are the single source of truth for configuration.
     Environment variables are only used for API keys (secrets).
@@ -58,11 +63,6 @@ def load_yaml_config(config_dir: Path, user_config_path: Optional[str] = None) -
     with open(settings_file) as f:
         config = yaml.safe_load(f) or {}
 
-    if local_settings_file.exists():
-        with open(local_settings_file) as f:
-            local_config = yaml.safe_load(f) or {}
-            deep_merge(config, local_config)
-
     if USER_CONFIG_FILE.exists():
         with open(USER_CONFIG_FILE) as f:
             user_config = yaml.safe_load(f) or {}
@@ -73,6 +73,11 @@ def load_yaml_config(config_dir: Path, user_config_path: Optional[str] = None) -
                         user_config = {}
                         break
             deep_merge(config, user_config)
+
+    if local_settings_file.exists():
+        with open(local_settings_file) as f:
+            local_config = yaml.safe_load(f) or {}
+            deep_merge(config, local_config)
 
     return config
 
