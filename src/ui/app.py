@@ -1,4 +1,5 @@
 import gradio as gr
+import os
 import validators
 from services import ApplicationService
 from services import KnowledgeChatService
@@ -22,8 +23,8 @@ def create_app():
                 with gr.Group():
                     gr.Markdown("### Create New Job Posting")
                     job_url = gr.Textbox(
-                        label="Job Posting URL",
-                        placeholder="https://...",
+                        label="Job Posting URL or File Path",
+                        placeholder="https://... or /path/to/file.txt",
                     )
                     analyze_job_btn = gr.Button(
                         "Analyze Job Posting", variant="primary", interactive=False
@@ -60,8 +61,8 @@ def create_app():
                     refresh_jobs_btn = gr.Button("Refresh List")
 
                 # Event handlers for Job Postings tab
-                def is_valid_url(url):
-                    return validators.url(url) is True
+                def is_valid_url_or_filepath(url):
+                    return validators.url(url) is True or os.path.isfile(url)
 
                 def analyze_job(url):
                     if not url:
@@ -189,7 +190,7 @@ def create_app():
                     return job_list_data
 
                 job_url.change(
-                    fn=lambda url: gr.update(interactive=is_valid_url(url)),
+                    fn=lambda url: gr.update(interactive=is_valid_url_or_filepath(url)),
                     inputs=[job_url],
                     outputs=[analyze_job_btn],
                 )
