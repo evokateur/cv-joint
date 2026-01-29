@@ -1,95 +1,61 @@
 #!/usr/bin/env python
+"""
+Run the CvOptimization crew from the command line.
+
+Usage:
+    uv run python -m crews.cv_optimization.main <job_posting_json> <cv_json>
+    JOB_POSTING_PATH=<path> CV_PATH=<path> uv run python -m crews.cv_optimization.main
+
+With crewai CLI (add entry point to pyproject.toml first):
+    JOB_POSTING_PATH=<path> CV_PATH=<path> crewai run
+
+The JSON files should contain serialized JobPosting and CurriculumVitae models.
+"""
+import os
 import sys
+import tempfile
 import warnings
-
-from datetime import datetime
-
-from .crew import CvOptimizationCrew
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
-# This main file is intended to be a way for you to run your
-# crew locally, so refrain from adding unnecessary logic into this file.
-# Replace with inputs you want to test with, it will automatically
-# interpolate any tasks and agents information
-
 
 def run():
-    """
-    Run the crew.
-    """
-    inputs = {"topic": "AI LLMs", "current_year": str(datetime.now().year)}
+    """Run the crew and output JSON to stdout."""
+    from .crew import CvOptimizationCrew
 
-    try:
-        CvOptimizationCrew().crew().kickoff(inputs=inputs)
-    except Exception as e:
-        raise Exception(f"An error occurred while running the crew: {e}")
+    job_posting_path = os.environ.get("JOB_POSTING_PATH") or (
+        sys.argv[1] if len(sys.argv) > 1 else None
+    )
+    cv_path = os.environ.get("CV_PATH") or (
+        sys.argv[2] if len(sys.argv) > 2 else None
+    )
 
+    if not job_posting_path or not cv_path:
+        print(__doc__)
+        sys.exit(1)
 
-def train():
-    """
-    Train the crew for a given number of iterations.
-    """
-    inputs = {"topic": "AI LLMs", "current_year": str(datetime.now().year)}
-    try:
-        CvOptimizationCrew().crew().train(
-            n_iterations=int(sys.argv[1]), filename=sys.argv[2], inputs=inputs
-        )
+    with open(job_posting_path) as f:
+        job_posting_json = f.read()
 
-    except Exception as e:
-        raise Exception(f"An error occurred while training the crew: {e}")
+    with open(cv_path) as f:
+        cv_json = f.read()
 
+    with tempfile.TemporaryDirectory() as temp_dir:
+        inputs = {
+            "job_posting_json": job_posting_json,
+            "cv_json": cv_json,
+            "output_directory": temp_dir,
+        }
 
-def replay():
-    """
-    Replay the crew execution from a specific task.
-    """
-    try:
-        CvOptimizationCrew().crew().replay(task_id=sys.argv[1])
+        crew = CvOptimizationCrew()
+        result = crew.crew().kickoff(inputs=inputs)
 
-    except Exception as e:
-        raise Exception(f"An error occurred while replaying the crew: {e}")
+        if result.pydantic is None:
+            print("Error: crew did not return a pydantic model", file=sys.stderr)
+            sys.exit(1)
 
-
-def test():
-    """
-    Test the crew execution and returns the results.
-    """
-    inputs = {"topic": "AI LLMs", "current_year": str(datetime.now().year)}
-
-    try:
-        CvOptimizationCrew().crew().test(
-            n_iterations=int(sys.argv[1]), eval_llm=sys.argv[2], inputs=inputs
-        )
-
-    except Exception as e:
-        raise Exception(f"An error occurred while testing the crew: {e}")
+        print(result.pydantic.model_dump_json(indent=2))
 
 
-def run_with_trigger():
-    """
-    Run the crew with trigger payload.
-    """
-    import json
-
-    if len(sys.argv) < 2:
-        raise Exception(
-            "No trigger payload provided. Please provide JSON payload as argument."
-        )
-
-    try:
-        trigger_payload = json.loads(sys.argv[1])
-    except json.JSONDecodeError:
-        raise Exception("Invalid JSON payload provided as argument")
-
-    inputs = {
-        "crewai_trigger_payload": trigger_payload,
-        "topic": "",
-        "current_year": "",
-    }
-
-    try:
-        result = CvOptimizationCrew().crew().kickoff(inputs=inputs)
-        return result
-    except Exception as e:
-        raise Exception(f"An error occurred while running the crew with trigger: {e}")
+if __name__ == "__main__":
+    run()
