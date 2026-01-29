@@ -58,8 +58,15 @@ Simplified project structure:
 Initial setup:
 
 ```sh
-make setup # or..
-make dev-setup # for tests, etc
+uv sync # or..
+uv sync --extra dev # for tests, etc.
+```
+
+`PHONY` make targets are also available:
+
+```sh
+make setup # runs 'uv sync'
+make dev-setup  # runs 'uv sync --extra dev'
 ```
 
 Set environment variables:
@@ -121,7 +128,20 @@ data/
 └── cvs/{identifier}/cv.json
 ```
 
-To see all merged, tilde expanded configuration: `uv run joint --show-config`
+To see all merged, tilde expanded configuration:
+
+```sh
+uv run joint --show-config
+```
+
+## Testing
+
+Run all tests (with short tracebacks):
+
+```sh
+uv run pytest /tests --tb=short # or..
+make test
+```
 
 ## Usage
 
