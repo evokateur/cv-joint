@@ -121,7 +121,7 @@ data/
 └── cvs/{identifier}/cv.json
 ```
 
-To see all merged configuration: `uv run joint --show-config`
+To see all merged, tilde expanded configuration: `uv run joint --show-config`
 
 ## Usage
 
