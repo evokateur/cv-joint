@@ -90,7 +90,6 @@ Example user settings, unnecessary defaults except where noted:
 ```yaml
 chat:
   model: "gpt-4o"
-  temperature: 0.7
 
 mcpServers:
   rag-knowledge: # null in default settings
@@ -110,7 +109,6 @@ crews:
     agents:
       cv_analyst:
         model: "gpt-4o"
-        temperature: 0.7
 
 repositories:
   filesystem:
