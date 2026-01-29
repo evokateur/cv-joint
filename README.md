@@ -74,7 +74,7 @@ Configuration override hierarchy:
 2. `~/.cv-joint/settings.yaml` (user config for dotfiles)
 3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
 
-Example user settings, unnecessary defaults shown except where noted:
+Example user settings, unnecessary defaults except where noted:
 
 ```yaml
 chat:
@@ -91,7 +91,7 @@ mcpServers:
       - "rag_knowledge_mcp.py"
     env:
       LOG_LEVEL: "INFO"
-    x-tool-name: "rag_search_knowledge"
+    x-tool-name: "rag_search_knowledge" # search tool to call
 
 crews:
   cv_analysis:
