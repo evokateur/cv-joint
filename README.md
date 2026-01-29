@@ -93,7 +93,7 @@ chat:
 
 mcpServers:
   rag-knowledge: # null in default settings
-    command: "~/.local/bin/uv" #
+    command: "~/.local/bin/uv"
     args:
       - "run"
       - "--directory"
