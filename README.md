@@ -84,11 +84,11 @@ chat:
 
 mcpServers:
   rag-knowledge: # null in default settings
-    command: "/absolute/path/to/uv"
+    command: "/path/to/uv" # tilde expansion supported
     args:
       - "run"
       - "--directory"
-      - "/absolute/path/to/mcp-server-project"
+      - "/path/to/mcp-server-project"
       - "python"
       - "rag_knowledge_mcp.py"
     env:
