@@ -5,6 +5,7 @@ from config.settings import AgentSettings, BaseConfig
 
 class Settings(BaseModel):
     """Top-level configuration model"""
+
     agents: dict[str, AgentSettings]
 
 
