@@ -36,7 +36,9 @@ Simplified project structure:
 │   ├── config
 │   ├── crews
 │   │   ├── cv_analysis
+│   │   ├── cv_optimization
 │   │   └── job_posting_analysis
+│   ├── infrastructure
 │   ├── models
 │   ├── repositories
 │   │   └── filesystem.py
@@ -71,7 +73,7 @@ Configure the `rag-knowledge` MCP server for RAG functions (see below).
 Configuration override hierarchy:
 
 1. `src/*/config/settings.yaml` (defaults)
-2. `~/.cv-joint/settings.yaml` (user config for dotfiles)
+2. `~/.cv-joint/settings.yaml` (user config, suitable for dotfiles)
 3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
 
 Example user settings, unnecessary defaults except where noted:
