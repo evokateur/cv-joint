@@ -1,8 +1,10 @@
 # Application configuration
 # Override hierarchy: settings.yaml -> ~/.cv-joint/settings.yaml -> settings.local.yaml
 
+# Strings beginning with "~/" will undergo tilde expansion
+
 chat:
-  model: "gpt-4o-mini"
+  model: "gpt-4o"
   temperature: 0.7
 
 mcpServers:
@@ -13,11 +15,11 @@ mcpServers:
 #
 # mcpServers:
 #   rag-knowledge:
-#     command: "/absolute/path/to/uv"
+#     command: "~/.local/bin/uv"
 #     args:
 #       - "run"
 #       - "--directory"
-#       - "/absolute/path/to/mcp-server-project"
+#       - "~/code/mcp-server-project"
 #       - "python"
 #       - "rag_knowledge_mcp.py"
 #     env:

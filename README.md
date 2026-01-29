@@ -76,30 +76,34 @@ Configuration override hierarchy:
 2. `~/.cv-joint/settings.yaml` (user config, suitable for dotfiles)
 3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
 
+Strings beginning with `~/` will undergo tilde expansion.
+
 Example user settings, unnecessary defaults except where noted:
 
 ```yaml
 chat:
   model: "gpt-4o"
+  temperature: 0.7
 
 mcpServers:
   rag-knowledge: # null in default settings
-    command: "/path/to/uv" # tilde expansion supported
+    command: "~/.local/bin/uv" #
     args:
       - "run"
       - "--directory"
-      - "/path/to/mcp-server-project"
+      - "~/code/mcp-server-project"
       - "python"
       - "rag_knowledge_mcp.py"
     env:
       LOG_LEVEL: "INFO"
-    x-tool-name: "rag_search_knowledge" # search tool to call
+    x-tool-name: "rag_search_knowledge"
 
 crews:
   cv_analysis:
     agents:
       cv_analyst:
         model: "gpt-4o"
+        temperature: 0.7
 
 repositories:
   filesystem:
