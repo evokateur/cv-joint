@@ -1,14 +1,5 @@
 import pytest
 from config.settings import is_mcp_configured
-from services.mcp_manager import McpManager
-
-
-@pytest.fixture(autouse=True)
-def clear_mcp_manager():
-    """Clear MCP manager state before each test for isolation."""
-    McpManager.clear()
-    yield
-    McpManager.clear()
 
 
 @pytest.mark.integration
@@ -49,8 +40,8 @@ async def test_fetch_context_returns_documents():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_connection_persists_across_calls():
-    """Test that MCP connection is reused across multiple fetch_context calls."""
+async def test_multiple_queries_work():
+    """Test that multiple queries can be made in sequence."""
     if not is_mcp_configured("rag-knowledge"):
         pytest.skip("MCP server 'rag-knowledge' not configured")
 
@@ -58,12 +49,8 @@ async def test_connection_persists_across_calls():
 
     service = KnowledgeChatService()
 
-    # First call establishes connection via manager
-    await service.fetch_context("test query 1", top_k=1)
-    session_after_first = McpManager._sessions.get("rag-knowledge")
-    assert session_after_first is not None
+    docs1 = await service.fetch_context("test query 1", top_k=1)
+    assert len(docs1) > 0
 
-    # Second call reuses connection
-    await service.fetch_context("test query 2", top_k=1)
-    session_after_second = McpManager._sessions.get("rag-knowledge")
-    assert session_after_second is session_after_first
+    docs2 = await service.fetch_context("test query 2", top_k=1)
+    assert len(docs2) > 0

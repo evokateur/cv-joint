@@ -10,7 +10,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, convert_to_mess
 from langchain_core.documents import Document
 
 from config.settings import get_mcp_config, get_chat_config
-from services.mcp_manager import McpManager
+from infrastructure import McpManager
 
 
 class KnowledgeChatService:

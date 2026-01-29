@@ -101,3 +101,63 @@ class JobPosting(BaseModel):
     # Extracted for ATS alignment
     keywords: List[str] = []  # important phrases/terms from posting
     tools_and_tech: List[str] = []  # specific stack/tools
+
+
+class CvTransformationPlan(BaseModel):
+    """Plan for transforming a CV to align with a job posting."""
+
+    # Context - copied from job posting for traceability
+    job_title: str = Field(
+        description="Job title from the posting (copied verbatim)"
+    )
+    company: str = Field(
+        description="Company name from the posting (copied verbatim)"
+    )
+
+    # Alignment analysis - transparency about what matches
+    matching_skills: List[str] = Field(
+        default_factory=list,
+        description="Skills in the CV that match job requirements"
+    )
+    missing_skills: List[str] = Field(
+        default_factory=list,
+        description="Required skills not found in the CV or knowledge base"
+    )
+    transferable_skills: List[str] = Field(
+        default_factory=list,
+        description="CV skills that relate to requirements but need reframing"
+    )
+
+    # Field-specific transformation instructions
+    profession_update: Optional[str] = Field(
+        default=None,
+        description="New profession field value, or null if no change needed"
+    )
+    core_expertise_updates: List[str] = Field(
+        default_factory=list,
+        description="Instructions for core_expertise changes (add, remove, reorder)"
+    )
+    summary_updates: List[str] = Field(
+        default_factory=list,
+        description="Instructions for summary_of_qualifications rewrites"
+    )
+    experience_updates: List[str] = Field(
+        default_factory=list,
+        description="Instructions for experience[].responsibilities changes, with indices"
+    )
+
+    # ATS optimization
+    keyword_insertions: List[str] = Field(
+        default_factory=list,
+        description="Specific keywords from job posting to incorporate"
+    )
+    quantification_suggestions: List[str] = Field(
+        default_factory=list,
+        description="Suggestions to add metrics/numbers where possible"
+    )
+
+    # Evidence from knowledge base
+    evidence_sources: List[str] = Field(
+        default_factory=list,
+        description="File paths or sources supporting the recommendations"
+    )

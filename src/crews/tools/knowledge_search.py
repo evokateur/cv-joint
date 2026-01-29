@@ -6,7 +6,7 @@ Uses the shared MCP session from McpManager to search the knowledge base.
 
 import asyncio
 from crewai.tools import BaseTool
-from services.mcp_manager import McpManager
+from infrastructure import McpManager
 
 
 class KnowledgeSearchTool(BaseTool):

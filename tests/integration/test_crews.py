@@ -26,6 +26,20 @@ def test_cv_analyzer_crew_instantiates():
 
 
 @pytest.mark.integration
+def test_cv_optimization_crew_instantiates():
+    """Test that CvOptimizationCrew can be instantiated with its config"""
+    from crews import CvOptimizationCrew
+
+    crew = CvOptimizationCrew()
+    assert crew is not None
+    assert hasattr(crew, "crew")
+    assert hasattr(crew, "cv_strategist")
+    assert hasattr(crew, "cv_rewriter")
+    assert hasattr(crew, "cv_alignment_task")
+    assert hasattr(crew, "cv_transformation_task")
+
+
+@pytest.mark.integration
 def test_service_layer_instantiates():
     """Test that service layer analyzers can be instantiated"""
     from services.analyzers import JobPostingAnalyzer

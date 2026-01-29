@@ -1,0 +1,66 @@
+cv_alignment_task:
+  description: >
+    Read the job posting from {job_posting_path} and the CV from {cv_path}.
+
+    Analyze how well the CV aligns with the job requirements and produce a
+    CvTransformationPlan with specific, actionable changes.
+
+    **Analysis Steps:**
+    1. Extract key requirements from the job posting (skills, experience, keywords)
+    2. Compare against the CV's current content
+    3. For each skill/requirement in the job posting:
+       a. Search the knowledge base: "What experience does the candidate have with [skill]?"
+       b. If KB returns relevant experience, mark as matching or transferable
+       c. Only mark as missing if BOTH the CV lacks it AND KB search finds nothing
+    4. Gather quantifications and specific details from KB to enhance CV content
+
+    **Plan Changes For These Fields Only:**
+    - profession: suggest update if job title differs significantly
+    - core_expertise: suggest additions, removals, or reordering
+    - summary_of_qualifications: suggest rewrites to emphasize relevant experience
+    - experience[].responsibilities: suggest updates with specific indices
+
+    **Rules:**
+    - Search the knowledge base before marking any skill as "missing"
+    - Cite KB sources (file paths) for all evidence used
+    - Use terminology from the job posting for ATS alignment
+    - Be specific: "Change experience[0].responsibilities[2] to..." not "improve bullet points"
+    - Do not fabricate experience - only use what's in CV or KB
+
+    **Output:** A CvTransformationPlan JSON object.
+
+  expected_output: >
+    A CvTransformationPlan with matching/missing skills analysis and specific
+    field-level transformation instructions.
+  output_file: "{output_directory}/cv_transformation_plan.json"
+  agent: cv_strategist
+
+cv_transformation_task:
+  description: >
+    Read the transformation plan from {output_directory}/cv_transformation_plan.json
+    and the original CV from {cv_path}.
+
+    Apply the plan to produce an optimized CurriculumVitae.
+
+    **Apply These Changes:**
+    1. Update profession field if profession_update is specified
+    2. Apply core_expertise_updates (add, remove, reorder as instructed)
+    3. Rewrite summary_of_qualifications per summary_updates
+    4. Update experience[].responsibilities per experience_updates
+    5. Incorporate keyword_insertions naturally into relevant sections
+    6. Add quantification_suggestions where they fit
+
+    **Rules:**
+    - Follow the plan exactly - do not improvise additional changes
+    - Preserve all CV fields not mentioned in the plan
+    - Maintain data types (lists stay lists, strings stay strings)
+    - Keep professional tone and consistent formatting
+    - Do not fabricate content beyond what the plan specifies
+
+    **Output:** A complete CurriculumVitae JSON object with transformations applied.
+
+  expected_output: >
+    A CurriculumVitae object with all planned transformations applied,
+    optimized for ATS and human review.
+  output_file: "{output_directory}/optimized_cv.json"
+  agent: cv_rewriter

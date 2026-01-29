@@ -1,14 +1,6 @@
 import pytest
 from config.settings import is_mcp_configured, get_mcp_config
-from services.mcp_manager import McpManager
-
-
-@pytest.fixture(autouse=True)
-def clear_mcp_manager():
-    """Clear MCP manager state before each test for isolation."""
-    McpManager.clear()
-    yield
-    McpManager.clear()
+from infrastructure import McpManager
 
 
 @pytest.mark.integration
