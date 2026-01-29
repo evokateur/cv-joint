@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 import tempfile
 
-from config.settings import load_yaml_config, deep_merge, get_merged_config
+from config.settings import load_yaml_config, deep_merge, expand_tildes, get_merged_config
 
 
 class TestDeepMerge:
@@ -34,6 +34,36 @@ class TestDeepMerge:
         override = {"a": 1}
         deep_merge(base, override)
         assert base == {"a": 1}
+
+
+class TestExpandTildes:
+    def test_expands_tilde_in_string_value(self):
+        config = {"path": "~/some/path"}
+        result = expand_tildes(config)
+        assert not result["path"].startswith("~")
+        assert result["path"].endswith("/some/path")
+
+    def test_expands_tilde_in_nested_dict(self):
+        config = {"outer": {"inner": "~/nested/path"}}
+        result = expand_tildes(config)
+        assert not result["outer"]["inner"].startswith("~")
+
+    def test_expands_tilde_in_list(self):
+        config = {"paths": ["~/first", "~/second", "no-tilde"]}
+        result = expand_tildes(config)
+        assert not result["paths"][0].startswith("~")
+        assert not result["paths"][1].startswith("~")
+        assert result["paths"][2] == "no-tilde"
+
+    def test_ignores_non_path_strings(self):
+        config = {"name": "hello", "count": 42}
+        result = expand_tildes(config)
+        assert result == {"name": "hello", "count": 42}
+
+    def test_ignores_bare_tilde(self):
+        config = {"value": "~"}
+        result = expand_tildes(config)
+        assert result["value"] == "~"
 
 
 class TestLoadYamlConfig:

@@ -8,7 +8,7 @@ and imported by analyzer crews for their own settings.
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 import yaml
 
 
@@ -33,11 +33,6 @@ class McpServerSettings(BaseModel):
     args: list[str] = Field(default_factory=list, description="Command arguments")
     env: dict[str, str] = Field(default_factory=dict, description="Environment variables")
     tool_name: str = Field(alias="x-tool-name", description="Name of the search tool to call")
-
-    @field_validator("command")
-    @classmethod
-    def expand_command_path(cls, v: str) -> str:
-        return str(Path(v).expanduser())
 
 
 USER_CONFIG_FILE = Path.home() / ".cv-joint" / "settings.yaml"
@@ -79,7 +74,27 @@ def load_yaml_config(config_dir: Path, user_config_path: Optional[str] = None) -
             local_config = yaml.safe_load(f) or {}
             deep_merge(config, local_config)
 
-    return config
+    return expand_tildes(config)
+
+
+def expand_tildes(config: dict) -> dict:
+    """Recursively expand ~/ in string values to home directory paths."""
+    result = {}
+    for key, value in config.items():
+        if isinstance(value, dict):
+            result[key] = expand_tildes(value)
+        elif isinstance(value, list):
+            result[key] = [
+                str(Path(item).expanduser()) if isinstance(item, str) and item.startswith("~/")
+                else expand_tildes(item) if isinstance(item, dict)
+                else item
+                for item in value
+            ]
+        elif isinstance(value, str) and value.startswith("~/"):
+            result[key] = str(Path(value).expanduser())
+        else:
+            result[key] = value
+    return result
 
 
 def deep_merge(base: dict, override: dict) -> None:
