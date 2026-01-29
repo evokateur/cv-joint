@@ -57,7 +57,7 @@ Initial setup:
 
 ```sh
 make setup # or..
-make setup-dev # for tests, etc
+make dev-setup # for tests, etc
 ```
 
 Set environment variables:

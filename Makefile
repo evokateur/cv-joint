@@ -1,4 +1,4 @@
-.PHONY: test clean setup setup-dev
+.PHONY: test clean setup dev-setup
 
 OPEN =
 ifeq ($(shell uname), Darwin)
@@ -29,7 +29,7 @@ clean:
 setup:
 	uv sync
 
-setup-dev:
+dev-setup:
 	uv sync --extra dev
 
 test:
