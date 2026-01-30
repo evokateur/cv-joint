@@ -375,13 +375,14 @@ def create_app():
             with gr.Tab("Curriculum Vitae"):
                 with gr.Group():
                     gr.Markdown("### Import CV")
-                    cv_file = gr.File(
-                        label="CV File", file_types=[".json", ".yaml", ".txt"]
-                    )
-                    cv_path = gr.Textbox(
-                        label="Or File Path",
-                        placeholder="/path/to/cv.json",
-                    )
+                    with gr.Accordion("CV Source", open=False) as cv_source_accordion:
+                        cv_file = gr.File(
+                            label="CV File", file_types=[".json", ".yaml", ".txt"]
+                        )
+                        cv_path = gr.Textbox(
+                            label="Or File Path",
+                            placeholder="/path/to/cv.json",
+                        )
                     analyze_cv_btn = gr.Button(
                         "Analyze CV", variant="primary", interactive=False
                     )
@@ -508,6 +509,7 @@ def create_app():
                             "",
                             gr.update(interactive=False, variant="primary"),
                             gr.update(visible=False),
+                            gr.update(open=False),
                         )
 
                     if not cv_data or not identifier:
@@ -522,6 +524,7 @@ def create_app():
                             None,
                             gr.update(variant="secondary"),
                             gr.update(visible=False),
+                            gr.update(),
                         )
 
                     try:
@@ -549,6 +552,7 @@ def create_app():
                             "",
                             gr.update(interactive=False, variant="primary"),
                             gr.update(visible=False),
+                            gr.update(open=False),
                         )
                     except Exception as e:
                         return (
@@ -562,6 +566,7 @@ def create_app():
                             None,
                             gr.update(variant="secondary"),
                             gr.update(visible=False),
+                            gr.update(),
                         )
 
                 def load_cvs():
@@ -656,6 +661,7 @@ def create_app():
                         cv_path,
                         analyze_cv_btn,
                         clear_cv_btn,
+                        cv_source_accordion,
                     ],
                 )
 
