@@ -1,5 +1,7 @@
 import gradio as gr
 import validators
+from converters import to_markdown
+from models import JobPosting, CurriculumVitae
 from services import ApplicationService
 from services import KnowledgeChatService
 from config.settings import get_chat_config, is_mcp_configured
@@ -13,7 +15,14 @@ def create_app():
     mcp_available = is_mcp_configured("rag-knowledge")
     chat_service = KnowledgeChatService() if mcp_available else None
 
-    with gr.Blocks(title="CV Joint") as app:
+    custom_css = """
+    .markdown-container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    """
+
+    with gr.Blocks(title="CV Joint", css=custom_css) as app:
         gr.Markdown("# CV Joint\n## Agentic job posting and CV analysis\n")
 
         with gr.Tabs():
@@ -39,7 +48,11 @@ def create_app():
 
                 with gr.Group():
                     gr.Markdown("### Results")
-                    job_result = gr.JSON(label="Job Posting Details")
+                    with gr.Tabs():
+                        with gr.Tab("JSON"):
+                            job_result_json = gr.JSON(label="Job Posting Details")
+                        with gr.Tab("Markdown"):
+                            job_result_md = gr.Markdown(elem_classes=["markdown-container"])
                     job_is_saved = gr.State(value=False)
 
                     with gr.Group(visible=False) as job_save_controls:
@@ -74,6 +87,7 @@ def create_app():
                 def analyze_job(url, content_file):
                     if not url:
                         return (
+                            "",
                             None,
                             "",
                             False,
@@ -84,8 +98,16 @@ def create_app():
 
                     content_path = content_file.name if content_file else None
                     job_data, identifier = service.create_job_posting(url, content_path)
+                    job_posting = JobPosting(**job_data)
+                    company = job_posting.company
+                    if company and company.lower() != "not specified":
+                        title = f"{job_posting.title} at {company}"
+                    else:
+                        title = job_posting.title
+                    job_md = to_markdown(job_posting, title=title)
                     is_saved = False
                     return (
+                        job_md,
                         job_data,
                         identifier,
                         is_saved,
@@ -98,11 +120,12 @@ def create_app():
                     identifier = evt.row_value[4]  # Last column is identifier
 
                     if not identifier:
-                        return None, "", "", True, gr.update(visible=False), ""
+                        return "", None, "", "", True, gr.update(visible=False), ""
 
                     job_posting = service.repository.get_job_posting(identifier)
                     if not job_posting:
                         return (
+                            "",
                             None,
                             "",
                             "",
@@ -112,9 +135,16 @@ def create_app():
                         )
 
                     job_data = job_posting.model_dump()
+                    company = job_posting.company
+                    if company and company.lower() != "not specified":
+                        title = f"{job_posting.title} at {company}"
+                    else:
+                        title = job_posting.title
+                    job_md = to_markdown(job_posting, title=title)
                     is_saved = True
 
                     return (
+                        job_md,
                         job_data,
                         "",
                         identifier,
@@ -133,6 +163,7 @@ def create_app():
                             gr.update(open=False),
                             True,
                             gr.update(visible=False),
+                            "",
                             None,
                             gr.update(interactive=False, variant="primary"),
                         )
@@ -146,6 +177,7 @@ def create_app():
                             gr.update(open=False),
                             False,
                             gr.update(visible=True),
+                            None,
                             job_data,
                             gr.update(variant="secondary"),
                         )
@@ -173,6 +205,7 @@ def create_app():
                             gr.update(open=False),
                             True,
                             gr.update(visible=False),
+                            "",
                             None,
                             gr.update(interactive=False, variant="primary"),
                         )
@@ -185,6 +218,7 @@ def create_app():
                             gr.update(open=False),
                             False,
                             gr.update(visible=True),
+                            None,
                             job_data,
                             gr.update(variant="secondary"),
                         )
@@ -214,6 +248,7 @@ def create_app():
                 # Analyze job posting - clear previous results first, then run analysis
                 analyze_job_btn.click(
                     fn=lambda: (
+                        "",
                         None,
                         "",
                         False,
@@ -221,7 +256,8 @@ def create_app():
                         "⏳ Analyzing job posting...",
                     ),
                     outputs=[
-                        job_result,
+                        job_result_md,
+                        job_result_json,
                         job_identifier,
                         job_is_saved,
                         job_save_controls,
@@ -231,7 +267,8 @@ def create_app():
                     fn=analyze_job,
                     inputs=[job_url, job_content_file],
                     outputs=[
-                        job_result,
+                        job_result_md,
+                        job_result_json,
                         job_identifier,
                         job_is_saved,
                         job_save_controls,
@@ -243,7 +280,8 @@ def create_app():
                 job_list.select(
                     fn=view_saved_job,
                     outputs=[
-                        job_result,
+                        job_result_md,
+                        job_result_json,
                         job_url,
                         job_identifier,
                         job_is_saved,
@@ -254,7 +292,7 @@ def create_app():
 
                 save_job_btn.click(
                     fn=save_job,
-                    inputs=[job_result, job_identifier, job_is_saved],
+                    inputs=[job_result_json, job_identifier, job_is_saved],
                     outputs=[
                         save_job_status,
                         job_url,
@@ -263,13 +301,15 @@ def create_app():
                         job_content_accordion,
                         job_is_saved,
                         job_save_controls,
-                        job_result,
+                        job_result_md,
+                        job_result_json,
                         analyze_job_btn,
                     ],
                 )
 
                 discard_job_btn.click(
                     fn=lambda: (
+                        "",
                         None,
                         "",
                         None,
@@ -281,7 +321,8 @@ def create_app():
                         gr.update(interactive=False, variant="primary"),
                     ),
                     outputs=[
-                        job_result,
+                        job_result_md,
+                        job_result_json,
                         job_url,
                         job_content_file,
                         job_content_accordion,
@@ -315,7 +356,11 @@ def create_app():
 
                 with gr.Group():
                     gr.Markdown("### Results")
-                    cv_result = gr.JSON(label="CV Details")
+                    with gr.Tabs():
+                        with gr.Tab("JSON"):
+                            cv_result_json = gr.JSON(label="CV Details")
+                        with gr.Tab("Markdown"):
+                            cv_result_md = gr.Markdown(elem_classes=["markdown-container"])
                     cv_is_saved = gr.State(value=False)
 
                     with gr.Group(visible=False) as cv_save_controls:
@@ -346,6 +391,7 @@ def create_app():
                     file_path = file.name if file else path
                     if not file_path:
                         return (
+                            "",
                             None,
                             "",
                             False,
@@ -355,8 +401,11 @@ def create_app():
                         )
 
                     cv_data, identifier = service.create_cv(file_path)
+                    cv = CurriculumVitae(**cv_data)
+                    cv_md = to_markdown(cv, title=cv.name)
                     is_saved = False
                     return (
+                        cv_md,
                         cv_data,
                         identifier,
                         is_saved,
@@ -371,11 +420,12 @@ def create_app():
                     ]  # Second column is identifier (after Date)
 
                     if not identifier:
-                        return None, "", True, gr.update(visible=False), ""
+                        return "", None, "", True, gr.update(visible=False), ""
 
                     cv = service.repository.get_cv(identifier)
                     if not cv:
                         return (
+                            "",
                             None,
                             "",
                             True,
@@ -384,9 +434,11 @@ def create_app():
                         )
 
                     cv_data = cv.model_dump()
+                    cv_md = to_markdown(cv, title=cv.name)
                     is_saved = True
 
                     return (
+                        cv_md,
                         cv_data,
                         identifier,
                         is_saved,
@@ -401,6 +453,7 @@ def create_app():
                             None,
                             True,
                             gr.update(visible=False),
+                            "",
                             None,
                             None,
                             "",
@@ -413,6 +466,7 @@ def create_app():
                             None,
                             False,
                             gr.update(visible=True),
+                            None,
                             cv_data,
                             None,
                             None,
@@ -438,6 +492,7 @@ def create_app():
                             cv_list_data,
                             True,
                             gr.update(visible=False),
+                            "",
                             None,
                             None,
                             "",
@@ -449,6 +504,7 @@ def create_app():
                             None,
                             False,
                             gr.update(visible=True),
+                            None,
                             cv_data,
                             None,
                             None,
@@ -490,6 +546,7 @@ def create_app():
                 # Analyze CV - clear previous results first, then run analysis
                 analyze_cv_btn.click(
                     fn=lambda: (
+                        "",
                         None,
                         "",
                         False,
@@ -497,7 +554,8 @@ def create_app():
                         "⏳ Analyzing CV...",
                     ),
                     outputs=[
-                        cv_result,
+                        cv_result_md,
+                        cv_result_json,
                         cv_identifier,
                         cv_is_saved,
                         cv_save_controls,
@@ -507,7 +565,8 @@ def create_app():
                     fn=analyze_cv,
                     inputs=[cv_file, cv_path],
                     outputs=[
-                        cv_result,
+                        cv_result_md,
+                        cv_result_json,
                         cv_identifier,
                         cv_is_saved,
                         cv_save_controls,
@@ -519,7 +578,8 @@ def create_app():
                 cv_list.select(
                     fn=view_saved_cv,
                     outputs=[
-                        cv_result,
+                        cv_result_md,
+                        cv_result_json,
                         cv_identifier,
                         cv_is_saved,
                         cv_save_controls,
@@ -529,13 +589,14 @@ def create_app():
 
                 save_cv_btn.click(
                     fn=save_cv,
-                    inputs=[cv_result, cv_identifier, cv_is_saved],
+                    inputs=[cv_result_json, cv_identifier, cv_is_saved],
                     outputs=[
                         save_cv_status,
                         cv_list,
                         cv_is_saved,
                         cv_save_controls,
-                        cv_result,
+                        cv_result_md,
+                        cv_result_json,
                         cv_file,
                         cv_path,
                         analyze_cv_btn,
@@ -544,6 +605,7 @@ def create_app():
 
                 discard_cv_btn.click(
                     fn=lambda: (
+                        "",
                         None,
                         None,
                         gr.update(value="", visible=True),
@@ -554,7 +616,8 @@ def create_app():
                         gr.update(interactive=False, variant="primary"),
                     ),
                     outputs=[
-                        cv_result,
+                        cv_result_md,
+                        cv_result_json,
                         cv_file,
                         cv_path,
                         cv_identifier,
