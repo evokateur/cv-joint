@@ -34,6 +34,8 @@ Simplified project structure:
 ├── src
 │   ├── builder # LaTeX PDF rendering
 │   ├── config
+│   ├── converters
+│   │   └── markdown.py
 │   ├── crews
 │   │   ├── cv_analysis
 │   │   ├── cv_optimization
@@ -126,7 +128,7 @@ data/
 └── cvs/{identifier}/cv.json
 ```
 
-To see all merged, tilde expanded configuration:
+To dump all merged (tilde expanded) configuration:
 
 ```sh
 uv run joint --show-config
