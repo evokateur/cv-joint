@@ -55,6 +55,9 @@ def create_app():
                             job_result_md = gr.Markdown(
                                 elem_classes=["markdown-container"]
                             )
+                    clear_job_btn = gr.Button(
+                        "Clear", variant="secondary", visible=False
+                    )
                     job_is_saved = gr.State(value=False)
 
                     with gr.Group(visible=False) as job_save_controls:
@@ -96,6 +99,7 @@ def create_app():
                             gr.update(visible=False),
                             "⚠ Please enter a URL",
                             gr.update(variant="primary"),
+                            gr.update(visible=False),
                         )
 
                     content_path = content_file.name if content_file else None
@@ -116,13 +120,23 @@ def create_app():
                         gr.update(visible=True),
                         "✓ Analysis complete",
                         gr.update(variant="secondary"),
+                        gr.update(visible=False),
                     )
 
                 def view_saved_job(evt: gr.SelectData):
                     identifier = evt.row_value[4]  # Last column is identifier
 
                     if not identifier:
-                        return "", None, "", "", True, gr.update(visible=False), ""
+                        return (
+                            "",
+                            None,
+                            "",
+                            "",
+                            True,
+                            gr.update(visible=False),
+                            "",
+                            gr.update(visible=False),
+                        )
 
                     job_posting = service.repository.get_job_posting(identifier)
                     if not job_posting:
@@ -134,6 +148,7 @@ def create_app():
                             True,
                             gr.update(visible=False),
                             f"⚠ Job posting not found",
+                            gr.update(visible=False),
                         )
 
                     job_data = job_posting.model_dump()
@@ -153,6 +168,7 @@ def create_app():
                         is_saved,
                         gr.update(visible=False),
                         f"✓ Loaded: {identifier}",
+                        gr.update(visible=True),
                     )
 
                 def save_job(job_data, identifier, is_saved):
@@ -168,6 +184,7 @@ def create_app():
                             "",
                             None,
                             gr.update(interactive=False, variant="primary"),
+                            gr.update(visible=False),
                         )
 
                     if not job_data or not identifier:
@@ -182,6 +199,7 @@ def create_app():
                             None,
                             job_data,
                             gr.update(variant="secondary"),
+                            gr.update(visible=False),
                         )
 
                     try:
@@ -210,6 +228,7 @@ def create_app():
                             "",
                             None,
                             gr.update(interactive=False, variant="primary"),
+                            gr.update(visible=False),
                         )
                     except Exception as e:
                         return (
@@ -223,6 +242,7 @@ def create_app():
                             None,
                             job_data,
                             gr.update(variant="secondary"),
+                            gr.update(visible=False),
                         )
 
                 def load_jobs():
@@ -276,6 +296,7 @@ def create_app():
                         job_save_controls,
                         save_job_status,
                         analyze_job_btn,
+                        clear_job_btn,
                     ],
                 )
 
@@ -289,6 +310,7 @@ def create_app():
                         job_is_saved,
                         job_save_controls,
                         save_job_status,
+                        clear_job_btn,
                     ],
                 )
 
@@ -306,6 +328,7 @@ def create_app():
                         job_result_md,
                         job_result_json,
                         analyze_job_btn,
+                        clear_job_btn,
                     ],
                 )
 
@@ -321,6 +344,7 @@ def create_app():
                         gr.update(visible=False),
                         "",
                         gr.update(interactive=False, variant="primary"),
+                        gr.update(visible=False),
                     ),
                     outputs=[
                         job_result_md,
@@ -333,7 +357,13 @@ def create_app():
                         job_save_controls,
                         save_job_status,
                         analyze_job_btn,
+                        clear_job_btn,
                     ],
+                )
+
+                clear_job_btn.click(
+                    fn=lambda: ("", None, gr.update(visible=False)),
+                    outputs=[job_result_md, job_result_json, clear_job_btn],
                 )
 
                 refresh_jobs_btn.click(fn=load_jobs, outputs=[job_list])
@@ -365,6 +395,9 @@ def create_app():
                             cv_result_md = gr.Markdown(
                                 elem_classes=["markdown-container"]
                             )
+                    clear_cv_btn = gr.Button(
+                        "Clear", variant="secondary", visible=False
+                    )
                     cv_is_saved = gr.State(value=False)
 
                     with gr.Group(visible=False) as cv_save_controls:
@@ -402,6 +435,7 @@ def create_app():
                             gr.update(visible=False),
                             "⚠ Please provide a file or path",
                             gr.update(variant="primary"),
+                            gr.update(visible=False),
                         )
 
                     cv_data, identifier = service.create_cv(file_path)
@@ -416,6 +450,7 @@ def create_app():
                         gr.update(visible=True),
                         "✓ Analysis complete",
                         gr.update(variant="secondary"),
+                        gr.update(visible=False),
                     )
 
                 def view_saved_cv(evt: gr.SelectData):
@@ -424,7 +459,15 @@ def create_app():
                     ]  # Second column is identifier (after Date)
 
                     if not identifier:
-                        return "", None, "", True, gr.update(visible=False), ""
+                        return (
+                            "",
+                            None,
+                            "",
+                            True,
+                            gr.update(visible=False),
+                            "",
+                            gr.update(visible=False),
+                        )
 
                     cv = service.repository.get_cv(identifier)
                     if not cv:
@@ -435,6 +478,7 @@ def create_app():
                             True,
                             gr.update(visible=False),
                             "⚠ CV not found",
+                            gr.update(visible=False),
                         )
 
                     cv_data = cv.model_dump()
@@ -448,6 +492,7 @@ def create_app():
                         is_saved,
                         gr.update(visible=False),
                         f"✓ Loaded: {identifier}",
+                        gr.update(visible=True),
                     )
 
                 def save_cv(cv_data, identifier, is_saved):
@@ -462,6 +507,7 @@ def create_app():
                             None,
                             "",
                             gr.update(interactive=False, variant="primary"),
+                            gr.update(visible=False),
                         )
 
                     if not cv_data or not identifier:
@@ -475,6 +521,7 @@ def create_app():
                             None,
                             None,
                             gr.update(variant="secondary"),
+                            gr.update(visible=False),
                         )
 
                     try:
@@ -501,6 +548,7 @@ def create_app():
                             None,
                             "",
                             gr.update(interactive=False, variant="primary"),
+                            gr.update(visible=False),
                         )
                     except Exception as e:
                         return (
@@ -513,6 +561,7 @@ def create_app():
                             None,
                             None,
                             gr.update(variant="secondary"),
+                            gr.update(visible=False),
                         )
 
                 def load_cvs():
@@ -576,6 +625,7 @@ def create_app():
                         cv_save_controls,
                         save_cv_status,
                         analyze_cv_btn,
+                        clear_cv_btn,
                     ],
                 )
 
@@ -588,6 +638,7 @@ def create_app():
                         cv_is_saved,
                         cv_save_controls,
                         save_cv_status,
+                        clear_cv_btn,
                     ],
                 )
 
@@ -604,6 +655,7 @@ def create_app():
                         cv_file,
                         cv_path,
                         analyze_cv_btn,
+                        clear_cv_btn,
                     ],
                 )
 
@@ -618,6 +670,7 @@ def create_app():
                         gr.update(visible=False),
                         "",
                         gr.update(interactive=False, variant="primary"),
+                        gr.update(visible=False),
                     ),
                     outputs=[
                         cv_result_md,
@@ -629,7 +682,13 @@ def create_app():
                         cv_save_controls,
                         save_cv_status,
                         analyze_cv_btn,
+                        clear_cv_btn,
                     ],
+                )
+
+                clear_cv_btn.click(
+                    fn=lambda: ("", None, gr.update(visible=False)),
+                    outputs=[cv_result_md, cv_result_json, clear_cv_btn],
                 )
 
                 refresh_cvs_btn.click(fn=load_cvs, outputs=[cv_list])
