@@ -85,6 +85,8 @@ class ApplicationService:
             text = re.sub(r"[-\s]+", "-", text)
             return text.strip("-")
 
+        if company.lower() == "not specified":
+            return slugify(title)
         return f"{slugify(company)}-{slugify(title)}"
 
     def get_job_postings(self) -> list[dict[str, Any]]:
