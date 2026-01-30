@@ -39,7 +39,7 @@ def create_app():
                         open=False,
                     ) as job_content_accordion:
                         job_content_file = gr.File(
-                            label="Upload job posting content",
+                            label="Job Posting content file",
                             file_types=[".html", ".htm", ".txt", ".md"],
                         )
                     analyze_job_btn = gr.Button(
@@ -52,7 +52,9 @@ def create_app():
                         with gr.Tab("JSON"):
                             job_result_json = gr.JSON(label="Job Posting Details")
                         with gr.Tab("Markdown"):
-                            job_result_md = gr.Markdown(elem_classes=["markdown-container"])
+                            job_result_md = gr.Markdown(
+                                elem_classes=["markdown-container"]
+                            )
                     job_is_saved = gr.State(value=False)
 
                     with gr.Group(visible=False) as job_save_controls:
@@ -360,7 +362,9 @@ def create_app():
                         with gr.Tab("JSON"):
                             cv_result_json = gr.JSON(label="CV Details")
                         with gr.Tab("Markdown"):
-                            cv_result_md = gr.Markdown(elem_classes=["markdown-container"])
+                            cv_result_md = gr.Markdown(
+                                elem_classes=["markdown-container"]
+                            )
                     cv_is_saved = gr.State(value=False)
 
                     with gr.Group(visible=False) as cv_save_controls:
