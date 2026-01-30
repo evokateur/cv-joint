@@ -28,7 +28,7 @@ def create_app():
                     with gr.Accordion(
                         "(Optional) file with CAPTCHA-protected content:",
                         open=False,
-                    ):
+                    ) as job_content_accordion:
                         job_content_file = gr.File(
                             label="Upload job posting content",
                             file_types=[".html", ".htm", ".txt", ".md"],
@@ -129,6 +129,8 @@ def create_app():
                             "ℹ Job posting is already saved",
                             "",
                             None,
+                            None,
+                            gr.update(open=False),
                             True,
                             gr.update(visible=False),
                             None,
@@ -140,6 +142,8 @@ def create_app():
                             "⚠ Please analyze a job posting first and provide an identifier",
                             "",
                             None,
+                            None,
+                            gr.update(open=False),
                             False,
                             gr.update(visible=True),
                             job_data,
@@ -165,6 +169,8 @@ def create_app():
                             f"✓ Job posting saved: {metadata['identifier']}",
                             "",
                             job_list_data,
+                            None,
+                            gr.update(open=False),
                             True,
                             gr.update(visible=False),
                             None,
@@ -175,6 +181,8 @@ def create_app():
                             f"✗ Error saving job posting: {str(e)}",
                             "",
                             None,
+                            None,
+                            gr.update(open=False),
                             False,
                             gr.update(visible=True),
                             job_data,
@@ -251,6 +259,8 @@ def create_app():
                         save_job_status,
                         job_url,
                         job_list,
+                        job_content_file,
+                        job_content_accordion,
                         job_is_saved,
                         job_save_controls,
                         job_result,
@@ -262,6 +272,8 @@ def create_app():
                     fn=lambda: (
                         None,
                         "",
+                        None,
+                        gr.update(open=False),
                         "",
                         False,
                         gr.update(visible=False),
@@ -271,6 +283,8 @@ def create_app():
                     outputs=[
                         job_result,
                         job_url,
+                        job_content_file,
+                        job_content_accordion,
                         job_identifier,
                         job_is_saved,
                         job_save_controls,
