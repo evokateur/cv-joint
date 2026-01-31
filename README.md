@@ -5,7 +5,7 @@ Track job postings, create targeted CVs, render them with LaTeX, achieve constan
 ## Features
 
 - Create structured data from Job Posting URLs
-- Create structured CV data from text files
+- Create structured CV data from text CV files
 - RAG knowledge base equipped chat
 - Optimize CV data for job postings (in progress)
 - Create PDFs from CV data with LaTeX (in progress)
@@ -82,7 +82,7 @@ Configure the `rag-knowledge` MCP server for RAG functions (see below).
 Configuration override hierarchy:
 
 1. `src/*/config/settings.yaml` (defaults)
-2. `~/.cv-joint/settings.yaml` (user config, suitable for dotfiles)
+2. `~/.cv-joint/settings.yaml` (user dotfile)
 3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
 
 Strings beginning with `~/` will undergo tilde expansion.
