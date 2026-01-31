@@ -32,12 +32,12 @@ cv_alignment_task:
   expected_output: >
     A CvTransformationPlan with matching/missing skills analysis and specific
     field-level transformation instructions.
-  output_file: "{output_directory}/cv_transformation_plan.json"
+  output_file: "{output_directory}/transformation-plan.json"
   agent: cv_strategist
 
 cv_transformation_task:
   description: >
-    Read the transformation plan from {output_directory}/cv_transformation_plan.json
+    Read the transformation plan from {output_directory}/transformation-plan.json
     and the original CV from {cv_path}.
 
     Apply the plan to produce an optimized CurriculumVitae.
@@ -62,5 +62,5 @@ cv_transformation_task:
   expected_output: >
     A CurriculumVitae object with all planned transformations applied,
     optimized for ATS and human review.
-  output_file: "{output_directory}/optimized_cv.json"
+  output_file: "{output_directory}/cv.json"
   agent: cv_rewriter
