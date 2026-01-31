@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from converters import to_markdown
-from models import JobPosting, CurriculumVitae, CvTransformationPlan
+from models import JobPosting, CurriculumVitae, CvOptimization, CvTransformationPlan
 from repositories.config.settings import get_config
 
 
@@ -362,66 +362,50 @@ class FileSystemRepository:
 
         return count
 
-    def _generate_optimization_identifier(self) -> str:
-        """Generate a timestamp-based identifier for an optimization."""
-        return datetime.now().strftime("%Y%m%d-%H%M%S")
-
-    def save_optimization(
-        self,
-        job_posting_identifier: str,
-        plan: CvTransformationPlan,
-        optimized_cv: Optional[CurriculumVitae] = None,
-        identifier: Optional[str] = None,
-    ) -> dict[str, Any]:
-        """
-        Save an optimization under a job posting.
-
-        Args:
-            job_posting_identifier: Identifier of the parent job posting
-            plan: The transformation plan
-            optimized_cv: Optional optimized CV output
-            identifier: Optional identifier; auto-generated if not provided
-
-        Returns:
-            Metadata dict for the saved optimization
-        """
-        if identifier is None:
-            identifier = self._generate_optimization_identifier()
-
-        optimization_dir = (
+    def _optimization_dir(
+        self, job_posting_identifier: str, identifier: str
+    ) -> Path:
+        """Get the directory path for an optimization."""
+        return (
             self.data_dir
             / "job-postings"
             / job_posting_identifier
             / "cv-optimizations"
             / identifier
         )
+
+    def save_optimization(
+        self,
+        job_posting_identifier: str,
+        optimization: CvOptimization,
+    ) -> dict[str, Any]:
+        """
+        Save optimization marker (optimization.json).
+
+        The plan and CV files are assumed to already exist (written by crew).
+        This method writes the marker that makes the directory "valid".
+
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            optimization: The optimization metadata to save
+
+        Returns:
+            Metadata dict for the saved optimization
+        """
+        optimization_dir = self._optimization_dir(
+            job_posting_identifier, optimization.identifier
+        )
         optimization_dir.mkdir(parents=True, exist_ok=True)
 
-        if plan.created_at is None:
-            plan = plan.model_copy(update={"created_at": datetime.now()})
-
-        plan_path = optimization_dir / "plan.json"
-        with open(plan_path, "w") as f:
-            json.dump(plan.model_dump(mode="json"), f, indent=2)
-
-        md_path = optimization_dir / "plan.md"
-        md_path.write_text(to_markdown(plan, title=f"Optimization Plan: {plan.job_title} at {plan.company}"))
-
-        if optimized_cv is not None:
-            cv_path = optimization_dir / "cv.json"
-            with open(cv_path, "w") as f:
-                json.dump(optimized_cv.model_dump(mode="json"), f, indent=2)
-
-            cv_md_path = optimization_dir / "cv.md"
-            cv_md_path.write_text(to_markdown(optimized_cv, title=optimized_cv.name))
+        optimization_path = optimization_dir / "optimization.json"
+        with open(optimization_path, "w") as f:
+            json.dump(optimization.model_dump(mode="json"), f, indent=2)
 
         return {
-            "identifier": identifier,
+            "identifier": optimization.identifier,
             "job_posting_identifier": job_posting_identifier,
-            "job_title": plan.job_title,
-            "company": plan.company,
-            "base_cv_identifier": plan.base_cv_identifier,
-            "created_at": plan.created_at.isoformat() if plan.created_at else None,
+            "base_cv_identifier": optimization.base_cv_identifier,
+            "created_at": optimization.created_at.isoformat(),
         }
 
     def list_optimizations(
@@ -430,6 +414,8 @@ class FileSystemRepository:
     ) -> list[dict[str, Any]]:
         """
         List optimizations, optionally filtered by job posting.
+
+        Only returns directories that have optimization.json (the save marker).
 
         Args:
             job_posting_identifier: If provided, list only for this job posting.
@@ -459,23 +445,58 @@ class FileSystemRepository:
                 if not optimization_dir.is_dir():
                     continue
 
-                plan_path = optimization_dir / "plan.json"
-                if not plan_path.exists():
+                optimization_path = optimization_dir / "optimization.json"
+                if not optimization_path.exists():
                     continue
 
-                with open(plan_path, "r") as f:
-                    plan_data = json.load(f)
+                with open(optimization_path, "r") as f:
+                    optimization_data = json.load(f)
 
-                results.append({
+                result = {
                     "identifier": optimization_dir.name,
                     "job_posting_identifier": jp_identifier,
-                    "job_title": plan_data.get("job_title"),
-                    "company": plan_data.get("company"),
-                    "base_cv_identifier": plan_data.get("base_cv_identifier"),
-                    "created_at": plan_data.get("created_at"),
-                })
+                    "base_cv_identifier": optimization_data.get("base_cv_identifier"),
+                    "created_at": optimization_data.get("created_at"),
+                }
+
+                plan_path = optimization_dir / "transformation-plan.json"
+                if plan_path.exists():
+                    with open(plan_path, "r") as f:
+                        plan_data = json.load(f)
+                    result["job_title"] = plan_data.get("job_title")
+                    result["company"] = plan_data.get("company")
+
+                results.append(result)
 
         return results
+
+    def get_optimization(
+        self,
+        job_posting_identifier: str,
+        identifier: str,
+    ) -> Optional[CvOptimization]:
+        """
+        Load optimization metadata from optimization.json.
+
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            identifier: Identifier of the optimization
+
+        Returns:
+            CvOptimization or None if not found
+        """
+        optimization_path = (
+            self._optimization_dir(job_posting_identifier, identifier)
+            / "optimization.json"
+        )
+
+        if not optimization_path.exists():
+            return None
+
+        with open(optimization_path, "r") as f:
+            data = json.load(f)
+
+        return CvOptimization(**data)
 
     def get_optimization_plan(
         self,
@@ -493,12 +514,8 @@ class FileSystemRepository:
             CvTransformationPlan or None if not found
         """
         plan_path = (
-            self.data_dir
-            / "job-postings"
-            / job_posting_identifier
-            / "cv-optimizations"
-            / identifier
-            / "plan.json"
+            self._optimization_dir(job_posting_identifier, identifier)
+            / "transformation-plan.json"
         )
 
         if not plan_path.exists():
@@ -508,3 +525,28 @@ class FileSystemRepository:
             data = json.load(f)
 
         return CvTransformationPlan(**data)
+
+    def delete_optimization(
+        self,
+        job_posting_identifier: str,
+        identifier: str,
+    ) -> bool:
+        """
+        Delete an optimization directory entirely.
+
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            identifier: Identifier of the optimization
+
+        Returns:
+            True if deleted, False if not found
+        """
+        import shutil
+
+        optimization_dir = self._optimization_dir(job_posting_identifier, identifier)
+
+        if not optimization_dir.exists():
+            return False
+
+        shutil.rmtree(optimization_dir)
+        return True
