@@ -210,6 +210,178 @@ class TestCvOperations:
         assert md_path.exists()
 
 
+class TestOptimizationOperations:
+    @pytest.fixture
+    def sample_transformation_plan(self):
+        from models import CvTransformationPlan
+        from datetime import datetime
+
+        return CvTransformationPlan(
+            job_title="Software Engineer",
+            company="Acme Corp",
+            base_cv_identifier="jane-doe-cv",
+            created_at=datetime(2025, 1, 15, 10, 30, 0),
+            matching_skills=["Python", "Testing"],
+            missing_skills=["Kubernetes"],
+            transferable_skills=["CI/CD experience"],
+        )
+
+    @pytest.fixture
+    def repository_with_job_posting(self, repository, sample_job_posting):
+        repository.save_job_posting(sample_job_posting, "acme-swe")
+        return repository
+
+    def test_save_and_get_optimization_plan(
+        self, repository_with_job_posting, sample_transformation_plan
+    ):
+        repository_with_job_posting.save_optimization(
+            job_posting_identifier="acme-swe",
+            plan=sample_transformation_plan,
+        )
+
+        optimizations = repository_with_job_posting.list_optimizations("acme-swe")
+        assert len(optimizations) == 1
+        identifier = optimizations[0]["identifier"]
+
+        retrieved = repository_with_job_posting.get_optimization_plan(
+            job_posting_identifier="acme-swe",
+            identifier=identifier,
+        )
+        assert retrieved is not None
+        assert retrieved.job_title == "Software Engineer"
+        assert retrieved.base_cv_identifier == "jane-doe-cv"
+
+    def test_save_optimization_generates_identifier(
+        self, repository_with_job_posting, sample_transformation_plan
+    ):
+        metadata = repository_with_job_posting.save_optimization(
+            job_posting_identifier="acme-swe",
+            plan=sample_transformation_plan,
+        )
+        assert "identifier" in metadata
+        assert len(metadata["identifier"]) > 0
+
+    def test_save_optimization_with_explicit_identifier(
+        self, repository_with_job_posting, sample_transformation_plan
+    ):
+        metadata = repository_with_job_posting.save_optimization(
+            job_posting_identifier="acme-swe",
+            plan=sample_transformation_plan,
+            identifier="my-custom-id",
+        )
+        assert metadata["identifier"] == "my-custom-id"
+
+    def test_save_optimization_creates_correct_directory_structure(
+        self, repository_with_job_posting, sample_transformation_plan, temp_data_dir
+    ):
+        repository_with_job_posting.save_optimization(
+            job_posting_identifier="acme-swe",
+            plan=sample_transformation_plan,
+            identifier="opt-123",
+        )
+        expected_path = (
+            Path(temp_data_dir)
+            / "job-postings"
+            / "acme-swe"
+            / "cv-optimizations"
+            / "opt-123"
+            / "plan.json"
+        )
+        assert expected_path.exists()
+
+    def test_save_optimization_creates_markdown(
+        self, repository_with_job_posting, sample_transformation_plan, temp_data_dir
+    ):
+        repository_with_job_posting.save_optimization(
+            job_posting_identifier="acme-swe",
+            plan=sample_transformation_plan,
+            identifier="opt-123",
+        )
+        md_path = (
+            Path(temp_data_dir)
+            / "job-postings"
+            / "acme-swe"
+            / "cv-optimizations"
+            / "opt-123"
+            / "plan.md"
+        )
+        assert md_path.exists()
+
+    def test_list_optimizations_for_job_posting(
+        self, repository_with_job_posting, sample_transformation_plan
+    ):
+        repository_with_job_posting.save_optimization(
+            job_posting_identifier="acme-swe",
+            plan=sample_transformation_plan,
+            identifier="opt-1",
+        )
+        repository_with_job_posting.save_optimization(
+            job_posting_identifier="acme-swe",
+            plan=sample_transformation_plan,
+            identifier="opt-2",
+        )
+
+        optimizations = repository_with_job_posting.list_optimizations("acme-swe")
+        assert len(optimizations) == 2
+        identifiers = [opt["identifier"] for opt in optimizations]
+        assert "opt-1" in identifiers
+        assert "opt-2" in identifiers
+
+    def test_list_optimizations_returns_metadata(
+        self, repository_with_job_posting, sample_transformation_plan
+    ):
+        repository_with_job_posting.save_optimization(
+            job_posting_identifier="acme-swe",
+            plan=sample_transformation_plan,
+            identifier="opt-1",
+        )
+
+        optimizations = repository_with_job_posting.list_optimizations("acme-swe")
+        opt = optimizations[0]
+
+        assert opt["identifier"] == "opt-1"
+        assert opt["job_posting_identifier"] == "acme-swe"
+        assert opt["job_title"] == "Software Engineer"
+        assert opt["company"] == "Acme Corp"
+        assert opt["base_cv_identifier"] == "jane-doe-cv"
+        assert "created_at" in opt
+
+    def test_list_optimizations_empty(self, repository_with_job_posting):
+        optimizations = repository_with_job_posting.list_optimizations("acme-swe")
+        assert optimizations == []
+
+    def test_list_all_optimizations(
+        self, repository, sample_job_posting, sample_transformation_plan
+    ):
+        repository.save_job_posting(sample_job_posting, "job-1")
+        repository.save_job_posting(sample_job_posting, "job-2")
+
+        repository.save_optimization(
+            job_posting_identifier="job-1",
+            plan=sample_transformation_plan,
+            identifier="opt-a",
+        )
+        repository.save_optimization(
+            job_posting_identifier="job-2",
+            plan=sample_transformation_plan,
+            identifier="opt-b",
+        )
+
+        optimizations = repository.list_optimizations()
+        assert len(optimizations) == 2
+
+        job_posting_ids = [opt["job_posting_identifier"] for opt in optimizations]
+        assert "job-1" in job_posting_ids
+        assert "job-2" in job_posting_ids
+
+    def test_get_optimization_plan_not_found(self, repository_with_job_posting):
+        result = repository_with_job_posting.get_optimization_plan(
+            job_posting_identifier="acme-swe",
+            identifier="nonexistent",
+        )
+        assert result is None
+
+
 class TestClearMarkdown:
     def test_clear_all_markdown(self, repository, sample_job_posting, sample_cv, temp_data_dir):
         repository.save_job_posting(sample_job_posting, "job-1")

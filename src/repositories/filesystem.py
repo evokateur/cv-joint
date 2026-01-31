@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from converters import to_markdown
-from models import JobPosting, CurriculumVitae
+from models import JobPosting, CurriculumVitae, CvTransformationPlan
 from repositories.config.settings import get_config
 
 
@@ -361,3 +361,150 @@ class FileSystemRepository:
                     count += 1
 
         return count
+
+    def _generate_optimization_identifier(self) -> str:
+        """Generate a timestamp-based identifier for an optimization."""
+        return datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    def save_optimization(
+        self,
+        job_posting_identifier: str,
+        plan: CvTransformationPlan,
+        optimized_cv: Optional[CurriculumVitae] = None,
+        identifier: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """
+        Save an optimization under a job posting.
+
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            plan: The transformation plan
+            optimized_cv: Optional optimized CV output
+            identifier: Optional identifier; auto-generated if not provided
+
+        Returns:
+            Metadata dict for the saved optimization
+        """
+        if identifier is None:
+            identifier = self._generate_optimization_identifier()
+
+        optimization_dir = (
+            self.data_dir
+            / "job-postings"
+            / job_posting_identifier
+            / "cv-optimizations"
+            / identifier
+        )
+        optimization_dir.mkdir(parents=True, exist_ok=True)
+
+        if plan.created_at is None:
+            plan = plan.model_copy(update={"created_at": datetime.now()})
+
+        plan_path = optimization_dir / "plan.json"
+        with open(plan_path, "w") as f:
+            json.dump(plan.model_dump(mode="json"), f, indent=2)
+
+        md_path = optimization_dir / "plan.md"
+        md_path.write_text(to_markdown(plan, title=f"Optimization Plan: {plan.job_title} at {plan.company}"))
+
+        if optimized_cv is not None:
+            cv_path = optimization_dir / "cv.json"
+            with open(cv_path, "w") as f:
+                json.dump(optimized_cv.model_dump(mode="json"), f, indent=2)
+
+            cv_md_path = optimization_dir / "cv.md"
+            cv_md_path.write_text(to_markdown(optimized_cv, title=optimized_cv.name))
+
+        return {
+            "identifier": identifier,
+            "job_posting_identifier": job_posting_identifier,
+            "job_title": plan.job_title,
+            "company": plan.company,
+            "base_cv_identifier": plan.base_cv_identifier,
+            "created_at": plan.created_at.isoformat() if plan.created_at else None,
+        }
+
+    def list_optimizations(
+        self,
+        job_posting_identifier: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        List optimizations, optionally filtered by job posting.
+
+        Args:
+            job_posting_identifier: If provided, list only for this job posting.
+                                   If None, list all optimizations across all job postings.
+
+        Returns:
+            List of optimization metadata dicts
+        """
+        results = []
+
+        if job_posting_identifier is not None:
+            job_posting_dirs = [self.data_dir / "job-postings" / job_posting_identifier]
+        else:
+            job_postings_root = self.data_dir / "job-postings"
+            if not job_postings_root.exists():
+                return []
+            job_posting_dirs = [d for d in job_postings_root.iterdir() if d.is_dir()]
+
+        for job_posting_dir in job_posting_dirs:
+            optimizations_dir = job_posting_dir / "cv-optimizations"
+            if not optimizations_dir.exists():
+                continue
+
+            jp_identifier = job_posting_dir.name
+
+            for optimization_dir in optimizations_dir.iterdir():
+                if not optimization_dir.is_dir():
+                    continue
+
+                plan_path = optimization_dir / "plan.json"
+                if not plan_path.exists():
+                    continue
+
+                with open(plan_path, "r") as f:
+                    plan_data = json.load(f)
+
+                results.append({
+                    "identifier": optimization_dir.name,
+                    "job_posting_identifier": jp_identifier,
+                    "job_title": plan_data.get("job_title"),
+                    "company": plan_data.get("company"),
+                    "base_cv_identifier": plan_data.get("base_cv_identifier"),
+                    "created_at": plan_data.get("created_at"),
+                })
+
+        return results
+
+    def get_optimization_plan(
+        self,
+        job_posting_identifier: str,
+        identifier: str,
+    ) -> Optional[CvTransformationPlan]:
+        """
+        Load a transformation plan from the filesystem.
+
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            identifier: Identifier of the optimization
+
+        Returns:
+            CvTransformationPlan or None if not found
+        """
+        plan_path = (
+            self.data_dir
+            / "job-postings"
+            / job_posting_identifier
+            / "cv-optimizations"
+            / identifier
+            / "plan.json"
+        )
+
+        if not plan_path.exists():
+            return None
+
+        with open(plan_path, "r") as f:
+            data = json.load(f)
+
+        return CvTransformationPlan(**data)

@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
@@ -112,6 +113,16 @@ class CvTransformationPlan(BaseModel):
     )
     company: str = Field(
         description="Company name from the posting (copied verbatim)"
+    )
+
+    # Persistence metadata (set when saving, not by crew)
+    base_cv_identifier: Optional[str] = Field(
+        default=None,
+        description="Identifier of the CV this plan transforms"
+    )
+    created_at: Optional[datetime] = Field(
+        default=None,
+        description="When this plan was created"
     )
 
     # Alignment analysis - transparency about what matches
