@@ -108,67 +108,69 @@ class CvTransformationPlan(BaseModel):
     """Plan for transforming a CV to align with a job posting."""
 
     # Context - copied from job posting for traceability
-    job_title: str = Field(
-        description="Job title from the posting (copied verbatim)"
-    )
-    company: str = Field(
-        description="Company name from the posting (copied verbatim)"
-    )
-
-    # Persistence metadata (set when saving, not by crew)
-    base_cv_identifier: Optional[str] = Field(
-        default=None,
-        description="Identifier of the CV this plan transforms"
-    )
-    created_at: Optional[datetime] = Field(
-        default=None,
-        description="When this plan was created"
-    )
+    job_title: str = Field(description="Job title from the posting (copied verbatim)")
+    company: str = Field(description="Company name from the posting (copied verbatim)")
 
     # Alignment analysis - transparency about what matches
     matching_skills: List[str] = Field(
-        default_factory=list,
-        description="Skills in the CV that match job requirements"
+        default_factory=list, description="Skills in the CV that match job requirements"
     )
     missing_skills: List[str] = Field(
         default_factory=list,
-        description="Required skills not found in the CV or knowledge base"
+        description="Required skills not found in the CV or knowledge base",
     )
     transferable_skills: List[str] = Field(
         default_factory=list,
-        description="CV skills that relate to requirements but need reframing"
+        description="CV skills that relate to requirements but need reframing",
     )
 
     # Field-specific transformation instructions
     profession_update: Optional[str] = Field(
         default=None,
-        description="New profession field value, or null if no change needed"
+        description="New profession field value, or null if no change needed",
     )
     core_expertise_updates: List[str] = Field(
         default_factory=list,
-        description="Instructions for core_expertise changes (add, remove, reorder)"
+        description="Instructions for core_expertise changes (add, remove, reorder)",
     )
     summary_updates: List[str] = Field(
         default_factory=list,
-        description="Instructions for summary_of_qualifications rewrites"
+        description="Instructions for summary_of_qualifications rewrites",
     )
     experience_updates: List[str] = Field(
         default_factory=list,
-        description="Instructions for experience[].responsibilities changes, with indices"
+        description="Instructions for experience[].responsibilities changes, with indices",
     )
 
     # ATS optimization
     keyword_insertions: List[str] = Field(
         default_factory=list,
-        description="Specific keywords from job posting to incorporate"
+        description="Specific keywords from job posting to incorporate",
     )
     quantification_suggestions: List[str] = Field(
         default_factory=list,
-        description="Suggestions to add metrics/numbers where possible"
+        description="Suggestions to add metrics/numbers where possible",
     )
 
     # Evidence from knowledge base
     evidence_sources: List[str] = Field(
         default_factory=list,
-        description="File paths or sources supporting the recommendations"
+        description="File paths or sources supporting the recommendations",
     )
+
+
+class CvOptimization(BaseModel):
+    """
+    Persisted optimization metadata - the 'save marker' that makes a directory valid.
+
+    The actual plan and optimized CV are stored in separate files (transformation-plan.json, cv.json)
+    and loaded on demand. This model just tracks the optimization's identity and provenance.
+    """
+
+    identifier: str = Field(
+        description="Unique identifier for this optimization (timestamp-based)"
+    )
+    base_cv_identifier: str = Field(
+        description="Identifier of the CV this optimization transforms"
+    )
+    created_at: datetime = Field(description="When this optimization was created")
