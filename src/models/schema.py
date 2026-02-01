@@ -159,18 +159,16 @@ class CvTransformationPlan(BaseModel):
     )
 
 
-class CvOptimization(BaseModel):
+class CvOptimizationRecord(BaseModel):
     """
-    Persisted optimization metadata - the 'save marker' that makes a directory valid.
+    Persisted CV optimization record
 
     The actual plan and optimized CV are stored in separate files (transformation-plan.json, cv.json)
     and loaded on demand. This model just tracks the optimization's identity and provenance.
     """
 
-    identifier: str = Field(
-        description="Unique identifier for this optimization (timestamp-based)"
-    )
+    identifier: str = Field(description="Unique identifier of the CV optimization")
     base_cv_identifier: str = Field(
         description="Identifier of the CV this optimization transforms"
     )
-    created_at: datetime = Field(description="When this optimization was created")
+    created_at: datetime = Field(description="When this CV optimization was created")

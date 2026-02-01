@@ -5,7 +5,12 @@ from pathlib import Path
 from typing import Any, Optional
 
 from converters import to_markdown
-from models import JobPosting, CurriculumVitae, CvOptimization, CvTransformationPlan
+from models import (
+    JobPosting,
+    CurriculumVitae,
+    CvOptimizationRecord,
+    CvTransformationPlan,
+)
 from repositories.config.settings import get_config
 
 
@@ -65,7 +70,7 @@ class FileSystemRepository:
         """Resolve a relative path against data_dir."""
         return self.data_dir / relative_path
 
-    def save_job_posting(
+    def add_job_posting(
         self, job_posting: JobPosting, identifier: str, file_path: Optional[str] = None
     ) -> dict[str, Any]:
         """
@@ -169,7 +174,7 @@ class FileSystemRepository:
         """
         return self._load_collection(self.job_postings_collection)
 
-    def delete_job_posting(self, identifier: str) -> bool:
+    def remove_job_posting(self, identifier: str) -> bool:
         """
         Remove a job posting from the collection.
 
@@ -192,7 +197,7 @@ class FileSystemRepository:
 
         return False
 
-    def save_cv(
+    def add_cv(
         self, cv: CurriculumVitae, identifier: str, file_path: Optional[str] = None
     ) -> dict[str, Any]:
         """
@@ -286,7 +291,7 @@ class FileSystemRepository:
         """
         return self._load_collection(self.cvs_collection)
 
-    def delete_cv(self, identifier: str) -> bool:
+    def remove_cv(self, identifier: str) -> bool:
         """
         Remove a CV from the collection.
 
@@ -345,7 +350,9 @@ class FileSystemRepository:
                     found = True
                     break
             if not found:
-                raise ValueError(f"Identifier not found in {collection_name}: {identifier}")
+                raise ValueError(
+                    f"Identifier not found in {collection_name}: {identifier}"
+                )
 
         count = 0
 
@@ -362,7 +369,7 @@ class FileSystemRepository:
 
         return count
 
-    def _optimization_dir(
+    def _cv_optimization_dir(
         self, job_posting_identifier: str, identifier: str
     ) -> Path:
         """Get the directory path for an optimization."""
@@ -374,48 +381,47 @@ class FileSystemRepository:
             / identifier
         )
 
-    def save_optimization(
+    def add_cv_optimization(
         self,
         job_posting_identifier: str,
-        optimization: CvOptimization,
+        record: CvOptimizationRecord,
     ) -> dict[str, Any]:
         """
-        Save optimization marker (optimization.json).
+        Persist CV optimization record.
 
-        The plan and CV files are assumed to already exist (written by crew).
-        This method writes the marker that makes the directory "valid".
+        The transformation plan and optimized CV files are assumed to already exist.
 
         Args:
             job_posting_identifier: Identifier of the parent job posting
-            optimization: The optimization metadata to save
+            record: The cv optimization record to save
 
         Returns:
             Metadata dict for the saved optimization
         """
-        optimization_dir = self._optimization_dir(
-            job_posting_identifier, optimization.identifier
+        optimization_dir = self._cv_optimization_dir(
+            job_posting_identifier, record.identifier
         )
         optimization_dir.mkdir(parents=True, exist_ok=True)
 
-        optimization_path = optimization_dir / "optimization.json"
+        optimization_path = optimization_dir / "record.json"
         with open(optimization_path, "w") as f:
-            json.dump(optimization.model_dump(mode="json"), f, indent=2)
+            json.dump(record.model_dump(mode="json"), f, indent=2)
 
         return {
-            "identifier": optimization.identifier,
+            "identifier": record.identifier,
             "job_posting_identifier": job_posting_identifier,
-            "base_cv_identifier": optimization.base_cv_identifier,
-            "created_at": optimization.created_at.isoformat(),
+            "base_cv_identifier": record.base_cv_identifier,
+            "created_at": record.created_at.isoformat(),
         }
 
-    def list_optimizations(
+    def list_cv_optimizations(
         self,
         job_posting_identifier: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """
         List optimizations, optionally filtered by job posting.
 
-        Only returns directories that have optimization.json (the save marker).
+        Only returns directories that have record.json (the save marker).
 
         Args:
             job_posting_identifier: If provided, list only for this job posting.
@@ -435,28 +441,28 @@ class FileSystemRepository:
             job_posting_dirs = [d for d in job_postings_root.iterdir() if d.is_dir()]
 
         for job_posting_dir in job_posting_dirs:
-            optimizations_dir = job_posting_dir / "cv-optimizations"
-            if not optimizations_dir.exists():
+            cv_optimizations_dir = job_posting_dir / "cv-optimizations"
+            if not cv_optimizations_dir.exists():
                 continue
 
             jp_identifier = job_posting_dir.name
 
-            for optimization_dir in optimizations_dir.iterdir():
+            for optimization_dir in cv_optimizations_dir.iterdir():
                 if not optimization_dir.is_dir():
                     continue
 
-                optimization_path = optimization_dir / "optimization.json"
-                if not optimization_path.exists():
+                record_path = optimization_dir / "record.json"
+                if not record_path.exists():
                     continue
 
-                with open(optimization_path, "r") as f:
-                    optimization_data = json.load(f)
+                with open(record_path, "r") as f:
+                    record_data = json.load(f)
 
                 result = {
                     "identifier": optimization_dir.name,
                     "job_posting_identifier": jp_identifier,
-                    "base_cv_identifier": optimization_data.get("base_cv_identifier"),
-                    "created_at": optimization_data.get("created_at"),
+                    "base_cv_identifier": record_data.get("base_cv_identifier"),
+                    "created_at": record_data.get("created_at"),
                 }
 
                 plan_path = optimization_dir / "transformation-plan.json"
@@ -470,51 +476,53 @@ class FileSystemRepository:
 
         return results
 
-    def get_optimization(
+    def get_cv_optimization_record(
         self,
         job_posting_identifier: str,
         identifier: str,
-    ) -> Optional[CvOptimization]:
+    ) -> Optional[CvOptimizationRecord]:
         """
-        Load optimization metadata from optimization.json.
+        Load optimization metadata from record.json.
 
         Args:
             job_posting_identifier: Identifier of the parent job posting
             identifier: Identifier of the optimization
 
         Returns:
-            CvOptimization or None if not found
+            CvOptimizationRecord or None if not found
         """
-        optimization_path = (
-            self._optimization_dir(job_posting_identifier, identifier)
-            / "optimization.json"
+        record_path = (
+            self._cv_optimization_dir(job_posting_identifier, identifier)
+            / "record.json"
         )
 
-        if not optimization_path.exists():
+        if not record_path.exists():
             return None
 
-        with open(optimization_path, "r") as f:
+        with open(record_path, "r") as f:
             data = json.load(f)
 
-        return CvOptimization(**data)
+        return CvOptimizationRecord(**data)
 
-    def get_optimization_plan(
+    def get_cv_transformation_plan(
         self,
         job_posting_identifier: str,
-        identifier: str,
+        cv_optimization_identifier: str,
     ) -> Optional[CvTransformationPlan]:
         """
         Load a transformation plan from the filesystem.
 
         Args:
             job_posting_identifier: Identifier of the parent job posting
-            identifier: Identifier of the optimization
+            cv_optimization_identifier: Identifier of the cv_optimization
 
         Returns:
             CvTransformationPlan or None if not found
         """
         plan_path = (
-            self._optimization_dir(job_posting_identifier, identifier)
+            self._cv_optimization_dir(
+                job_posting_identifier, cv_optimization_identifier
+            )
             / "transformation-plan.json"
         )
 
@@ -526,13 +534,13 @@ class FileSystemRepository:
 
         return CvTransformationPlan(**data)
 
-    def delete_optimization(
+    def discard_cv_optimization(
         self,
         job_posting_identifier: str,
         identifier: str,
     ) -> bool:
         """
-        Delete an optimization directory entirely.
+        Delete a cv_optimization directory entirely.
 
         Args:
             job_posting_identifier: Identifier of the parent job posting
@@ -543,7 +551,7 @@ class FileSystemRepository:
         """
         import shutil
 
-        optimization_dir = self._optimization_dir(job_posting_identifier, identifier)
+        optimization_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
 
         if not optimization_dir.exists():
             return False
