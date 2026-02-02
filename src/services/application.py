@@ -168,3 +168,69 @@ class ApplicationService:
             list of CV metadata dictionaries
         """
         return self.repository.list_cvs()
+
+    def create_optimization(self, job_posting_id: str, cv_id: str) -> dict[str, Any]:
+        """
+        Create a CV optimization for a job posting.
+
+        Args:
+            job_posting_id: Identifier of the job posting
+            cv_id: Identifier of the base CV
+
+        Returns:
+            dict with optimization data including identifier
+        """
+        # TODO: Implement actual optimization workflow
+        import datetime
+
+        optimization_id = f"{job_posting_id}-{datetime.date.today()}"
+
+        return {
+            "identifier": optimization_id,
+            "job_posting_id": job_posting_id,
+            "cv_id": cv_id,
+            "status": "completed",
+            "files": {
+                "transformation_plan": f"optimizations/{optimization_id}/cv_transformation_plan.json",
+                "optimized_cv": f"optimizations/{optimization_id}/optimized_cv.json",
+            },
+        }
+
+    def get_optimizations(self) -> list[dict[str, Any]]:
+        """
+        Retrieve all saved optimizations.
+
+        Returns:
+            list of optimization dictionaries
+        """
+        # TODO: Implement actual repository query
+        return [
+            {
+                "identifier": "automattic-senior-engineer-2024-11-06",
+                "job_posting": "Automattic - Senior Engineer",
+                "cv": "Septimus Fall",
+                "date": "2024-11-06",
+            },
+            {
+                "identifier": "google-staff-swe-2024-11-05",
+                "job_posting": "Google - Staff SWE",
+                "cv": "Fritzi Ritz",
+                "date": "2024-11-05",
+            },
+        ]
+
+    def generate_pdf(self, optimization_id: str) -> dict[str, Any]:
+        """
+        Generate a PDF from an optimized CV.
+
+        Args:
+            optimization_id: Identifier of the optimization
+
+        Returns:
+            dict with PDF generation result
+        """
+        # TODO: Implement actual PDF generation
+        return {
+            "status": "success",
+            "pdf_path": f"optimizations/{optimization_id}/optimized_cv.pdf",
+        }
