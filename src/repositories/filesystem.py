@@ -7,7 +7,9 @@ from typing import Any, Optional
 from converters import to_markdown
 from models import (
     JobPosting,
+    JobPostingRecord,
     CurriculumVitae,
+    CurriculumVitaeRecord,
     CvOptimizationRecord,
     CvTransformationPlan,
 )
@@ -72,7 +74,7 @@ class FileSystemRepository:
 
     def add_job_posting(
         self, job_posting: JobPosting, identifier: str, file_path: Optional[str] = None
-    ) -> dict[str, Any]:
+    ) -> JobPostingRecord:
         """
         Save a job posting and update collection metadata.
 
@@ -82,7 +84,7 @@ class FileSystemRepository:
             file_path: Optional path to save the file. If None, generates default path.
 
         Returns:
-            Collection metadata dict for this job posting
+            The persisted JobPostingRecord
         """
         if file_path is None:
             file_path = self._generate_default_path("job-postings", identifier)
@@ -106,30 +108,34 @@ class FileSystemRepository:
             (item for item in collection if item["identifier"] == identifier), None
         )
 
-        now = datetime.now().isoformat()
+        now = datetime.now()
 
-        metadata = {
-            "identifier": identifier,
-            "filepath": file_path,
-            "url": job_posting.url,
-            "company": job_posting.company,
-            "title": job_posting.title,
-            "experience_level": job_posting.experience_level,
-            "created_at": existing["created_at"] if existing else now,
-            "updated_at": now,
-        }
+        record = JobPostingRecord(
+            identifier=identifier,
+            filepath=file_path,
+            url=job_posting.url,
+            company=job_posting.company,
+            title=job_posting.title,
+            experience_level=job_posting.experience_level,
+            created_at=datetime.fromisoformat(existing["created_at"])
+            if existing
+            else now,
+            updated_at=now,
+        )
+
+        record_dict = record.model_dump(mode="json")
 
         if existing:
             collection = [
-                item if item["identifier"] != identifier else metadata
+                item if item["identifier"] != identifier else record_dict
                 for item in collection
             ]
         else:
-            collection.append(metadata)
+            collection.append(record_dict)
 
         self._save_collection(self.job_postings_collection, collection)
 
-        return metadata
+        return record
 
     def get_job_posting(self, identifier: str) -> Optional[JobPosting]:
         """
@@ -199,7 +205,7 @@ class FileSystemRepository:
 
     def add_cv(
         self, cv: CurriculumVitae, identifier: str, file_path: Optional[str] = None
-    ) -> dict[str, Any]:
+    ) -> CurriculumVitaeRecord:
         """
         Save a CV and update collection metadata.
 
@@ -209,7 +215,7 @@ class FileSystemRepository:
             file_path: Optional path to save the file. If None, generates default path.
 
         Returns:
-            Collection metadata dict for this CV
+            The persisted CurriculumVitaeRecord
         """
         if file_path is None:
             file_path = self._generate_default_path("cvs", identifier)
@@ -229,28 +235,32 @@ class FileSystemRepository:
             (item for item in collection if item["identifier"] == identifier), None
         )
 
-        now = datetime.now().isoformat()
+        now = datetime.now()
 
-        metadata = {
-            "identifier": identifier,
-            "filepath": file_path,
-            "name": cv.name,
-            "profession": cv.profession,
-            "created_at": existing["created_at"] if existing else now,
-            "updated_at": now,
-        }
+        record = CurriculumVitaeRecord(
+            identifier=identifier,
+            filepath=file_path,
+            name=cv.name,
+            profession=cv.profession,
+            created_at=datetime.fromisoformat(existing["created_at"])
+            if existing
+            else now,
+            updated_at=now,
+        )
+
+        record_dict = record.model_dump(mode="json")
 
         if existing:
             collection = [
-                item if item["identifier"] != identifier else metadata
+                item if item["identifier"] != identifier else record_dict
                 for item in collection
             ]
         else:
-            collection.append(metadata)
+            collection.append(record_dict)
 
         self._save_collection(self.cvs_collection, collection)
 
-        return metadata
+        return record
 
     def get_cv(self, identifier: str) -> Optional[CurriculumVitae]:
         """

@@ -35,9 +35,7 @@ class ApplicationService:
         )
         return job_posting.model_dump(), identifier
 
-    def save_job_posting(
-        self, job_posting_data: dict[str, Any], identifier: str
-    ) -> dict[str, Any]:
+    def save_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
         Save a job posting to the repository.
 
@@ -51,7 +49,7 @@ class ApplicationService:
             identifier: Identifier to use for this job posting
 
         Returns:
-            Collection metadata dict
+            JobPostingRecord
         """
         from models import JobPosting
 
@@ -69,8 +67,8 @@ class ApplicationService:
                     break
                 counter += 1
 
-        metadata = self.repository.add_job_posting(job_posting, identifier)
-        return metadata
+        record = self.repository.add_job_posting(job_posting, identifier)
+        return record
 
     def _generate_job_identifier(self, company: str, title: str) -> str:
         """Generate a URL-safe identifier from company and title."""
@@ -111,7 +109,7 @@ class ApplicationService:
         identifier = self._generate_cv_identifier(cv.name, cv.profession)
         return cv.model_dump(), identifier
 
-    def save_cv(self, cv_data: dict[str, Any], identifier: str) -> dict[str, Any]:
+    def save_cv(self, cv_data: dict[str, Any], identifier: str):
         """
         Save a CV to the repository.
 
@@ -123,7 +121,7 @@ class ApplicationService:
             identifier: Identifier to use for this CV
 
         Returns:
-            Collection metadata dict
+            CurriculumVitaeRecord
         """
         from models import CurriculumVitae
 
@@ -141,8 +139,8 @@ class ApplicationService:
                     break
                 counter += 1
 
-        metadata = self.repository.add_cv(cv, identifier)
-        return metadata
+        record = self.repository.add_cv(cv, identifier)
+        return record
 
     def _generate_cv_identifier(self, name: str, profession: str) -> str:
         """Generate a URL-safe identifier from name and profession."""
