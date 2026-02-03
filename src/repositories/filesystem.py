@@ -476,13 +476,13 @@ class FileSystemRepository:
 
         return results
 
-    def get_cv_optimization_record(
+    def get_cv_optimization(
         self,
         job_posting_identifier: str,
         identifier: str,
     ) -> Optional[CvOptimizationRecord]:
         """
-        Load optimization metadata from record.json.
+        Load CV optimization record from record.json.
 
         Args:
             job_posting_identifier: Identifier of the parent job posting
