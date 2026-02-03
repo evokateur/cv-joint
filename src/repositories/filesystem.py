@@ -534,7 +534,7 @@ class FileSystemRepository:
 
         return CvTransformationPlan(**data)
 
-    def discard_cv_optimization(
+    def purge_cv_optimization(
         self,
         job_posting_identifier: str,
         identifier: str,
