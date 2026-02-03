@@ -271,7 +271,7 @@ class TestCvOptimizationOperations:
         with open(plan_path, "w") as f:
             json.dump(plan.model_dump(mode="json"), f)
 
-    def test_add_and_get_cv_optimization_record(
+    def test_add_and_get_cv_optimization(
         self, repository_with_job_posting, sample_record
     ):
         repository_with_job_posting.add_cv_optimization(
@@ -279,7 +279,7 @@ class TestCvOptimizationOperations:
             record=sample_record,
         )
 
-        retrieved = repository_with_job_posting.get_cv_optimization_record(
+        retrieved = repository_with_job_posting.get_cv_optimization(
             job_posting_identifier="acme-swe",
             identifier="opt-123",
         )
@@ -418,8 +418,8 @@ class TestCvOptimizationOperations:
         assert "job-1" in job_posting_ids
         assert "job-2" in job_posting_ids
 
-    def test_get_cv_optimization_record_not_found(self, repository_with_job_posting):
-        result = repository_with_job_posting.get_cv_optimization_record(
+    def test_get_cv_optimization_not_found(self, repository_with_job_posting):
+        result = repository_with_job_posting.get_cv_optimization(
             job_posting_identifier="acme-swe",
             identifier="nonexistent",
         )
@@ -432,7 +432,7 @@ class TestCvOptimizationOperations:
         )
         assert result is None
 
-    def test_discard_cv_optimization(
+    def test_purge_cv_optimization(
         self, repository_with_job_posting, sample_record, temp_data_dir
     ):
         repository_with_job_posting.add_cv_optimization(
@@ -440,7 +440,7 @@ class TestCvOptimizationOperations:
             record=sample_record,
         )
 
-        result = repository_with_job_posting.discard_cv_optimization(
+        result = repository_with_job_posting.purge_cv_optimization(
             job_posting_identifier="acme-swe",
             identifier="opt-123",
         )
@@ -455,8 +455,8 @@ class TestCvOptimizationOperations:
         )
         assert not optimization_dir.exists()
 
-    def test_discard_cv_optimization_not_found(self, repository_with_job_posting):
-        result = repository_with_job_posting.discard_cv_optimization(
+    def test_purge_cv_optimization_not_found(self, repository_with_job_posting):
+        result = repository_with_job_posting.purge_cv_optimization(
             job_posting_identifier="acme-swe",
             identifier="nonexistent",
         )
