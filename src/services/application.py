@@ -6,10 +6,7 @@ from repositories import FileSystemRepository
 
 class ApplicationService:
     """
-    Service layer for CV Joint operations.
-
-    This class provides the application boundary between the UI and domain logic.
-    All methods accept and return JSON-serializable dictionaries.
+    Application service for CV Joint operations.
     """
 
     def __init__(self, repository: FileSystemRepository = None):
@@ -119,8 +116,7 @@ class ApplicationService:
         Save a CV to the repository.
 
         Handles identifier collisions by appending a number suffix if the
-        identifier already exists. This allows re-analyzing the same CV
-        without overwriting the previous analysis.
+        identifier already exists.
 
         Args:
             cv_data: CV data dict (from create_cv)
