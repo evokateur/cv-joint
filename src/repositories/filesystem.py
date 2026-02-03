@@ -383,36 +383,37 @@ class FileSystemRepository:
 
     def add_cv_optimization(
         self,
+        identifier: str,
         job_posting_identifier: str,
-        record: CvOptimizationRecord,
-    ) -> dict[str, Any]:
+        base_cv_identifier: str,
+    ) -> CvOptimizationRecord:
         """
         Persist CV optimization record.
 
         The transformation plan and optimized CV files are assumed to already exist.
 
         Args:
+            identifier: Unique identifier for this optimization
             job_posting_identifier: Identifier of the parent job posting
-            record: The cv optimization record to save
+            base_cv_identifier: Identifier of the CV being optimized
 
         Returns:
-            Metadata dict for the saved optimization
+            The persisted CvOptimizationRecord
         """
-        optimization_dir = self._cv_optimization_dir(
-            job_posting_identifier, record.identifier
-        )
+        optimization_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
         optimization_dir.mkdir(parents=True, exist_ok=True)
 
-        optimization_path = optimization_dir / "record.json"
-        with open(optimization_path, "w") as f:
+        record = CvOptimizationRecord(
+            identifier=identifier,
+            base_cv_identifier=base_cv_identifier,
+            created_at=datetime.now(),
+        )
+
+        record_path = optimization_dir / "record.json"
+        with open(record_path, "w") as f:
             json.dump(record.model_dump(mode="json"), f, indent=2)
 
-        return {
-            "identifier": record.identifier,
-            "job_posting_identifier": job_posting_identifier,
-            "base_cv_identifier": record.base_cv_identifier,
-            "created_at": record.created_at.isoformat(),
-        }
+        return record
 
     def list_cv_optimizations(
         self,
