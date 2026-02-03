@@ -159,12 +159,43 @@ class CvTransformationPlan(BaseModel):
     )
 
 
+class JobPostingRecord(BaseModel):
+    """
+    Job posting persistence record.
+
+    Tracks identity, provenance, and key fields needed for listing display.
+    """
+
+    identifier: str = Field(description="Unique identifier of the job posting")
+    filepath: str = Field(description="Path to job-posting.json relative to data dir")
+    url: str = Field(description="Original job posting URL")
+    company: str = Field(description="Company name (for listing display)")
+    title: str = Field(description="Job title (for listing display)")
+    experience_level: str = Field(description="Experience level (for listing display)")
+    created_at: datetime = Field(description="When this record was created")
+    updated_at: datetime = Field(description="When this record was last updated")
+
+
+class CurriculumVitaeRecord(BaseModel):
+    """
+    CV persistence record.
+
+    Tracks identity, provenance, and key fields needed for listing display.
+    """
+
+    identifier: str = Field(description="Unique identifier of the CV")
+    filepath: str = Field(description="Path to cv.json relative to data dir")
+    name: str = Field(description="Person's name (for listing display)")
+    profession: str = Field(description="Profession (for listing display)")
+    created_at: datetime = Field(description="When this record was created")
+    updated_at: datetime = Field(description="When this record was last updated")
+
+
 class CvOptimizationRecord(BaseModel):
     """
-    Persisted CV optimization record
+    CV optimization persistence record.
 
-    The actual plan and optimized CV are stored in separate files (transformation-plan.json, cv.json)
-    and loaded on demand. This model just tracks the optimization's identity and provenance.
+    Tracks identity, provenance, and key fields needed for listing display.
     """
 
     identifier: str = Field(description="Unique identifier of the CV optimization")

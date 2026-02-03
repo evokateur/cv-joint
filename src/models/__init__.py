@@ -3,13 +3,15 @@ from .schema import (
     Contact,
     CoverLetter,
     CvOptimizationRecord,
+    CurriculumVitaeRecord,
     CvTransformationPlan,
     Education,
     Experience,
     AdditionalExperience,
     AreaOfExpertise,
-    Language,
     JobPosting,
+    JobPostingRecord,
+    Language,
 )
 
 __all__ = [
@@ -17,11 +19,13 @@ __all__ = [
     "Contact",
     "CoverLetter",
     "CvOptimizationRecord",
+    "CurriculumVitaeRecord",
     "CvTransformationPlan",
     "Education",
     "Experience",
     "AdditionalExperience",
     "AreaOfExpertise",
-    "Language",
     "JobPosting",
+    "JobPostingRecord",
+    "Language",
 ]
