@@ -2,6 +2,7 @@ import pytest
 from config.settings import is_mcp_configured
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 def test_knowledge_chat_service_instantiates():
     """Test that KnowledgeChatService can be instantiated when MCP is configured."""
@@ -14,6 +15,7 @@ def test_knowledge_chat_service_instantiates():
     assert service is not None
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_fetch_context_returns_documents():
@@ -38,6 +40,7 @@ async def test_fetch_context_returns_documents():
         assert "score" in doc.metadata
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_multiple_queries_work():

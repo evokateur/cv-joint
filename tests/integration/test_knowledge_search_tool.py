@@ -3,6 +3,7 @@ import pytest
 from config.settings import is_mcp_configured
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 def test_knowledge_search_tool_instantiates():
     """Test that KnowledgeSearchTool can be instantiated."""
@@ -14,6 +15,7 @@ def test_knowledge_search_tool_instantiates():
     assert "knowledge base" in tool.description.lower()
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 def test_knowledge_search_tool_returns_results():
     """Test that KnowledgeSearchTool returns search results."""
@@ -30,6 +32,7 @@ def test_knowledge_search_tool_returns_results():
     assert len(result) > 0
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 def test_knowledge_search_tool_result_is_json():
     """Test that search results are valid JSON with expected structure."""

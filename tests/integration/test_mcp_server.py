@@ -3,6 +3,7 @@ from config.settings import is_mcp_configured, get_mcp_config
 from infrastructure import McpManager
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 def test_mcp_configuration_check():
     """Test that MCP configuration check function works"""
@@ -10,6 +11,7 @@ def test_mcp_configuration_check():
     assert isinstance(result, bool)
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_mcp_manager_connection():
@@ -34,6 +36,7 @@ async def test_mcp_manager_connection():
     )
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_mcp_manager_caches_session():
@@ -47,6 +50,7 @@ async def test_mcp_manager_caches_session():
     assert session1 is session2
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_mcp_manager_tool_name():
@@ -60,6 +64,7 @@ async def test_mcp_manager_tool_name():
     assert tool_name == mcp_config.tool_name
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 def test_mcp_manager_unconfigured_server():
     """Test that McpManager raises for unconfigured server"""
