@@ -5,12 +5,13 @@ from builder.template_env import get_tex_env
 from models.schema import CurriculumVitae, CoverLetter
 
 
-def build_cv(input_file: str, output_file: str):
+def build_cv(input_file: str, output_file: str, template_name: str = "cv.tex"):
     """Build CV from JSON/YAML data and LaTeX template
 
     Args:
         input_file: Path to input JSON or YAML file containing CV data
         output_file: Path to output LaTeX file
+        template_name: Name of the template file in the templates directory
 
     Raises:
         ValidationError: If CV data does not match CurriculumVitae schema
@@ -25,7 +26,7 @@ def build_cv(input_file: str, output_file: str):
     cv = CurriculumVitae(**data)
 
     env = get_tex_env()
-    template = env.get_template("cv.tex")
+    template = env.get_template(template_name)
 
     rendered_tex = template.render(cv.model_dump())
 

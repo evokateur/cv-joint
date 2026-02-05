@@ -1,4 +1,4 @@
-.PHONY: test clean setup dev-setup
+.PHONY: test clean setup dev-setup cv upwork-cv cover-letter
 
 OPEN =
 ifeq ($(shell uname), Darwin)
@@ -11,6 +11,11 @@ cv:
 	uv run build-cv data/cv.yaml output/cv.tex
 	uv run pdflatex --output-directory=output output/cv.tex
 	@if [ -n "$(OPEN)" ]; then $(OPEN) output/cv.pdf; fi
+
+upwork-cv:
+	uv run build-cv data/cv.yaml output/upwork-cv.tex --template upwork-cv.tex
+	uv run pdflatex --output-directory=output output/upwork-cv.tex
+	@if [ -n "$(OPEN)" ]; then $(OPEN) output/upwork-cv.pdf; fi
 
 cover-letter:
 	uv run build-cover-letter data/cover-letter.json output/cover-letter.tex

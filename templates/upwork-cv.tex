@@ -19,8 +19,8 @@
 \usepackage{fontawesome5} % for using icons
 \usepackage{amsmath} % for math
 \usepackage[
-    pdftitle={Wesley Hinkle's CV},
-    pdfauthor={Wesley Hinkle},
+    pdftitle={(( name ))'s CV},
+    pdfauthor={(( name ))},
     pdfcreator={LaTeX with RenderCV},
     colorlinks=true,
     urlcolor=primaryColor
@@ -165,39 +165,25 @@
 
     \begin{header}
         \fontsize{30 pt}{30 pt}
-        \textbf{Wesley Hinkle}
+        \textbf{(( name ))}
 
         \vspace{0.3 cm}
 
         \normalsize
-        \mbox{{\footnotesize\faMapMarker*}\hspace*{0.13cm}Oakland, CA}%
-        \kern 0.25 cm%
+        \mbox{{\footnotesize\faMapMarker*}\hspace*{0.13cm}(( contact.city ~ ', ' ~contact.state ))}%
+        \kern 0.5 cm%
         \AND%
-        \kern 0.25 cm%
-        \mbox{\hrefWithoutArrow{mailto:wesley@evokateur.net}{{\footnotesize\faEnvelope[regular]}\hspace*{0.13cm}wesley@evokateur.net}}%
-        \kern 0.25 cm%
-        \AND%
-        \kern 0.25 cm%
-        \mbox{\hrefWithoutArrow{tel:+1-510-384-8010}{{\footnotesize\faPhone*}\hspace*{0.13cm}+1-510-384-8010}}%
-        \kern 0.25 cm%
-        \AND%
-        \kern 0.25 cm%
-        \AND%
-        \kern 0.25 cm%
-        \mbox{\hrefWithoutArrow{https://linkedin.com/in/wesley-c-hinkle}{{\footnotesize\faLinkedinIn}\hspace*{0.13cm}wesley-c-hinkle}}%
-        \kern 0.25 cm%
-        \AND%
-        \kern 0.25 cm%
-        \mbox{\hrefWithoutArrow{https://github.com/evokateur}{{\footnotesize\faGithub}\hspace*{0.13cm}evokateur}}%
+        \kern 0.5 cm%
+        \mbox{\hrefWithoutArrow{https://github.com/(( contact.github ))}{{\footnotesize\faGithub}\hspace*{0.13cm}(( contact.github ))}}%
     \end{header}
 
     \vspace{0.3 cm - 0.3 cm}
 
 
-    \section{Software Engineer}
+    \section{(( profession ))}
 
         \begin{onecolentry}
-            \textbf{Backend Development | API Design \& implementation | Data Modeling}
+            \textbf{(( core_expertise|join( ' | ') ))}
         \end{onecolentry}
 
         \vspace{0.2 cm}
@@ -207,9 +193,9 @@
     \begin{onecolentry}
         \begin{highlightsforbulletentries}
 
-        
-            \item Backend Engineer with extensive experience in data integration and transformation, skilled in modeling domains and designing relational schemas. Successfully led projects involving complex operations like dues collection and benefits tracking for workers' unions, impacting thousands of employees. Adept at overcoming challenges with inconsistent data and varying system requirements, aiming to leverage expertise in structured, scalable solutions to enhance backend systems.
-        
+        (# for qualification in summary_of_qualifications #)
+            \item (( qualification ))
+        (# endfor #)
 
         \end{highlightsforbulletentries}
     \end{onecolentry}
@@ -219,69 +205,55 @@
 
         \begin{onecolentry}
             \begin{highlightsforbulletentries}
-            
-                \item Languages: PHP, JavaScript, Python, SQL, Shell Scripting
-            
-                \item Technologies: FastAPI, Laravel, Symfony, MySQL, PostgreSQL, MSSQL, Nginx, Apache, Gitlab, IIS
-            
-                \item Patterns \& Principles: MVC, REST, DDD, Clean Architecture
-            
+            (# for area in areas_of_expertise #)
+                \item (( area.name )): (( area.skills|join(', ') ))
+            (# endfor #)
             \end{highlightsforbulletentries}
         \end{onecolentry}
         \vspace{0.2 cm}
 
     \section{Experience}
 
-        
+        (# for job in experience #)
 
             \begin{onecolentry}
-                \textbf{Backend Developer} \hfill April 2009 -- July 2024
+                \textbf{(( job.title ))} \hfill (( job.start_date )) -- (( job.end_date ))
 
-                \textbf{MultiEmployer, Inc.}, \textbar\ Berkeley, CA
+                \textbf{(( job.company ))}, \textbar\ (( job.location ))
 
                 \begin{highlights}
-                    
-                        \item Developed enterprise applications, designed and implemented REST APIs for third-party integrations, built and maintained application APIs for client mobile apps
-                    
-                        \item Led domain modeling efforts for enterprise processes such as employer union remittances, dues collection, and ACH transactions by documenting domain models, creating structured data representations, and developing use cases to ensure a shared understanding amongst team members
-                    
-                        \item Engineered data migration processes by writing scripts to map legacy data from various systems into relational schema, enabling modernization while supporting backward compatibility for legacy systems
-                    
-                        \item Led the implementation of version control infrastructure by setting up and managing GitLab, migrating from source code install to Omnibus, then migrating from MySQL to PostgreSQL
-                    
-                        \item Refactored and untangled legacy codebases to improve modularity and maintainability and designed Git workflows with a structured release tag schema to enable seamless tracking, rollback, and deployment of code
-                    
-                        \item Managed development environments using a fork of Laravel Homestead and Vagrant, creating build scripts to handle dependencies and configure infrastructure for 10+ legacy applications with unique server requirements
-                    
-                        \item Automated deployment tasks using shell scripts and cron jobs, optimized build pipelines for reliable application deployment, and leveraged AWS services (EC2, RDS) for cloud hosting and database management
-                    
-                        \item Integrated WordPress with PHP frameworks, developing Git workflow strategy, scripts for plugin dependencies, and scripts for dev environment provisioning and deployment using Migrate DB Pro
-                    
+                    (# for responsibility in job.responsibilities #)
+                        \item (( responsibility ))
+                    (# endfor #)
                 \end{highlights}
 
             \end{onecolentry}
 
-        
+        (# if not loop.last #)
+            \vspace{0.2 cm}
+        (# endif #)
 
-        
+        (# endfor #)
 
         \vspace{0.2 cm}
 
     \section{Education}
 
-        
+        (# for path in education #)
 
             \begin{onecolentry}
-                \textbf{Bachelor of Arts in Cognitive Science (Credit Hours Completed)} \\
-                University of California, Berkeley \textbar\ Berkeley, CA 
+                \textbf{(( path.degree ))} \\
+                (( path.institution )) \textbar\ (( path.location ))
                 \begin{highlights}
-                    \item Interdisciplinary program combining Computer Science, Linguistics, Philosophy of Mind, Cognitive Psychology, and Neuroscience
+                    \item (( path.coursework ))
                 \end{highlights}
             \end{onecolentry}
-        
-        
 
-        
+        (# if not loop.last #)
+            \vspace{0.2 cm}
+        (# endif #)
+
+        (# endfor #)
 
 
 \end{document}

@@ -7,9 +7,10 @@ def main_cv():
     parser = argparse.ArgumentParser(description="Build CV from JSON/YAML data and LaTeX template")
     parser.add_argument("input_file", help="Path to input JSON or YAML file")
     parser.add_argument("output_file", help="Path to output LaTeX file")
+    parser.add_argument("--template", default="cv.tex", help="Template file name (default: cv.tex)")
 
     args = parser.parse_args()
-    build_cv(args.input_file, args.output_file)
+    build_cv(args.input_file, args.output_file, template_name=args.template)
 
 
 def main_cover_letter():
