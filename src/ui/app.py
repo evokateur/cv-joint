@@ -218,7 +218,7 @@ def create_app():
                             for j in jobs
                         ]
                         return (
-                            f"✓ Job posting saved: {metadata['identifier']}",
+                            f"✓ Job posting saved: {metadata.identifier}",
                             "",
                             job_list_data,
                             None,
@@ -542,7 +542,7 @@ def create_app():
                             for c in cvs
                         ]
                         return (
-                            f"✓ CV saved: {metadata['identifier']}",
+                            f"✓ CV saved: {metadata.identifier}",
                             cv_list_data,
                             True,
                             gr.update(visible=False),
