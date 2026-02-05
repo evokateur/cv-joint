@@ -124,8 +124,14 @@ data/
 ├── collections/
 │   ├── job-postings.json
 │   └── cvs.json
-├── job-postings/{identifier}/job-posting.json
-└── cvs/{identifier}/cv.json
+├── job-postings/{identifier}/
+│   ├── job-posting.json
+│   └── cv-optimizations/{identifier}/
+│       ├── record.json
+│       ├── transformation-plan.json
+│       └── cv.json
+└── cvs/{identifier}/
+    └── cv.json
 ```
 
 To dump all merged (tilde expanded) configuration:
