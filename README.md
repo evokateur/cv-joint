@@ -32,7 +32,8 @@ Simplified project structure:
 ```sh
 .
 ├── src
-│   ├── builder # LaTeX PDF rendering
+│   ├── renderers
+│   │   └── latex # LaTeX PDF rendering
 │   ├── config
 │   ├── converters
 │   │   └── markdown.py

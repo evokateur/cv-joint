@@ -1,11 +1,11 @@
 import yaml
 import json
 from pathlib import Path
-from builder.template_env import get_tex_env
+from renderers.latex.template_env import get_tex_env
 from models.schema import CurriculumVitae, CoverLetter
 
 
-def build_cv(input_file: str, output_file: str, template_name: str = "cv.tex"):
+def render_cv(input_file: str, output_file: str, template_name: str = "cv.tex"):
     """Build CV from JSON/YAML data and LaTeX template
 
     Args:
@@ -34,7 +34,7 @@ def build_cv(input_file: str, output_file: str, template_name: str = "cv.tex"):
         f.write(rendered_tex)
 
 
-def build_cover_letter(input_file: str, output_file: str):
+def render_cover_letter(input_file: str, output_file: str):
     """Build cover letter from JSON/YAML data and LaTeX template
 
     Cover letters require special handling for position and company placeholders

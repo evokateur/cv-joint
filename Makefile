@@ -1,4 +1,4 @@
-.PHONY: test clean setup dev-setup cv upwork-cv cover-letter
+.PHONY: test test-all clean setup dev-setup cv upwork-cv cover-letter
 
 OPEN =
 ifeq ($(shell uname), Darwin)
@@ -39,3 +39,6 @@ dev-setup:
 
 test:
 	uv run pytest tests/ --tb=short
+
+test-all:
+	uv run pytest tests/ --tb=short -m ""

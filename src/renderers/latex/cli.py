@@ -1,5 +1,5 @@
 import argparse
-from builder.builder import build_cv, build_cover_letter
+from renderers.latex import render_cv, render_cover_letter
 
 
 def main_cv():
@@ -10,7 +10,7 @@ def main_cv():
     parser.add_argument("--template", default="cv.tex", help="Template file name (default: cv.tex)")
 
     args = parser.parse_args()
-    build_cv(args.input_file, args.output_file, template_name=args.template)
+    render_cv(args.input_file, args.output_file, template_name=args.template)
 
 
 def main_cover_letter():
@@ -20,7 +20,7 @@ def main_cover_letter():
     parser.add_argument("output_file", help="Path to output LaTeX file")
 
     args = parser.parse_args()
-    build_cover_letter(args.input_file, args.output_file)
+    render_cover_letter(args.input_file, args.output_file)
 
 
 if __name__ == "__main__":
