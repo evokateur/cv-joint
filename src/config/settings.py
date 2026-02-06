@@ -31,8 +31,12 @@ class McpServerSettings(BaseModel):
 
     command: str = Field(description="Command to run the MCP server")
     args: list[str] = Field(default_factory=list, description="Command arguments")
-    env: dict[str, str] = Field(default_factory=dict, description="Environment variables")
-    tool_name: str = Field(alias="x-tool-name", description="Name of the search tool to call")
+    env: dict[str, str] = Field(
+        default_factory=dict, description="Environment variables"
+    )
+    tool_name: str = Field(
+        alias="x-tool-name", description="Name of the search tool to call"
+    )
 
 
 USER_CONFIG_FILE = Path.home() / ".cv-joint" / "settings.yaml"
@@ -85,8 +89,10 @@ def expand_tildes(config: dict) -> dict:
             result[key] = expand_tildes(value)
         elif isinstance(value, list):
             result[key] = [
-                str(Path(item).expanduser()) if isinstance(item, str) and item.startswith("~/")
-                else expand_tildes(item) if isinstance(item, dict)
+                str(Path(item).expanduser())
+                if isinstance(item, str) and item.startswith("~/")
+                else expand_tildes(item)
+                if isinstance(item, dict)
                 else item
                 for item in value
             ]
@@ -142,6 +148,20 @@ class McpConfig(BaseModel):
     mcp: dict[str, Optional[McpServerSettings]] = Field(alias="mcpServers")
 
 
+def get_data_dir() -> str:
+    """Get data directory path from config."""
+    config_dir = Path(__file__).parent
+    yaml_config = load_yaml_config(config_dir)
+    return yaml_config.get("data_dir", "./data")
+
+
+def get_markdown_root() -> str:
+    """Get markdown root path from config, defaulting to data_dir."""
+    config_dir = Path(__file__).parent
+    yaml_config = load_yaml_config(config_dir)
+    return yaml_config.get("markdown_root") or yaml_config.get("data_dir", "./data")
+
+
 def get_chat_config() -> dict:
     """Get chat configuration from YAML, validated with Pydantic"""
     config_dir = Path(__file__).parent
@@ -171,9 +191,8 @@ def get_merged_config() -> dict:
     """Get fully merged configuration from all sources for display.
 
     Collects configs from:
-    - src/config/settings.yaml (chat, mcp)
+    - src/config/settings.yaml (data_dir, markdown_root, chat, mcp)
     - src/crews/*/config/settings.yaml (crew-specific agents)
-    - src/repositories/config/settings.yaml (repository settings)
     - ~/.cv-joint/settings.yaml (user overrides)
 
     Returns nested dict with explicit paths for user config format.
@@ -181,7 +200,6 @@ def get_merged_config() -> dict:
     config_dir = Path(__file__).parent
     src_dir = config_dir.parent
     crews_dir = src_dir / "crews"
-    repositories_dir = src_dir / "repositories"
 
     merged = {}
 
@@ -192,14 +210,11 @@ def get_merged_config() -> dict:
         for crew_dir in crews_dir.iterdir():
             crew_settings = crew_dir / "config" / "settings.yaml"
             if crew_settings.exists():
-                crew_config = load_yaml_config(crew_dir / "config", f"crews.{crew_dir.name}")
+                crew_config = load_yaml_config(
+                    crew_dir / "config", f"crews.{crew_dir.name}"
+                )
                 if "crews" not in merged:
                     merged["crews"] = {}
                 merged["crews"][crew_dir.name] = crew_config
-
-    repositories_settings = repositories_dir / "config" / "settings.yaml"
-    if repositories_settings.exists():
-        repo_config = load_yaml_config(repositories_dir / "config", "repositories")
-        merged["repositories"] = repo_config
 
     return merged

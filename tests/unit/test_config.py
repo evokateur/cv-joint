@@ -135,6 +135,6 @@ class TestLoadYamlConfig:
 class TestGetMergedConfig:
     def test_returns_dict_with_expected_keys(self):
         config = get_merged_config()
+        assert "data_dir" in config
         assert "chat" in config
         assert "crews" in config
-        assert "repositories" in config

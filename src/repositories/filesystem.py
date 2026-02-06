@@ -4,7 +4,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-from converters import to_markdown
 from models import (
     JobPosting,
     JobPostingRecord,
@@ -13,7 +12,7 @@ from models import (
     CvOptimizationRecord,
     CvTransformationPlan,
 )
-from repositories.config.settings import get_config
+from config.settings import get_data_dir
 
 
 class FileSystemRepository:
@@ -33,10 +32,7 @@ class FileSystemRepository:
                       Defaults to configured value or current working directory.
         """
         if data_dir is None:
-            config = get_config()
-            data_dir = config.data_dir
-            if data_dir == ".":
-                data_dir = os.getcwd()
+            data_dir = get_data_dir()
 
         self.data_dir = Path(data_dir).expanduser()
         self.collections_dir = self.data_dir / "collections"
@@ -94,13 +90,6 @@ class FileSystemRepository:
 
         with open(absolute_path, "w") as f:
             json.dump(job_posting.model_dump(mode="json"), f, indent=2)
-
-        md_path = absolute_path.with_suffix(".md")
-        if job_posting.company and job_posting.company.lower() != "not specified":
-            title = f"{job_posting.title} at {job_posting.company}"
-        else:
-            title = job_posting.title
-        md_path.write_text(to_markdown(job_posting, title=title))
 
         collection = self._load_collection(self.job_postings_collection)
 
@@ -161,14 +150,6 @@ class FileSystemRepository:
 
         job_posting = JobPosting(**data)
 
-        md_path = absolute_path.with_suffix(".md")
-        if not md_path.exists():
-            if job_posting.company and job_posting.company.lower() != "not specified":
-                title = f"{job_posting.title} at {job_posting.company}"
-            else:
-                title = job_posting.title
-            md_path.write_text(to_markdown(job_posting, title=title))
-
         return job_posting
 
     def list_job_postings(self) -> list[dict[str, Any]]:
@@ -225,9 +206,6 @@ class FileSystemRepository:
 
         with open(absolute_path, "w") as f:
             json.dump(cv.model_dump(mode="json"), f, indent=2)
-
-        md_path = absolute_path.with_suffix(".md")
-        md_path.write_text(to_markdown(cv, title=cv.name))
 
         collection = self._load_collection(self.cvs_collection)
 
@@ -286,10 +264,6 @@ class FileSystemRepository:
 
         cv = CurriculumVitae(**data)
 
-        md_path = absolute_path.with_suffix(".md")
-        if not md_path.exists():
-            md_path.write_text(to_markdown(cv, title=cv.name))
-
         return cv
 
     def list_cvs(self) -> list[dict[str, Any]]:
@@ -323,61 +297,6 @@ class FileSystemRepository:
             return True
 
         return False
-
-    def clear_markdown(
-        self,
-        collection_name: Optional[str] = None,
-        identifier: Optional[str] = None,
-    ) -> int:
-        """
-        Remove generated markdown files from job-postings and cvs directories.
-
-        Only removes markdown files that correspond to stored JSON files
-        (e.g., job-posting.md alongside job-posting.json).
-
-        Args:
-            collection_name: Optional "job-postings" or "cvs" to limit scope
-            identifier: Optional identifier to clear only one item (requires collection_name)
-
-        Returns:
-            Number of markdown files deleted
-        """
-        collections = {
-            "job-postings": self.job_postings_collection,
-            "cvs": self.cvs_collection,
-        }
-
-        if collection_name:
-            if collection_name not in collections:
-                raise ValueError(f"Unknown collection: {collection_name}")
-            collections = {collection_name: collections[collection_name]}
-
-        if identifier:
-            found = False
-            for collection_file in collections.values():
-                collection = self._load_collection(collection_file)
-                if any(item["identifier"] == identifier for item in collection):
-                    found = True
-                    break
-            if not found:
-                raise ValueError(
-                    f"Identifier not found in {collection_name}: {identifier}"
-                )
-
-        count = 0
-
-        for collection_file in collections.values():
-            collection = self._load_collection(collection_file)
-            for item in collection:
-                if identifier and item["identifier"] != identifier:
-                    continue
-                json_path = self._resolve_path(item["filepath"])
-                md_path = json_path.with_suffix(".md")
-                if md_path.exists():
-                    md_path.unlink()
-                    count += 1
-
-        return count
 
     def _cv_optimization_dir(
         self, job_posting_identifier: str, identifier: str

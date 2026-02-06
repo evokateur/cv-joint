@@ -138,7 +138,7 @@ def create_app():
                             gr.update(visible=False),
                         )
 
-                    job_posting = service.repository.get_job_posting(identifier)
+                    job_posting = service.get_job_posting(identifier)
                     if not job_posting:
                         return (
                             "",
@@ -470,7 +470,7 @@ def create_app():
                             gr.update(visible=False),
                         )
 
-                    cv = service.repository.get_cv(identifier)
+                    cv = service.get_cv(identifier)
                     if not cv:
                         return (
                             "",
