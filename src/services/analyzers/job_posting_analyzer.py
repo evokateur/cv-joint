@@ -1,3 +1,5 @@
+from typing import Optional
+
 import os
 import tempfile
 
@@ -15,7 +17,7 @@ class JobPostingAnalyzer:
     This class abstracts the CrewAI implementation details from the service layer.
     """
 
-    def analyze(self, url: str, content_file: str = None) -> JobPosting:
+    def analyze(self, url: str, content_file: Optional[str] = None) -> JobPosting:
         """
         Analyze a job posting URL and return structured JobPosting data.
 
