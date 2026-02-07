@@ -6,6 +6,7 @@ from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from repositories import FileSystemRepository
 from infrastructure import MarkdownWriter
+from services.markdown_exporter import MarkdownExporter
 
 
 class ApplicationService:
@@ -21,9 +22,10 @@ class ApplicationService:
         self.job_posting_analyzer = JobPostingAnalyzer()
         self.cv_analyzer = CvAnalyzer()
         self.repository = repository or FileSystemRepository(data_dir=get_data_dir())
-        self.markdown_writer = markdown_writer or MarkdownWriter(
+        markdown_writer = markdown_writer or MarkdownWriter(
             root_dir=get_markdown_root_dir()
         )
+        self.markdown_exporter = MarkdownExporter(self.repository, markdown_writer)
 
     def create_job_posting(
         self, url: str, content_file: Optional[str] = None
@@ -79,9 +81,7 @@ class ApplicationService:
                 counter += 1
 
         record = self.repository.add_job_posting(job_posting, identifier)
-        self.markdown_writer.write(
-            record.filepath, job_posting, MarkdownWriter.job_posting_title(job_posting)
-        )
+        self.markdown_exporter.export_job_posting(record, job_posting)
         return record
 
     def _generate_job_identifier(self, company: str, title: str) -> str:
@@ -158,7 +158,7 @@ class ApplicationService:
                 counter += 1
 
         record = self.repository.add_cv(cv, identifier)
-        self.markdown_writer.write(record.filepath, cv, cv.name)
+        self.markdown_exporter.export_cv(record, cv)
         return record
 
     def _generate_cv_identifier(self, name: str, profession: str) -> str:
@@ -192,7 +192,7 @@ class ApplicationService:
 
         This overwrites any existing markdown files, including manual edits.
         """
-        return self.markdown_writer.regenerate(self.repository, collection_name)
+        return self.markdown_exporter.export(collection_name)
 
     def create_optimization(self, job_posting_id: str, cv_id: str) -> dict[str, Any]:
         """
