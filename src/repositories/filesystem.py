@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -12,7 +11,6 @@ from models import (
     CvOptimizationRecord,
     CvTransformationPlan,
 )
-from config.settings import get_data_dir
 
 
 class FileSystemRepository:
@@ -23,7 +21,7 @@ class FileSystemRepository:
     can be stored anywhere on the filesystem.
     """
 
-    def __init__(self, data_dir: Optional[str] = None):
+    def __init__(self, data_dir: str):
         """
         Initialize the repository.
 
@@ -31,8 +29,8 @@ class FileSystemRepository:
             data_dir: Root directory for all repository data.
                       Defaults to configured value or current working directory.
         """
-        if data_dir is None:
-            data_dir = get_data_dir()
+        if not data_dir:
+            raise ValueError("FilesystemRepository data_dir is required")
 
         self.data_dir = Path(data_dir).expanduser()
         self.collections_dir = self.data_dir / "collections"

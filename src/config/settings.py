@@ -150,16 +150,15 @@ class McpConfig(BaseModel):
 
 def get_data_dir() -> str:
     """Get data directory path from config."""
-    config_dir = Path(__file__).parent
-    yaml_config = load_yaml_config(config_dir)
-    return yaml_config.get("data_dir", "./data")
+    from repositories.config.settings import get_config
+
+    return get_config().data_dir
 
 
-def get_markdown_root() -> str:
-    """Get markdown root path from config, defaulting to data_dir."""
-    config_dir = Path(__file__).parent
-    yaml_config = load_yaml_config(config_dir)
-    return yaml_config.get("markdown_root") or yaml_config.get("data_dir", "./data")
+def get_markdown_root_dir() -> str:
+    config_dir = Path(__file__).parent.parent / "infrastructure" / "config"
+    yaml_config = load_yaml_config(config_dir, "markdown_writer")
+    return yaml_config.get("markdown_writer", {}).get("root_dir")
 
 
 def get_chat_config() -> dict:
@@ -191,8 +190,9 @@ def get_merged_config() -> dict:
     """Get fully merged configuration from all sources for display.
 
     Collects configs from:
-    - src/config/settings.yaml (data_dir, markdown_root, chat, mcp)
+    - src/config/settings.yaml (chat, mcp)
     - src/crews/*/config/settings.yaml (crew-specific agents)
+    - src/repositories/config/settings.yaml (repository settings)
     - ~/.cv-joint/settings.yaml (user overrides)
 
     Returns nested dict with explicit paths for user config format.
@@ -200,6 +200,7 @@ def get_merged_config() -> dict:
     config_dir = Path(__file__).parent
     src_dir = config_dir.parent
     crews_dir = src_dir / "crews"
+    repositories_dir = src_dir / "repositories"
 
     merged = {}
 
@@ -216,5 +217,16 @@ def get_merged_config() -> dict:
                 if "crews" not in merged:
                     merged["crews"] = {}
                 merged["crews"][crew_dir.name] = crew_config
+
+    repositories_settings = repositories_dir / "config" / "settings.yaml"
+    if repositories_settings.exists():
+        repo_config = load_yaml_config(repositories_dir / "config", "repositories")
+        merged["repositories"] = repo_config
+    infrastructure_settings = src_dir / "infrastructure" / "config" / "settings.yaml"
+    if infrastructure_settings.exists():
+        infra_config = load_yaml_config(
+            src_dir / "infrastructure" / "config", "infrastructure"
+        )
+        deep_merge(merged, infra_config)
 
     return merged

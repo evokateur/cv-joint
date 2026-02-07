@@ -2,21 +2,20 @@ from pathlib import Path
 from typing import Optional
 
 from converters import to_markdown
-from config.settings import get_markdown_root
 
 
 class MarkdownWriter:
-    """Writes markdown files for domain objects alongside their JSON files."""
+    """Writes markdown files for domain objects."""
 
-    def __init__(self, markdown_root: str = None):
-        if markdown_root is None:
-            markdown_root = get_markdown_root()
+    def __init__(self, root_dir: str):
+        if not root_dir:
+            raise ValueError("MarkdownWriter root_dir is required")
 
-        self.markdown_root = Path(markdown_root).expanduser()
+        self.root_dir = Path(root_dir).expanduser()
 
     def write(self, record_filepath: str, domain_object, title: str):
-        """Write a markdown file alongside the JSON file for a domain object."""
-        json_path = self.markdown_root / record_filepath
+        """Write a markdown file for a domain object."""
+        json_path = self.root_dir / record_filepath
         md_path = json_path.with_suffix(".md")
         md_path.parent.mkdir(parents=True, exist_ok=True)
         md_path.write_text(to_markdown(domain_object, title=title))

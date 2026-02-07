@@ -7,7 +7,12 @@ from pathlib import Path
 from unittest.mock import patch
 import tempfile
 
-from config.settings import load_yaml_config, deep_merge, expand_tildes, get_merged_config
+from config.settings import (
+    load_yaml_config,
+    deep_merge,
+    expand_tildes,
+    get_merged_config,
+)
 
 
 class TestDeepMerge:
@@ -116,7 +121,9 @@ class TestLoadYamlConfig:
             )
 
             with patch("config.settings.USER_CONFIG_FILE", user_config_file):
-                config = load_yaml_config(Path(tmpdir), user_config_path="crews.cv_analysis")
+                config = load_yaml_config(
+                    Path(tmpdir), user_config_path="crews.cv_analysis"
+                )
                 assert config["agents"]["analyst"]["model"] == "override"
 
     def test_user_config_path_missing_key_uses_empty_dict(self):
@@ -135,6 +142,8 @@ class TestLoadYamlConfig:
 class TestGetMergedConfig:
     def test_returns_dict_with_expected_keys(self):
         config = get_merged_config()
-        assert "data_dir" in config
         assert "chat" in config
+        assert "mcpServers" in config
         assert "crews" in config
+        assert "repositories" in config
+        assert "markdown_writer" in config

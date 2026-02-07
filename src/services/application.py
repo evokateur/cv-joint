@@ -1,5 +1,7 @@
 from typing import Any, Optional
 
+from config.settings import get_markdown_root_dir
+from config.settings import get_data_dir
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from repositories import FileSystemRepository
@@ -13,16 +15,18 @@ class ApplicationService:
 
     def __init__(
         self,
-        repository: FileSystemRepository = None,
-        markdown_writer: MarkdownWriter = None,
+        repository: Optional[FileSystemRepository] = None,
+        markdown_writer: Optional[MarkdownWriter] = None,
     ):
         self.job_posting_analyzer = JobPostingAnalyzer()
         self.cv_analyzer = CvAnalyzer()
-        self.repository = repository or FileSystemRepository()
-        self.markdown_writer = markdown_writer or MarkdownWriter()
+        self.repository = repository or FileSystemRepository(data_dir=get_data_dir())
+        self.markdown_writer = markdown_writer or MarkdownWriter(
+            root_dir=get_markdown_root_dir()
+        )
 
     def create_job_posting(
-        self, url: str, content_file: str = None
+        self, url: str, content_file: Optional[str] = None
     ) -> tuple[dict[str, Any], str]:
         """
         Analyze a job posting URL and create a structured JobPosting.

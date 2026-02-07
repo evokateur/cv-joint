@@ -21,7 +21,7 @@ def temp_data_dir():
 @pytest.fixture
 def service(temp_data_dir):
     repository = FileSystemRepository(data_dir=temp_data_dir)
-    markdown_writer = MarkdownWriter(markdown_root=temp_data_dir)
+    markdown_writer = MarkdownWriter(root_dir=temp_data_dir)
     return ApplicationService(repository=repository, markdown_writer=markdown_writer)
 
 
