@@ -3,12 +3,12 @@ from pydantic import BaseModel
 from config.settings import BaseConfig
 
 
-class FilesystemSettings(BaseModel):
+class FilesystemRepositorySettings(BaseModel):
     data_dir: str
 
 
 class Settings(BaseModel):
-    filesystem: FilesystemSettings
+    filesystem: FilesystemRepositorySettings
 
 
 class Config(BaseConfig):

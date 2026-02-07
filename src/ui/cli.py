@@ -17,10 +17,11 @@ def main():
         help="Print merged configuration to stdout and exit",
     )
     parser.add_argument(
-        "--clear-markdown",
-        nargs="*",
-        metavar=("COLLECTION", "IDENTIFIER"),
-        help="Remove generated markdown files and exit. Optional: COLLECTION (job-postings|cvs) and IDENTIFIER",
+        "--regenerate-markdown",
+        nargs="?",
+        const="all",
+        metavar="COLLECTION",
+        help="Regenerate markdown files from stored data and exit. Optional: COLLECTION (job-postings|cvs)",
     )
     args = parser.parse_args()
 
@@ -31,18 +32,17 @@ def main():
         yaml.dump(config, sys.stdout, default_flow_style=False, sort_keys=False)
         return
 
-    if args.clear_markdown is not None:
-        from repositories import FileSystemRepository
+    if args.regenerate_markdown is not None:
+        from services.application import ApplicationService
 
-        repo = FileSystemRepository()
-        collection_name = args.clear_markdown[0] if len(args.clear_markdown) > 0 else None
-        identifier = args.clear_markdown[1] if len(args.clear_markdown) > 1 else None
+        service = ApplicationService()
+        collection_name = None if args.regenerate_markdown == "all" else args.regenerate_markdown
         try:
-            count = repo.clear_markdown(collection_name, identifier)
+            count = service.regenerate_markdown(collection_name)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
-        print(f"Removed {count} markdown file(s)")
+        print(f"Regenerated {count} markdown file(s)")
         return
 
     from ui.app import launch
