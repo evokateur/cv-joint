@@ -199,14 +199,14 @@ class TestCvOptimizationOperations:
         with open(plan_path, "w") as f:
             json.dump(plan.model_dump(mode="json"), f)
 
-    def test_add_and_get_cv_optimization(self, repository_with_job_posting):
+    def test_add_and_get_cv_optimization_record(self, repository_with_job_posting):
         repository_with_job_posting.add_cv_optimization(
             identifier="opt-123",
             job_posting_identifier="acme-swe",
             base_cv_identifier="jane-doe-cv",
         )
 
-        retrieved = repository_with_job_posting.get_cv_optimization(
+        retrieved = repository_with_job_posting.get_cv_optimization_record(
             job_posting_identifier="acme-swe",
             identifier="opt-123",
         )
@@ -338,8 +338,8 @@ class TestCvOptimizationOperations:
         assert "job-1" in job_posting_ids
         assert "job-2" in job_posting_ids
 
-    def test_get_cv_optimization_not_found(self, repository_with_job_posting):
-        result = repository_with_job_posting.get_cv_optimization(
+    def test_get_cv_optimization_record_not_found(self, repository_with_job_posting):
+        result = repository_with_job_posting.get_cv_optimization_record(
             job_posting_identifier="acme-swe",
             identifier="nonexistent",
         )

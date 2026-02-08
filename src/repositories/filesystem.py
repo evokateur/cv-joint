@@ -146,9 +146,27 @@ class FileSystemRepository:
         with open(absolute_path, "r") as f:
             data = json.load(f)
 
-        job_posting = JobPosting(**data)
+        return JobPosting(**data)
 
-        return job_posting
+    def get_job_posting_record(self, identifier: str) -> Optional[JobPostingRecord]:
+        """
+        Load a job posting record from the collection index.
+
+        Args:
+            identifier: Unique identifier for the job posting
+
+        Returns:
+            JobPostingRecord or None if not found
+        """
+        collection = self._load_collection(self.job_postings_collection)
+        metadata = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+
+        if not metadata:
+            return None
+
+        return JobPostingRecord(**metadata)
 
     def list_job_postings(self) -> list[dict[str, Any]]:
         """
@@ -260,9 +278,27 @@ class FileSystemRepository:
         with open(absolute_path, "r") as f:
             data = json.load(f)
 
-        cv = CurriculumVitae(**data)
+        return CurriculumVitae(**data)
 
-        return cv
+    def get_cv_record(self, identifier: str) -> Optional[CurriculumVitaeRecord]:
+        """
+        Load a CV record from the collection index.
+
+        Args:
+            identifier: Unique identifier for the CV
+
+        Returns:
+            CurriculumVitaeRecord or None if not found
+        """
+        collection = self._load_collection(self.cvs_collection)
+        metadata = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+
+        if not metadata:
+            return None
+
+        return CurriculumVitaeRecord(**metadata)
 
     def list_cvs(self) -> list[dict[str, Any]]:
         """
@@ -404,7 +440,7 @@ class FileSystemRepository:
 
         return results
 
-    def get_cv_optimization(
+    def get_cv_optimization_record(
         self,
         job_posting_identifier: str,
         identifier: str,
