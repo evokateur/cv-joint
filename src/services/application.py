@@ -4,9 +4,10 @@ from config.settings import get_markdown_root_dir
 from config.settings import get_data_dir
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
+from .converters import MarkdownConverter
+from .exporters import MarkdownExporter
 from repositories import FileSystemRepository
 from infrastructure import MarkdownWriter
-from services.markdown_exporter import MarkdownExporter
 
 
 class ApplicationService:
@@ -22,10 +23,13 @@ class ApplicationService:
         self.job_posting_analyzer = JobPostingAnalyzer()
         self.cv_analyzer = CvAnalyzer()
         self.repository = repository or FileSystemRepository(data_dir=get_data_dir())
+        self.markdown_converter = MarkdownConverter()
         markdown_writer = markdown_writer or MarkdownWriter(
             root_dir=get_markdown_root_dir()
         )
-        self.markdown_exporter = MarkdownExporter(self.repository, markdown_writer)
+        self.markdown_exporter = MarkdownExporter(
+            self.repository, markdown_writer, self.markdown_converter
+        )
 
     def create_job_posting(
         self, url: str, content_file: Optional[str] = None
@@ -102,6 +106,10 @@ class ApplicationService:
         """Retrieve a single job posting by identifier."""
         return self.repository.get_job_posting(identifier)
 
+    def get_job_posting_markdown(self, job_posting) -> str:
+        """Convert a job posting to markdown."""
+        return self.markdown_converter.convert(job_posting)
+
     def get_job_postings(self) -> list[dict[str, Any]]:
         """
         Retrieve all saved job postings.
@@ -176,6 +184,10 @@ class ApplicationService:
     def get_cv(self, identifier: str):
         """Retrieve a single CV by identifier."""
         return self.repository.get_cv(identifier)
+
+    def get_cv_markdown(self, cv) -> str:
+        """Convert a CV to markdown."""
+        return self.markdown_converter.convert(cv)
 
     def get_cvs(self) -> list[dict[str, Any]]:
         """

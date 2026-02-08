@@ -1,5 +1,5 @@
 import re
-from typing import Any, Callable, Union
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -8,32 +8,50 @@ from models import CurriculumVitae, JobPosting
 URL_PATTERN = re.compile(r'https?://[^\s<>"{}|\\^`\[\]]+')
 
 
-def _default_presenter(model: BaseModel) -> dict:
-    """Bare minimum presenter - just convert to dict."""
-    return model.model_dump()
+class MarkdownConverter:
+    """Converts domain objects to markdown using type-specific composers."""
+
+    def __init__(self):
+        self._composers = {
+            JobPosting: _compose_job_posting,
+            CurriculumVitae: _compose_cv,
+        }
+
+    def convert(self, data) -> str:
+        """Convert a domain object or dict to markdown."""
+        composer = self._composers.get(type(data))
+        if composer:
+            document = composer(data)
+            return _render(document)
+
+        if isinstance(data, BaseModel):
+            return _render(data.model_dump())
+
+        return _render(data)
 
 
-def _present_job_posting(job: JobPosting) -> dict:
-    """Present JobPosting for readable markdown."""
-    result = {}
-
-    # Link to original posting
-    if job.url:
-        result["original_posting"] = job.url
-
-    # Basic info (title omitted - it's in the document header)
+def _compose_job_posting(job: JobPosting) -> dict:
+    """Compose a job posting into a markdown-ready document structure."""
     if job.company and job.company.lower() != "not specified":
-        result["company"] = job.company
+        title = f"{job.title} at {job.company}"
+    else:
+        title = job.title
+
+    document: dict[str, Any] = {"_title": title}
+
+    if job.url:
+        document["original_posting"] = job.url
+
+    if job.company and job.company.lower() != "not specified":
+        document["company"] = job.company
     if job.industry:
-        result["industry"] = job.industry
+        document["industry"] = job.industry
     if job.experience_level:
-        result["experience_level"] = job.experience_level
+        document["experience_level"] = job.experience_level
 
-    # Description
     if job.description:
-        result["description"] = job.description
+        document["description"] = job.description
 
-    # Requirements grouped
     requirements = {}
     if job.education:
         requirements["education"] = job.education
@@ -42,9 +60,8 @@ def _present_job_posting(job: JobPosting) -> dict:
     if job.hard_requirements:
         requirements["must_have"] = job.hard_requirements
     if requirements:
-        result["requirements"] = requirements
+        document["requirements"] = requirements
 
-    # Skills grouped
     skills = {}
     if job.technical_skills:
         skills["technical"] = job.technical_skills
@@ -53,29 +70,26 @@ def _present_job_posting(job: JobPosting) -> dict:
     if job.preferred_skills:
         skills["preferred"] = job.preferred_skills
     if skills:
-        result["skills"] = skills
+        document["skills"] = skills
 
-    # Responsibilities
     if job.responsibilities:
-        result["responsibilities"] = job.responsibilities
+        document["responsibilities"] = job.responsibilities
 
-    # ATS info
     if job.keywords or job.tools_and_tech:
         ats = {}
         if job.keywords:
             ats["keywords"] = job.keywords
         if job.tools_and_tech:
             ats["tools_and_technologies"] = job.tools_and_tech
-        result["ats_optimization"] = ats
+        document["ats_optimization"] = ats
 
-    return result
+    return document
 
 
-def _present_cv(cv: CurriculumVitae) -> dict:
-    """Present CurriculumVitae for readable markdown."""
-    result = {}
+def _compose_cv(cv: CurriculumVitae) -> dict:
+    """Compose a CV into a markdown-ready document structure."""
+    document: dict[str, Any] = {"_title": cv.name}
 
-    # Contact info (name omitted - it's in the document header)
     if cv.contact:
         contact = {}
         if cv.contact.email:
@@ -89,19 +103,17 @@ def _present_cv(cv: CurriculumVitae) -> dict:
         if cv.contact.github:
             contact["github"] = cv.contact.github
         if contact:
-            result["contact"] = contact
+            document["contact"] = contact
 
-    # Professional summary
     if cv.profession:
-        result["profession"] = cv.profession
+        document["profession"] = cv.profession
     if cv.core_expertise:
-        result["core_expertise"] = cv.core_expertise
+        document["core_expertise"] = cv.core_expertise
     if cv.summary_of_qualifications:
-        result["summary"] = cv.summary_of_qualifications
+        document["summary"] = cv.summary_of_qualifications
 
-    # Experience
     if cv.experience:
-        result["experience"] = [
+        document["experience"] = [
             {
                 "title": exp.title,
                 "company": exp.company,
@@ -112,9 +124,8 @@ def _present_cv(cv: CurriculumVitae) -> dict:
             for exp in cv.experience
         ]
 
-    # Additional experience (condensed)
     if cv.additional_experience:
-        result["additional_experience"] = [
+        document["additional_experience"] = [
             {
                 "title": exp.title,
                 "company": exp.company,
@@ -123,9 +134,8 @@ def _present_cv(cv: CurriculumVitae) -> dict:
             for exp in cv.additional_experience
         ]
 
-    # Education
     if cv.education:
-        result["education"] = [
+        document["education"] = [
             {
                 "degree": edu.degree,
                 "institution": edu.institution,
@@ -136,53 +146,20 @@ def _present_cv(cv: CurriculumVitae) -> dict:
             for edu in cv.education
         ]
 
-    # Skills by area
     if cv.areas_of_expertise:
-        result["skills"] = {
-            area.name: area.skills
-            for area in cv.areas_of_expertise
-        }
+        document["skills"] = {area.name: area.skills for area in cv.areas_of_expertise}
 
-    # Languages
     if cv.languages:
-        result["languages"] = {
-            lang.language: lang.level
-            for lang in cv.languages
-        }
+        document["languages"] = {lang.language: lang.level for lang in cv.languages}
 
-    return result
+    return document
 
 
-def _get_presenter(model: BaseModel) -> Callable[[BaseModel], dict]:
-    """Return the appropriate presenter for a model type."""
-    presenters = {
-        JobPosting: _present_job_posting,
-        CurriculumVitae: _present_cv,
-    }
-    return presenters.get(type(model), _default_presenter)
-
-
-def to_markdown(
-    data: Union[dict, BaseModel],
-    title: str | None = None,
-    level: int = 1,
-) -> str:
-    """
-    Convert any dict or Pydantic model to markdown.
-
-    Args:
-        data: Dict or Pydantic model to convert
-        title: Optional title for the document
-        level: Starting header level (1 = #, 2 = ##, etc.)
-
-    Returns:
-        Markdown string representation
-    """
-    if isinstance(data, BaseModel):
-        presenter = _get_presenter(data)
-        data = presenter(data)
-
+def _render(data: dict, level: int = 1) -> str:
+    """Render a dict as markdown. Type-agnostic."""
     lines = []
+
+    title = data.pop("_title", None) if isinstance(data, dict) else None
     if title:
         lines.append(f"{'#' * level} {title}\n")
         level += 1
@@ -222,21 +199,23 @@ def _format_field(name: str, value: Any, level: int) -> str:
         for i, item in enumerate(value):
             if isinstance(item, dict):
                 sub_title = _extract_title(item) or f"Item {i + 1}"
-                parts.append(to_markdown(item, title=sub_title, level=level + 1))
+                parts.append(_render({"_title": sub_title, **item}, level=level + 1))
         return "\n".join(parts)
 
     if isinstance(value, dict):
-        return f"{'#' * level} {name}\n\n{to_markdown(value, level=level + 1)}"
+        return f"{'#' * level} {name}\n\n{_render(value, level=level + 1)}"
 
     return f"**{name}:** {value}\n"
 
 
 def _linkify_urls(text: str) -> str:
     """Convert URLs in text to markdown links."""
+
     def replace(match):
         url = match.group(0)
         display = url if len(url) < 60 else url[:57] + "..."
         return f"[{display}]({url})"
+
     return URL_PATTERN.sub(replace, text)
 
 

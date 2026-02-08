@@ -1,6 +1,5 @@
 from typing import Optional
 
-from converters import to_markdown
 from models import (
     JobPosting,
     JobPostingRecord,
@@ -8,22 +7,25 @@ from models import (
     CurriculumVitaeRecord,
 )
 from infrastructure import MarkdownWriter
+from .converters import MarkdownConverter
 
 
 class MarkdownExporter:
-    """Converts domain objects to markdown and delegates writing to MarkdownWriter."""
+    """Delegates markdown conversion and writes results to the filesystem."""
 
-    def __init__(self, repository, markdown_writer: MarkdownWriter):
+    def __init__(
+        self, repository, markdown_writer: MarkdownWriter, converter: MarkdownConverter
+    ):
         self.repository = repository
         self.markdown_writer = markdown_writer
+        self.converter = converter
 
     def export_job_posting(self, record: JobPostingRecord, job_posting: JobPosting):
-        title = self._job_posting_title(job_posting)
-        markdown = to_markdown(job_posting, title=title)
+        markdown = self.converter.convert(job_posting)
         self.markdown_writer.write_job_posting(record.identifier, markdown)
 
     def export_cv(self, record: CurriculumVitaeRecord, cv: CurriculumVitae):
-        markdown = to_markdown(cv, title=cv.name)
+        markdown = self.converter.convert(cv)
         self.markdown_writer.write_cv(record.identifier, markdown)
 
     def export(self, collection_name: Optional[str] = None) -> int:
@@ -45,9 +47,3 @@ class MarkdownExporter:
                 self.export_cv(record, cv)
                 count += 1
         return count
-
-    @staticmethod
-    def _job_posting_title(job_posting: JobPosting) -> str:
-        if job_posting.company and job_posting.company.lower() != "not specified":
-            return f"{job_posting.title} at {job_posting.company}"
-        return job_posting.title
