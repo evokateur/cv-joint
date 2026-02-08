@@ -1,6 +1,5 @@
 import gradio as gr
 import validators
-from converters import to_markdown
 from models import JobPosting, CurriculumVitae
 from services import ApplicationService
 from services import KnowledgeChatService
@@ -105,12 +104,7 @@ def create_app():
                     content_path = content_file.name if content_file else None
                     job_data, identifier = service.create_job_posting(url, content_path)
                     job_posting = JobPosting(**job_data)
-                    company = job_posting.company
-                    if company and company.lower() != "not specified":
-                        title = f"{job_posting.title} at {company}"
-                    else:
-                        title = job_posting.title
-                    job_md = to_markdown(job_posting, title=title)
+                    job_md = service.get_job_posting_markdown(job_posting)
                     is_saved = False
                     return (
                         job_md,
@@ -138,7 +132,7 @@ def create_app():
                             gr.update(visible=False),
                         )
 
-                    job_posting = service.repository.get_job_posting(identifier)
+                    job_posting = service.get_job_posting(identifier)
                     if not job_posting:
                         return (
                             "",
@@ -152,12 +146,7 @@ def create_app():
                         )
 
                     job_data = job_posting.model_dump()
-                    company = job_posting.company
-                    if company and company.lower() != "not specified":
-                        title = f"{job_posting.title} at {company}"
-                    else:
-                        title = job_posting.title
-                    job_md = to_markdown(job_posting, title=title)
+                    job_md = service.get_job_posting_markdown(job_posting)
                     is_saved = True
 
                     return (
@@ -441,7 +430,7 @@ def create_app():
 
                     cv_data, identifier = service.create_cv(file_path)
                     cv = CurriculumVitae(**cv_data)
-                    cv_md = to_markdown(cv, title=cv.name)
+                    cv_md = service.get_cv_markdown(cv)
                     is_saved = False
                     return (
                         cv_md,
@@ -470,7 +459,7 @@ def create_app():
                             gr.update(visible=False),
                         )
 
-                    cv = service.repository.get_cv(identifier)
+                    cv = service.get_cv(identifier)
                     if not cv:
                         return (
                             "",
@@ -483,7 +472,7 @@ def create_app():
                         )
 
                     cv_data = cv.model_dump()
-                    cv_md = to_markdown(cv, title=cv.name)
+                    cv_md = service.get_cv_markdown(cv)
                     is_saved = True
 
                     return (

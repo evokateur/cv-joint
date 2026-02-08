@@ -31,8 +31,12 @@ class McpServerSettings(BaseModel):
 
     command: str = Field(description="Command to run the MCP server")
     args: list[str] = Field(default_factory=list, description="Command arguments")
-    env: dict[str, str] = Field(default_factory=dict, description="Environment variables")
-    tool_name: str = Field(alias="x-tool-name", description="Name of the search tool to call")
+    env: dict[str, str] = Field(
+        default_factory=dict, description="Environment variables"
+    )
+    tool_name: str = Field(
+        alias="x-tool-name", description="Name of the search tool to call"
+    )
 
 
 USER_CONFIG_FILE = Path.home() / ".cv-joint" / "settings.yaml"
@@ -85,8 +89,10 @@ def expand_tildes(config: dict) -> dict:
             result[key] = expand_tildes(value)
         elif isinstance(value, list):
             result[key] = [
-                str(Path(item).expanduser()) if isinstance(item, str) and item.startswith("~/")
-                else expand_tildes(item) if isinstance(item, dict)
+                str(Path(item).expanduser())
+                if isinstance(item, str) and item.startswith("~/")
+                else expand_tildes(item)
+                if isinstance(item, dict)
                 else item
                 for item in value
             ]
@@ -142,6 +148,19 @@ class McpConfig(BaseModel):
     mcp: dict[str, Optional[McpServerSettings]] = Field(alias="mcpServers")
 
 
+def get_data_dir() -> str:
+    """Get data directory path from config."""
+    from repositories.config.settings import get_config
+
+    return get_config().data_dir
+
+
+def get_markdown_root_dir() -> str:
+    config_dir = Path(__file__).parent.parent / "infrastructure" / "config"
+    yaml_config = load_yaml_config(config_dir, "markdown_writer")
+    return yaml_config.get("markdown_writer", {}).get("root_dir")
+
+
 def get_chat_config() -> dict:
     """Get chat configuration from YAML, validated with Pydantic"""
     config_dir = Path(__file__).parent
@@ -192,7 +211,9 @@ def get_merged_config() -> dict:
         for crew_dir in crews_dir.iterdir():
             crew_settings = crew_dir / "config" / "settings.yaml"
             if crew_settings.exists():
-                crew_config = load_yaml_config(crew_dir / "config", f"crews.{crew_dir.name}")
+                crew_config = load_yaml_config(
+                    crew_dir / "config", f"crews.{crew_dir.name}"
+                )
                 if "crews" not in merged:
                     merged["crews"] = {}
                 merged["crews"][crew_dir.name] = crew_config
@@ -201,5 +222,11 @@ def get_merged_config() -> dict:
     if repositories_settings.exists():
         repo_config = load_yaml_config(repositories_dir / "config", "repositories")
         merged["repositories"] = repo_config
+    infrastructure_settings = src_dir / "infrastructure" / "config" / "settings.yaml"
+    if infrastructure_settings.exists():
+        infra_config = load_yaml_config(
+            src_dir / "infrastructure" / "config", "infrastructure"
+        )
+        deep_merge(merged, infra_config)
 
     return merged

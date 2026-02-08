@@ -1,7 +1,13 @@
-from typing import Any
+from typing import Any, Optional
+
+from config.settings import get_markdown_root_dir
+from config.settings import get_data_dir
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
+from .converters import MarkdownConverter
+from .exporters import MarkdownExporter
 from repositories import FileSystemRepository
+from infrastructure import MarkdownWriter
 
 
 class ApplicationService:
@@ -9,13 +15,24 @@ class ApplicationService:
     Application service for CV Joint operations.
     """
 
-    def __init__(self, repository: FileSystemRepository = None):
+    def __init__(
+        self,
+        repository: Optional[FileSystemRepository] = None,
+        markdown_writer: Optional[MarkdownWriter] = None,
+    ):
         self.job_posting_analyzer = JobPostingAnalyzer()
         self.cv_analyzer = CvAnalyzer()
-        self.repository = repository or FileSystemRepository()
+        self.repository = repository or FileSystemRepository(data_dir=get_data_dir())
+        self.markdown_converter = MarkdownConverter()
+        markdown_writer = markdown_writer or MarkdownWriter(
+            root_dir=get_markdown_root_dir()
+        )
+        self.markdown_exporter = MarkdownExporter(
+            self.repository, markdown_writer, self.markdown_converter
+        )
 
     def create_job_posting(
-        self, url: str, content_file: str = None
+        self, url: str, content_file: Optional[str] = None
     ) -> tuple[dict[str, Any], str]:
         """
         Analyze a job posting URL and create a structured JobPosting.
@@ -68,6 +85,7 @@ class ApplicationService:
                 counter += 1
 
         record = self.repository.add_job_posting(job_posting, identifier)
+        self.markdown_exporter.export_job_posting(record, job_posting)
         return record
 
     def _generate_job_identifier(self, company: str, title: str) -> str:
@@ -83,6 +101,14 @@ class ApplicationService:
         if company.lower() == "not specified":
             return slugify(title)
         return f"{slugify(company)}-{slugify(title)}"
+
+    def get_job_posting(self, identifier: str):
+        """Retrieve a single job posting by identifier."""
+        return self.repository.get_job_posting(identifier)
+
+    def get_job_posting_markdown(self, job_posting) -> str:
+        """Convert a job posting to markdown."""
+        return self.markdown_converter.convert(job_posting)
 
     def get_job_postings(self) -> list[dict[str, Any]]:
         """
@@ -140,6 +166,7 @@ class ApplicationService:
                 counter += 1
 
         record = self.repository.add_cv(cv, identifier)
+        self.markdown_exporter.export_cv(record, cv)
         return record
 
     def _generate_cv_identifier(self, name: str, profession: str) -> str:
@@ -154,6 +181,14 @@ class ApplicationService:
 
         return f"{slugify(name)}-{slugify(profession)}"
 
+    def get_cv(self, identifier: str):
+        """Retrieve a single CV by identifier."""
+        return self.repository.get_cv(identifier)
+
+    def get_cv_markdown(self, cv) -> str:
+        """Convert a CV to markdown."""
+        return self.markdown_converter.convert(cv)
+
     def get_cvs(self) -> list[dict[str, Any]]:
         """
         Retrieve all saved CVs.
@@ -162,6 +197,14 @@ class ApplicationService:
             list of CV metadata dictionaries
         """
         return self.repository.list_cvs()
+
+    def regenerate_markdown(self, collection_name: Optional[str] = None) -> int:
+        """
+        Regenerate all markdown files from stored domain objects.
+
+        This overwrites any existing markdown files, including manual edits.
+        """
+        return self.markdown_exporter.export(collection_name)
 
     def create_optimization(self, job_posting_id: str, cv_id: str) -> dict[str, Any]:
         """
