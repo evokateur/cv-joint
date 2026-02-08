@@ -159,14 +159,14 @@ class FileSystemRepository:
             JobPostingRecord or None if not found
         """
         collection = self._load_collection(self.job_postings_collection)
-        metadata = next(
+        data = next(
             (item for item in collection if item["identifier"] == identifier), None
         )
 
-        if not metadata:
+        if not data:
             return None
 
-        return JobPostingRecord(**metadata)
+        return JobPostingRecord(**data)
 
     def list_job_postings(self) -> list[dict[str, Any]]:
         """
@@ -291,14 +291,14 @@ class FileSystemRepository:
             CurriculumVitaeRecord or None if not found
         """
         collection = self._load_collection(self.cvs_collection)
-        metadata = next(
+        data = next(
             (item for item in collection if item["identifier"] == identifier), None
         )
 
-        if not metadata:
+        if not data:
             return None
 
-        return CurriculumVitaeRecord(**metadata)
+        return CurriculumVitaeRecord(**data)
 
     def list_cvs(self) -> list[dict[str, Any]]:
         """

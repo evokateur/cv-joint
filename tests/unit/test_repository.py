@@ -127,6 +127,21 @@ class TestJobPostingOperations:
         )
         assert expected_path.exists()
 
+    def test_get_job_posting_record(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "test-job")
+        record = repository.get_job_posting_record("test-job")
+
+        assert record is not None
+        assert record.identifier == "test-job"
+        assert record.company == "Acme Corp"
+        assert record.title == "Software Engineer"
+        assert record.url == "https://example.com/job/123"
+        assert record.experience_level == "Mid-level"
+        assert record.created_at is not None
+
+    def test_get_job_posting_record_not_found(self, repository):
+        assert repository.get_job_posting_record("nonexistent") is None
+
 
 class TestCvOperations:
     def test_add_and_get_cv(self, repository, sample_cv):
@@ -163,6 +178,19 @@ class TestCvOperations:
         repository.add_cv(sample_cv, "location-test")
         expected_path = Path(temp_data_dir) / "cvs" / "location-test" / "cv.json"
         assert expected_path.exists()
+
+    def test_get_cv_record(self, repository, sample_cv):
+        repository.add_cv(sample_cv, "test-cv")
+        record = repository.get_cv_record("test-cv")
+
+        assert record is not None
+        assert record.identifier == "test-cv"
+        assert record.name == "Jane Doe"
+        assert record.profession == "Software Engineer"
+        assert record.created_at is not None
+
+    def test_get_cv_record_not_found(self, repository):
+        assert repository.get_cv_record("nonexistent") is None
 
 
 class TestCvOptimizationOperations:
