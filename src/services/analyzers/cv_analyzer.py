@@ -9,8 +9,6 @@ from models import CurriculumVitae
 class CvAnalyzer:
     """
     Analyzer that wraps the CvAnalysis crew to extract structured CV data.
-
-    This class abstracts the CrewAI implementation details from the service layer.
     """
 
     def analyze(self, file_path: str) -> CurriculumVitae:

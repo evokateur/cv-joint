@@ -13,8 +13,6 @@ from models import JobPosting
 class JobPostingAnalyzer:
     """
     Analyzer that wraps the JobPostingAnalyzer crew to extract structured job posting data.
-
-    This class abstracts the CrewAI implementation details from the service layer.
     """
 
     def analyze(self, url: str, content_file: Optional[str] = None) -> JobPosting:
