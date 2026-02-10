@@ -57,7 +57,19 @@ class FileSystemRepository:
         "cvs": "cv.json",
     }
 
-    def _generate_default_path(self, collection_name: str, identifier: str) -> str:
+    def get_absolute_path(self, collection_name: str, identifier: str) -> Path:
+        if collection_name not in self.FILE_NAMES:
+            raise ValueError(f"Unknown collection: {collection_name}")
+
+        relative_path = self._generate_relative_path(collection_name, identifier)
+        return self._resolve_path(relative_path)
+
+    def get_cv_optimization_dir(
+        self, job_posting_identifier: str, identifier: str
+    ) -> Path:
+        return self._cv_optimization_dir(job_posting_identifier, identifier)
+
+    def _generate_relative_path(self, collection_name: str, identifier: str) -> str:
         """Generate default relative file path for a domain object."""
         filename = self.FILE_NAMES.get(collection_name, f"{collection_name}.json")
         return f"{collection_name}/{identifier}/{filename}"
@@ -67,7 +79,7 @@ class FileSystemRepository:
         return self.data_dir / relative_path
 
     def add_job_posting(
-        self, job_posting: JobPosting, identifier: str, file_path: Optional[str] = None
+        self, job_posting: JobPosting, identifier: str
     ) -> JobPostingRecord:
         """
         Save a job posting and update collection metadata.
@@ -75,13 +87,11 @@ class FileSystemRepository:
         Args:
             job_posting: JobPosting domain object
             identifier: Unique identifier for this job posting
-            file_path: Optional path to save the file. If None, generates default path.
 
         Returns:
             The persisted JobPostingRecord
         """
-        if file_path is None:
-            file_path = self._generate_default_path("job-postings", identifier)
+        file_path = self._generate_relative_path("job-postings", identifier)
 
         absolute_path = self._resolve_path(file_path)
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
@@ -200,22 +210,18 @@ class FileSystemRepository:
 
         return False
 
-    def add_cv(
-        self, cv: CurriculumVitae, identifier: str, file_path: Optional[str] = None
-    ) -> CurriculumVitaeRecord:
+    def add_cv(self, cv: CurriculumVitae, identifier: str) -> CurriculumVitaeRecord:
         """
         Save a CV and update collection metadata.
 
         Args:
             cv: CurriculumVitae domain object
             identifier: Unique identifier for this CV
-            file_path: Optional path to save the file. If None, generates default path.
 
         Returns:
             The persisted CurriculumVitaeRecord
         """
-        if file_path is None:
-            file_path = self._generate_default_path("cvs", identifier)
+        file_path = self._generate_relative_path("cvs", identifier)
 
         absolute_path = self._resolve_path(file_path)
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
@@ -368,6 +374,7 @@ class FileSystemRepository:
 
         record = CvOptimizationRecord(
             identifier=identifier,
+            job_posting_identifier=job_posting_identifier,
             base_cv_identifier=base_cv_identifier,
             created_at=datetime.now(),
         )
@@ -497,6 +504,24 @@ class FileSystemRepository:
             data = json.load(f)
 
         return CvTransformationPlan(**data)
+
+    def get_optimized_cv(
+        self, job_posting_identifier: str, cv_optimization_identifier: str
+    ) -> Optional[CurriculumVitae]:
+        cv_path = (
+            self._cv_optimization_dir(
+                job_posting_identifier, cv_optimization_identifier
+            )
+            / "cv.json"
+        )
+
+        if not cv_path.exists():
+            return None
+
+        with open(cv_path, "r") as f:
+            data = json.load(f)
+
+        return CurriculumVitae(**data)
 
     def purge_cv_optimization(
         self,

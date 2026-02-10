@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from models import CurriculumVitae, JobPosting
+from models import CurriculumVitae, CvTransformationPlan, JobPosting
 
 URL_PATTERN = re.compile(r'https?://[^\s<>"{}|\\^`\[\]]+')
 
@@ -15,6 +15,7 @@ class MarkdownConverter:
         self._composers = {
             JobPosting: _compose_job_posting,
             CurriculumVitae: _compose_cv,
+            CvTransformationPlan: _compose_transformation_plan,
         }
 
     def convert(self, data) -> str:
@@ -82,6 +83,48 @@ def _compose_job_posting(job: JobPosting) -> dict:
         if job.tools_and_tech:
             ats["tools_and_technologies"] = job.tools_and_tech
         document["ats_optimization"] = ats
+
+    return document
+
+
+def _compose_transformation_plan(plan: CvTransformationPlan) -> dict:
+    """Compose a transformation plan into a markdown-ready document structure."""
+    document: dict[str, Any] = {
+        "_title": f"Transformation Plan: {plan.job_title} at {plan.company}"
+    }
+
+    alignment = {}
+    if plan.matching_skills:
+        alignment["matching_skills"] = plan.matching_skills
+    if plan.missing_skills:
+        alignment["missing_skills"] = plan.missing_skills
+    if plan.transferable_skills:
+        alignment["transferable_skills"] = plan.transferable_skills
+    if alignment:
+        document["alignment_analysis"] = alignment
+
+    transformations = {}
+    if plan.profession_update:
+        transformations["profession_update"] = plan.profession_update
+    if plan.core_expertise_updates:
+        transformations["core_expertise_updates"] = plan.core_expertise_updates
+    if plan.summary_updates:
+        transformations["summary_updates"] = plan.summary_updates
+    if plan.experience_updates:
+        transformations["experience_updates"] = plan.experience_updates
+    if transformations:
+        document["transformations"] = transformations
+
+    ats = {}
+    if plan.keyword_insertions:
+        ats["keyword_insertions"] = plan.keyword_insertions
+    if plan.quantification_suggestions:
+        ats["quantification_suggestions"] = plan.quantification_suggestions
+    if ats:
+        document["ats_optimization"] = ats
+
+    if plan.evidence_sources:
+        document["evidence_sources"] = plan.evidence_sources
 
     return document
 

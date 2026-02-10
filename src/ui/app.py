@@ -104,7 +104,7 @@ def create_app():
                     content_path = content_file.name if content_file else None
                     job_data, identifier = service.create_job_posting(url, content_path)
                     job_posting = JobPosting(**job_data)
-                    job_md = service.get_job_posting_markdown(job_posting)
+                    job_md = service.to_markdown(job_posting)
                     is_saved = False
                     return (
                         job_md,
@@ -430,7 +430,7 @@ def create_app():
 
                     cv_data, identifier = service.create_cv(file_path)
                     cv = CurriculumVitae(**cv_data)
-                    cv_md = service.get_cv_markdown(cv)
+                    cv_md = service.to_markdown(cv)
                     is_saved = False
                     return (
                         cv_md,
