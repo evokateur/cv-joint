@@ -229,8 +229,8 @@ class TestCvOptimizationOperations:
 
     def test_add_and_get_cv_optimization_record(self, repository_with_job_posting):
         repository_with_job_posting.add_cv_optimization(
-            identifier="opt-123",
             job_posting_identifier="acme-swe",
+            identifier="opt-123",
             base_cv_identifier="jane-doe-cv",
         )
 
@@ -246,8 +246,8 @@ class TestCvOptimizationOperations:
         self, repository_with_job_posting, temp_data_dir
     ):
         repository_with_job_posting.add_cv_optimization(
-            identifier="opt-123",
             job_posting_identifier="acme-swe",
+            identifier="opt-123",
             base_cv_identifier="jane-doe-cv",
         )
         expected_path = (
@@ -262,8 +262,8 @@ class TestCvOptimizationOperations:
 
     def test_add_cv_optimization_returns_record(self, repository_with_job_posting):
         record = repository_with_job_posting.add_cv_optimization(
-            identifier="opt-123",
             job_posting_identifier="acme-swe",
+            identifier="opt-123",
             base_cv_identifier="jane-doe-cv",
         )
         assert record.identifier == "opt-123"
@@ -278,14 +278,14 @@ class TestCvOptimizationOperations:
     ):
         self._write_plan_file(temp_data_dir, "acme-swe", "opt-123", sample_plan)
         repository_with_job_posting.add_cv_optimization(
-            identifier="opt-123",
             job_posting_identifier="acme-swe",
+            identifier="opt-123",
             base_cv_identifier="jane-doe-cv",
         )
 
         retrieved = repository_with_job_posting.get_cv_transformation_plan(
             job_posting_identifier="acme-swe",
-            cv_optimization_identifier="opt-123",
+            optimization_identifier="opt-123",
         )
         assert retrieved is not None
         assert retrieved.job_title == "Software Engineer"
@@ -293,13 +293,13 @@ class TestCvOptimizationOperations:
 
     def test_list_cv_optimizations_for_job_posting(self, repository_with_job_posting):
         repository_with_job_posting.add_cv_optimization(
-            identifier="opt-1",
             job_posting_identifier="acme-swe",
+            identifier="opt-1",
             base_cv_identifier="jane-doe-cv",
         )
         repository_with_job_posting.add_cv_optimization(
-            identifier="opt-2",
             job_posting_identifier="acme-swe",
+            identifier="opt-2",
             base_cv_identifier="jane-doe-cv",
         )
 
@@ -317,8 +317,8 @@ class TestCvOptimizationOperations:
     ):
         self._write_plan_file(temp_data_dir, "acme-swe", "opt-123", sample_plan)
         repository_with_job_posting.add_cv_optimization(
-            identifier="opt-123",
             job_posting_identifier="acme-swe",
+            identifier="opt-123",
             base_cv_identifier="jane-doe-cv",
         )
 
@@ -349,13 +349,13 @@ class TestCvOptimizationOperations:
         repository.add_job_posting(sample_job_posting, "job-2")
 
         repository.add_cv_optimization(
-            identifier="opt-a",
             job_posting_identifier="job-1",
+            identifier="opt-a",
             base_cv_identifier="jane-doe-cv",
         )
         repository.add_cv_optimization(
-            identifier="opt-b",
             job_posting_identifier="job-2",
+            identifier="opt-b",
             base_cv_identifier="jane-doe-cv",
         )
 
@@ -376,7 +376,7 @@ class TestCvOptimizationOperations:
     def test_get_cv_transformation_plan_not_found(self, repository_with_job_posting):
         result = repository_with_job_posting.get_cv_transformation_plan(
             job_posting_identifier="acme-swe",
-            cv_optimization_identifier="nonexistent",
+            optimization_identifier="nonexistent",
         )
         assert result is None
 

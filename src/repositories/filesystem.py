@@ -15,10 +15,7 @@ from models import (
 
 class FileSystemRepository:
     """
-    Repository that stores domain objects on the filesystem with collection metadata.
-
-    Collection metadata is stored in a central location, while domain objects
-    can be stored anywhere on the filesystem.
+    Repository that stores domain objects in the filesystem with metadata records.
     """
 
     def __init__(self, data_dir: str):
@@ -27,7 +24,6 @@ class FileSystemRepository:
 
         Args:
             data_dir: Root directory for all repository data.
-                      Defaults to configured value or current working directory.
         """
         if not data_dir:
             raise ValueError("FilesystemRepository data_dir is required")
@@ -82,10 +78,10 @@ class FileSystemRepository:
         self, job_posting: JobPosting, identifier: str
     ) -> JobPostingRecord:
         """
-        Save a job posting and update collection metadata.
+        Add a job posting and update collection metadata.
 
         Args:
-            job_posting: JobPosting domain object
+            job_posting: JobPosting
             identifier: Unique identifier for this job posting
 
         Returns:
@@ -142,7 +138,7 @@ class FileSystemRepository:
             identifier: Unique identifier for the job posting
 
         Returns:
-            JobPosting domain object or None if not found
+            JobPosting or None if not found
         """
         collection = self._load_collection(self.job_postings_collection)
         metadata = next(
@@ -212,10 +208,10 @@ class FileSystemRepository:
 
     def add_cv(self, cv: CurriculumVitae, identifier: str) -> CurriculumVitaeRecord:
         """
-        Save a CV and update collection metadata.
+        Add a CV and update collection metadata.
 
         Args:
-            cv: CurriculumVitae domain object
+            cv: CurriculumVitae
             identifier: Unique identifier for this CV
 
         Returns:
@@ -270,7 +266,7 @@ class FileSystemRepository:
             identifier: Unique identifier for the CV
 
         Returns:
-            CurriculumVitae domain object or None if not found
+            CurriculumVitae or None if not found
         """
         collection = self._load_collection(self.cvs_collection)
         metadata = next(
@@ -352,8 +348,8 @@ class FileSystemRepository:
 
     def add_cv_optimization(
         self,
-        identifier: str,
         job_posting_identifier: str,
+        identifier: str,
         base_cv_identifier: str,
     ) -> CvOptimizationRecord:
         """
@@ -416,8 +412,6 @@ class FileSystemRepository:
             if not cv_optimizations_dir.exists():
                 continue
 
-            jp_identifier = job_posting_dir.name
-
             for optimization_dir in cv_optimizations_dir.iterdir():
                 if not optimization_dir.is_dir():
                     continue
@@ -430,8 +424,8 @@ class FileSystemRepository:
                     record_data = json.load(f)
 
                 result = {
-                    "identifier": optimization_dir.name,
-                    "job_posting_identifier": jp_identifier,
+                    "job_posting_identifier": record_data.get("job_posting_identifier"),
+                    "identifier": record_data.get("identifier"),
                     "base_cv_identifier": record_data.get("base_cv_identifier"),
                     "created_at": record_data.get("created_at"),
                 }
@@ -478,22 +472,20 @@ class FileSystemRepository:
     def get_cv_transformation_plan(
         self,
         job_posting_identifier: str,
-        cv_optimization_identifier: str,
+        optimization_identifier: str,
     ) -> Optional[CvTransformationPlan]:
         """
         Load a transformation plan from the filesystem.
 
         Args:
             job_posting_identifier: Identifier of the parent job posting
-            cv_optimization_identifier: Identifier of the cv_optimization
+            optimization_identifier: Identifier of the cv_optimization
 
         Returns:
             CvTransformationPlan or None if not found
         """
         plan_path = (
-            self._cv_optimization_dir(
-                job_posting_identifier, cv_optimization_identifier
-            )
+            self._cv_optimization_dir(job_posting_identifier, optimization_identifier)
             / "transformation-plan.json"
         )
 
