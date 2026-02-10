@@ -157,7 +157,7 @@ def get_data_dir() -> str:
 
 def get_markdown_root_dir() -> str:
     config_dir = Path(__file__).parent.parent / "infrastructure" / "config"
-    yaml_config = load_yaml_config(config_dir, "markdown_writer")
+    yaml_config = load_yaml_config(config_dir)
     return yaml_config.get("markdown_writer", {}).get("root_dir")
 
 
@@ -225,7 +225,7 @@ def get_merged_config() -> dict:
     infrastructure_settings = src_dir / "infrastructure" / "config" / "settings.yaml"
     if infrastructure_settings.exists():
         infra_config = load_yaml_config(
-            src_dir / "infrastructure" / "config", "infrastructure"
+            src_dir / "infrastructure" / "config"
         )
         deep_merge(merged, infra_config)
 
