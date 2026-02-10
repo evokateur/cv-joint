@@ -755,19 +755,13 @@ def create_app():
                 def load_opt_job_choices():
                     jobs = service.get_job_postings()
                     return gr.Dropdown(
-                        choices=[
-                            (f"{j['company']} - {j['title']}", j["identifier"])
-                            for j in jobs
-                        ]
+                        choices=[j["identifier"] for j in jobs]
                     )
 
                 def load_opt_cv_choices():
                     cvs = service.get_cvs()
                     return gr.Dropdown(
-                        choices=[
-                            (f"{c['name']} ({c['profession']})", c["identifier"])
-                            for c in cvs
-                        ]
+                        choices=[c["identifier"] for c in cvs]
                     )
 
                 def run_optimization(job_id, cv_id):
