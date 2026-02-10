@@ -28,19 +28,15 @@ class JobPostingAnalyzer:
         Returns:
             JobPosting Pydantic model with extracted data
         """
-        with tempfile.TemporaryDirectory() as temp_dir:
-            inputs = {
-                "job_posting_url": url,
-                "content_file": content_file,
-                "output_directory": temp_dir,
-            }
+        inputs = {
+            "job_posting_url": url,
+            "content_file": content_file,
+        }
 
-            crew = JobPostingAnalysisCrew()
-            result = crew.crew().kickoff(inputs=inputs)
+        crew = JobPostingAnalysisCrew()
+        result = crew.crew().kickoff(inputs=inputs)
 
-            if not isinstance(result.pydantic, JobPosting):
-                raise TypeError(
-                    "Expected JobPosting, got {}".format(type(result.pydantic))
-                )
+        if not isinstance(result.pydantic, JobPosting):
+            raise TypeError("Expected JobPosting, got {}".format(type(result.pydantic)))
 
-            return result.pydantic
+        return result.pydantic
