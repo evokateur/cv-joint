@@ -146,7 +146,7 @@ def create_app():
                         )
 
                     job_data = job_posting.model_dump()
-                    job_md = service.get_job_posting_markdown(job_posting)
+                    job_md = service.to_markdown(job_posting)
                     is_saved = True
 
                     return (
@@ -472,7 +472,7 @@ def create_app():
                         )
 
                     cv_data = cv.model_dump()
-                    cv_md = service.get_cv_markdown(cv)
+                    cv_md = service.to_markdown(cv)
                     is_saved = True
 
                     return (
