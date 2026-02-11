@@ -334,6 +334,61 @@ class FileSystemRepository:
 
         return False
 
+    def list_cv_data_files(self) -> list[dict[str, Any]]:
+        """
+        List the absolute file paths for all CVs, base and optimized.
+        """
+        results = []
+
+        job_postings_root = self.data_dir / "job-postings"
+        if job_postings_root.exists():
+            job_posting_dirs = [d for d in job_postings_root.iterdir() if d.is_dir()]
+        else:
+            job_posting_dirs = []
+
+        for job_posting_dir in job_posting_dirs:
+            cv_optimizations_dir = job_posting_dir / "cv-optimizations"
+
+            if not cv_optimizations_dir.exists():
+                continue
+
+            for optimization_dir in cv_optimizations_dir.iterdir():
+                if not optimization_dir.is_dir():
+                    continue
+
+                record_path = optimization_dir / "record.json"
+                if not record_path.exists():
+                    continue
+
+                with open(record_path, "r") as f:
+                    record_data = json.load(f)
+
+                separator = "."
+                cv_path = optimization_dir / "cv.json"
+                result = {
+                    "identifier": separator.join(
+                        [
+                            job_posting_dir.name,
+                            optimization_dir.name,
+                            record_data.get("base_cv_identifier"),
+                        ]
+                    ),
+                    "filepath": str(self._resolve_path(cv_path.name)),
+                }
+
+                results.append(result)
+
+        collection = self._load_collection(self.cvs_collection)
+        for item in collection:
+            results.append(
+                {
+                    "identifier": item.get("identifier"),
+                    "filepath": str(self._resolve_path(item.get("filepath"))),
+                }
+            )
+
+        return results
+
     def _cv_optimization_dir(
         self, job_posting_identifier: str, identifier: str
     ) -> Path:

@@ -754,15 +754,11 @@ def create_app():
                 # Event handlers for Optimizations tab
                 def load_opt_job_choices():
                     jobs = service.get_job_postings()
-                    return gr.Dropdown(
-                        choices=[j["identifier"] for j in jobs]
-                    )
+                    return gr.Dropdown(choices=[j["identifier"] for j in jobs])
 
                 def load_opt_cv_choices():
                     cvs = service.get_cvs()
-                    return gr.Dropdown(
-                        choices=[c["identifier"] for c in cvs]
-                    )
+                    return gr.Dropdown(choices=[c["identifier"] for c in cvs])
 
                 def run_optimization(job_id, cv_id):
                     if not job_id or not cv_id:
@@ -1030,8 +1026,8 @@ def create_app():
                 with gr.Group():
                     gr.Markdown("### Generate PDF")
 
-                    optimization_dropdown = gr.Dropdown(
-                        label="Select Optimization",
+                    cv_data_selection = gr.Dropdown(
+                        label="Select CV",
                         choices=[],
                         interactive=True,
                     )
@@ -1039,10 +1035,10 @@ def create_app():
                     gr.Markdown("Or upload CV JSON:")
                     cv_json_file = gr.File(label="CV JSON File", file_types=[".json"])
 
-                    template_dropdown = gr.Dropdown(
+                    cv_template_selection = gr.Dropdown(
                         label="Template",
-                        choices=["cv.tex", "cover-letter.tex"],
-                        value="cv.tex",
+                        choices=[],
+                        interactive=True,
                     )
 
                     generate_pdf_btn = gr.Button("Generate PDF", variant="primary")
@@ -1052,38 +1048,35 @@ def create_app():
                     pdf_status = gr.Textbox(label="Status", interactive=False)
                     pdf_download = gr.File(label="Download PDF", interactive=False)
 
-                # Event handlers for PDF tab
-                def load_cv_optimization_choices():
-                    opts = service.get_cv_optimizations()
+                def load_cv_data_choices():
+                    files = service.get_cv_data_filepaths()
                     return gr.Dropdown(
-                        choices=[
-                            (f"{o['job_posting']} - {o['date']}", o["identifier"])
-                            for o in opts
-                        ]
+                        choices=[(f["identifier"], f["filepath"]) for f in files]
                     )
 
-                def generate_pdf(optimization_id, cv_json, template):
-                    if not optimization_id and not cv_json:
-                        return (
-                            "⚠ Please select an optimization or upload a CV JSON",
-                            None,
-                        )
+                def load_cv_template_choices():
+                    templates = service.get_cv_template_names()
+                    return gr.Dropdown(choices=templates)
 
-                    result = service.generate_pdf(optimization_id)
-                    status = f"✓ PDF generated: {result.get('pdf_path', '')}"
-                    # TODO: Actually return the PDF file for download
-                    return status, None
+                def generate_pdf(data_path, json_file, template_name):
+                    data_path = json_file.name if json_file else data_path
+                    if not data_path and not template_name:
+                        return "⚠ Please select or upload a JSON data file", None
+                    if not template_name:
+                        return "⚠ Please select a template", None
+
+                    pdf_path = service.generate_pdf_file(data_path, template_name)
+
+                    return " PDF generated", pdf_path
 
                 generate_pdf_btn.click(
                     fn=generate_pdf,
-                    inputs=[optimization_dropdown, cv_json_file, template_dropdown],
+                    inputs=[cv_data_selection, cv_json_file, cv_template_selection],
                     outputs=[pdf_status, pdf_download],
                 )
 
-                # Load optimization choices on startup
-                app.load(
-                    fn=load_cv_optimization_choices, outputs=[optimization_dropdown]
-                )
+                app.load(fn=load_cv_data_choices, outputs=[cv_data_selection])
+                app.load(fn=load_cv_template_choices, outputs=[cv_template_selection])
 
             # Tab 5: Knowledge Chat
             with gr.Tab(f"Knowledge Chat ({chat_config['model']})"):

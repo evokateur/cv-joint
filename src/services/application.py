@@ -1,3 +1,5 @@
+import tempfile
+from pathlib import Path
 from typing import Any, Optional
 
 from config.settings import get_markdown_root_dir
@@ -9,6 +11,7 @@ from .converters import MarkdownConverter
 from .exporters import MarkdownExporter
 from repositories import FileSystemRepository
 from infrastructure import MarkdownWriter
+from renderers.latex import render_latex, latex_to_pdf
 
 
 class ApplicationService:
@@ -342,21 +345,21 @@ class ApplicationService:
         """
         return self.repository.purge_cv_optimization(job_posting_identifier, identifier)
 
+    def get_cv_data_filepaths(self) -> list[dict[str, Any]]:
+        return self.repository.list_cv_data_files()
+
+    def get_cv_template_names(self) -> list[str]:
+        from pathlib import Path
+
+        project_root = Path(__file__).parent.parent.parent
+        templates_dir = project_root / "templates"
+        return [str(p.name) for p in templates_dir.glob("*cv*.tex")]
+
     def to_markdown(self, domain_object) -> str:
         return self.markdown_converter.convert(domain_object)
 
-    def generate_pdf(self, optimization_id: str) -> dict[str, Any]:
-        """
-        Generate a PDF from an optimized CV.
-
-        Args:
-            optimization_id: Identifier of the optimization
-
-        Returns:
-            dict with PDF generation result
-        """
-        # TODO: Implement actual PDF generation
-        return {
-            "status": "success",
-            "pdf_path": f"optimizations/{optimization_id}/optimized_cv.pdf",
-        }
+    def generate_pdf_file(self, data_path: str, template_name: str) -> str:
+        tmp_dir = tempfile.mkdtemp()
+        tex_path = str(Path(tmp_dir) / "output.tex")
+        render_latex(data_path, tex_path, template_name)
+        return latex_to_pdf(tex_path)
