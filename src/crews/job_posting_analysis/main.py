@@ -11,7 +11,6 @@ With crewai CLI (add entry point to pyproject.toml first):
 """
 import os
 import sys
-import tempfile
 import warnings
 
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
@@ -27,21 +26,19 @@ def run():
         print(__doc__)
         sys.exit(1)
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        inputs = {
-            "job_posting_url": url,
-            "content_file": os.environ.get("CONTENT_FILE"),
-            "output_directory": temp_dir,
-        }
+    inputs = {
+        "job_posting_url": url,
+        "content_file": os.environ.get("CONTENT_FILE"),
+    }
 
-        crew = JobPostingAnalysisCrew()
-        result = crew.crew().kickoff(inputs=inputs)
+    crew = JobPostingAnalysisCrew()
+    result = crew.crew().kickoff(inputs=inputs)
 
-        if result.pydantic is None:
-            print("Error: crew did not return a pydantic model", file=sys.stderr)
-            sys.exit(1)
+    if result.pydantic is None:
+        print("Error: crew did not return a pydantic model", file=sys.stderr)
+        sys.exit(1)
 
-        print(result.pydantic.model_dump_json(indent=2))
+    print(result.pydantic.model_dump_json(indent=2))
 
 
 if __name__ == "__main__":

@@ -1,1 +1,3 @@
-from renderers.latex.main import render_cv, render_cover_letter
+from renderers.latex.main import render_latex, latex_to_pdf
+
+__all__ = ["render_latex", "latex_to_pdf"]

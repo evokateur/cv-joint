@@ -3,6 +3,8 @@ from typing import Optional
 from models import (
     JobPosting,
     JobPostingRecord,
+    CvOptimizationRecord,
+    CvTransformationPlan,
     CurriculumVitae,
     CurriculumVitaeRecord,
 )
@@ -24,9 +26,24 @@ class MarkdownExporter:
         markdown = self.converter.convert(job_posting)
         self.markdown_writer.write_job_posting(record.identifier, markdown)
 
-    def export_cv(self, record: CurriculumVitaeRecord, cv: CurriculumVitae):
+    def export_cv(
+        self, record: CurriculumVitaeRecord | CvOptimizationRecord, cv: CurriculumVitae
+    ):
         markdown = self.converter.convert(cv)
-        self.markdown_writer.write_cv(record.identifier, markdown)
+        if isinstance(record, CurriculumVitaeRecord):
+            self.markdown_writer.write_cv(record.identifier, markdown)
+        elif isinstance(record, CvOptimizationRecord):
+            self.markdown_writer.write_optimized_cv(
+                record.job_posting_identifier, record.identifier, markdown
+            )
+
+    def export_cv_transformation_plan(
+        self, record: CvOptimizationRecord, plan: CvTransformationPlan
+    ):
+        markdown = self.converter.convert(plan)
+        self.markdown_writer.write_cv_transformation_plan(
+            record.job_posting_identifier, record.identifier, markdown
+        )
 
     def export(self, collection_name: Optional[str] = None) -> int:
         """Bulk export (regeneration). Iterates repository, exports each object."""

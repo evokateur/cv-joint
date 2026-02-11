@@ -35,5 +35,4 @@ job_analysis_task:
   expected_output: >
     A validated JobPosting object with all fields populated where possible,
     ensuring consistency and ATS-awareness.
-  output_file: "{output_directory}/job_posting.json"
   agent: job_analyst

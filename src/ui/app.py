@@ -1,6 +1,6 @@
 import gradio as gr
 import validators
-from models import JobPosting, CurriculumVitae
+from models import JobPosting, CurriculumVitae, CvTransformationPlan
 from services import ApplicationService
 from services import KnowledgeChatService
 from config.settings import get_chat_config, is_mcp_configured
@@ -104,7 +104,7 @@ def create_app():
                     content_path = content_file.name if content_file else None
                     job_data, identifier = service.create_job_posting(url, content_path)
                     job_posting = JobPosting(**job_data)
-                    job_md = service.get_job_posting_markdown(job_posting)
+                    job_md = service.to_markdown(job_posting)
                     is_saved = False
                     return (
                         job_md,
@@ -146,7 +146,7 @@ def create_app():
                         )
 
                     job_data = job_posting.model_dump()
-                    job_md = service.get_job_posting_markdown(job_posting)
+                    job_md = service.to_markdown(job_posting)
                     is_saved = True
 
                     return (
@@ -406,10 +406,10 @@ def create_app():
                     gr.Markdown("### Saved CVs")
                     gr.Markdown("Click a row to view details")
                     cv_list = gr.Dataframe(
-                        headers=["Date", "Identifier", "Name", "Profession"],
+                        headers=["Date", "Name", "Profession", "Identifier"],
                         label="All CVs",
                         interactive=False,
-                        column_widths=["15%", "25%", "30%", "30%"],
+                        column_widths=["15%", "30%", "30%", "25%"],
                     )
                     refresh_cvs_btn = gr.Button("Refresh List")
 
@@ -430,7 +430,7 @@ def create_app():
 
                     cv_data, identifier = service.create_cv(file_path)
                     cv = CurriculumVitae(**cv_data)
-                    cv_md = service.get_cv_markdown(cv)
+                    cv_md = service.to_markdown(cv)
                     is_saved = False
                     return (
                         cv_md,
@@ -445,7 +445,7 @@ def create_app():
 
                 def view_saved_cv(evt: gr.SelectData):
                     identifier = evt.row_value[
-                        1
+                        3
                     ]  # Second column is identifier (after Date)
 
                     if not identifier:
@@ -472,7 +472,7 @@ def create_app():
                         )
 
                     cv_data = cv.model_dump()
-                    cv_md = service.get_cv_markdown(cv)
+                    cv_md = service.to_markdown(cv)
                     is_saved = True
 
                     return (
@@ -524,9 +524,9 @@ def create_app():
                                 c.get("created_at", "")[:10]
                                 if c.get("created_at")
                                 else "",
-                                c.get("identifier", ""),
                                 c.get("name", ""),
                                 c.get("profession", ""),
+                                c.get("identifier", ""),
                             ]
                             for c in cvs
                         ]
@@ -563,9 +563,9 @@ def create_app():
                     cv_list_data = [
                         [
                             c.get("created_at", "")[:10] if c.get("created_at") else "",
-                            c.get("identifier", ""),
                             c.get("name", ""),
                             c.get("profession", ""),
+                            c.get("identifier", ""),
                         ]
                         for c in cvs
                     ]
@@ -696,12 +696,12 @@ def create_app():
                 with gr.Group():
                     gr.Markdown("### Create New Optimization")
 
-                    job_dropdown = gr.Dropdown(
+                    opt_job_dropdown = gr.Dropdown(
                         label="Select Job Posting",
                         choices=[],
                         interactive=True,
                     )
-                    cv_dropdown = gr.Dropdown(
+                    opt_cv_dropdown = gr.Dropdown(
                         label="Select CV",
                         choices=[],
                         interactive=True,
@@ -709,86 +709,325 @@ def create_app():
                     optimize_btn = gr.Button("Optimize CV", variant="primary")
 
                 with gr.Group():
-                    gr.Markdown("### Progress")
-                    optimization_status = gr.Textbox(
-                        label="Status",
-                        interactive=False,
-                        value="Ready to optimize",
-                    )
-
-                with gr.Group():
                     gr.Markdown("### Results")
-                    optimization_result = gr.JSON(label="Optimization Details")
+                    with gr.Tabs():
+                        with gr.Tab("Plan (JSON)"):
+                            opt_plan_json = gr.JSON(label="Transformation Plan")
+                        with gr.Tab("Plan (Markdown)"):
+                            opt_plan_md = gr.Markdown(
+                                elem_classes=["markdown-container"]
+                            )
+                        with gr.Tab("CV (JSON)"):
+                            opt_cv_json = gr.JSON(label="Optimized CV")
+                        with gr.Tab("CV (Markdown)"):
+                            opt_cv_md = gr.Markdown(elem_classes=["markdown-container"])
+                    opt_is_saved = gr.State(value=False)
+                    opt_identifiers = gr.State(value={})
+
+                    with gr.Group(visible=False) as opt_save_controls:
+                        with gr.Row():
+                            save_opt_btn = gr.Button(
+                                "Save Optimization", variant="primary"
+                            )
+                            purge_opt_btn = gr.Button(
+                                "Discard Optimization", variant="stop"
+                            )
+                        opt_status = gr.Textbox(label="Status", interactive=False)
 
                 with gr.Group():
                     gr.Markdown("### Saved Optimizations")
+                    gr.Markdown("Click a row to view details")
                     optimization_list = gr.Dataframe(
-                        headers=["Identifier", "Job Posting", "CV", "Date"],
+                        headers=[
+                            "Date",
+                            "Company",
+                            "Position",
+                            "Job Posting ID",
+                            "Optimization ID",
+                        ],
                         label="Optimizations",
+                        interactive=False,
+                        column_widths=["15%", "20%", "25%", "20%", "20%"],
                     )
                     refresh_optimizations_btn = gr.Button("Refresh List")
 
                 # Event handlers for Optimizations tab
-                def load_job_choices():
+                def load_opt_job_choices():
                     jobs = service.get_job_postings()
-                    return gr.Dropdown(
-                        choices=[
-                            (f"{j['company']} - {j['title']}", j["identifier"])
-                            for j in jobs
-                        ]
-                    )
+                    return gr.Dropdown(choices=[j["identifier"] for j in jobs])
 
-                def load_cv_choices():
+                def load_opt_cv_choices():
                     cvs = service.get_cvs()
-                    return gr.Dropdown(
-                        choices=[
-                            (f"{c['name']} ({c['profession']})", c["identifier"])
-                            for c in cvs
-                        ]
-                    )
+                    return gr.Dropdown(choices=[c["identifier"] for c in cvs])
 
                 def run_optimization(job_id, cv_id):
                     if not job_id or not cv_id:
-                        return "⚠ Please select both a job posting and a CV", {}
+                        return (
+                            None,
+                            "",
+                            None,
+                            "",
+                            False,
+                            {},
+                            gr.update(visible=False),
+                            "⚠ Please select both a job posting and a CV",
+                        )
 
-                    result = service.create_optimization(job_id, cv_id)
-                    status = f"✓ Optimization complete: {result.get('identifier', '')}"
-                    return status, result
+                    plan_data, cv_data, identifiers = service.create_cv_optimization(
+                        job_id, cv_id
+                    )
+                    plan = CvTransformationPlan(**plan_data) if plan_data else None
+                    cv = CurriculumVitae(**cv_data) if cv_data else None
 
-                def load_optimizations():
-                    opts = service.get_optimizations()
+                    plan_md = service.to_markdown(plan) if plan else ""
+                    cv_md = service.to_markdown(cv) if cv else ""
+
+                    return (
+                        plan_data,
+                        plan_md,
+                        cv_data,
+                        cv_md,
+                        False,
+                        identifiers,
+                        gr.update(visible=True),
+                        f"✓ Optimization complete: {identifiers.get('identifier', '')}",
+                    )
+
+                def view_saved_optimization(evt: gr.SelectData):
+                    job_posting_identifier = evt.row_value[3]
+                    identifier = evt.row_value[4]
+
+                    if not job_posting_identifier or not identifier:
+                        return (
+                            None,
+                            "",
+                            None,
+                            "",
+                            True,
+                            {},
+                            gr.update(visible=False),
+                            "",
+                        )
+
+                    plan_data, cv_data = service.get_cv_optimization(
+                        job_posting_identifier, identifier
+                    )
+                    plan = CvTransformationPlan(**plan_data) if plan_data else None
+                    cv = CurriculumVitae(**cv_data) if cv_data else None
+
+                    plan_md = service.to_markdown(plan) if plan else ""
+                    cv_md = service.to_markdown(cv) if cv else ""
+
+                    return (
+                        plan_data,
+                        plan_md,
+                        cv_data,
+                        cv_md,
+                        True,
+                        {
+                            "job_posting_identifier": job_posting_identifier,
+                            "identifier": identifier,
+                        },
+                        gr.update(visible=False),
+                        f"✓ Loaded: {identifier}",
+                    )
+
+                def save_optimization(identifiers, is_saved):
+                    if is_saved:
+                        return (
+                            "ℹ Optimization is already saved",
+                            True,
+                            gr.update(visible=False),
+                            None,
+                        )
+
+                    if not identifiers:
+                        return (
+                            "⚠ No optimization to save",
+                            False,
+                            gr.update(visible=True),
+                            None,
+                        )
+
+                    try:
+                        record = service.save_cv_optimization(
+                            identifiers["job_posting_identifier"],
+                            identifiers["identifier"],
+                            identifiers["base_cv_identifier"],
+                        )
+                        opts = service.get_cv_optimizations()
+                        opt_list_data = [
+                            [
+                                o.get("created_at", "")[:10]
+                                if o.get("created_at")
+                                else "",
+                                o.get("company", ""),
+                                o.get("job_title", ""),
+                                o.get("job_posting_identifier", ""),
+                                o.get("identifier", ""),
+                            ]
+                            for o in opts
+                        ]
+                        return (
+                            f"✓ Optimization saved: {record.identifier}",
+                            True,
+                            gr.update(visible=False),
+                            opt_list_data,
+                        )
+                    except Exception as e:
+                        return (
+                            f"✗ Error saving optimization: {str(e)}",
+                            False,
+                            gr.update(visible=True),
+                            None,
+                        )
+
+                def purge_optimization(identifiers, is_saved):
+                    if is_saved:
+                        return (
+                            "ℹ Cannot discard a saved optimization",
+                            None,
+                            "",
+                            None,
+                            "",
+                            True,
+                            {},
+                            gr.update(visible=False),
+                        )
+
+                    if not identifiers:
+                        return (
+                            "⚠ No optimization to discard",
+                            None,
+                            "",
+                            None,
+                            "",
+                            False,
+                            {},
+                            gr.update(visible=False),
+                        )
+
+                    service.purge_cv_optimization(
+                        identifiers["job_posting_identifier"],
+                        identifiers["identifier"],
+                    )
+                    return (
+                        "✓ Optimization discarded",
+                        None,
+                        "",
+                        None,
+                        "",
+                        False,
+                        {},
+                        gr.update(visible=False),
+                    )
+
+                def load_cv_optimizations():
+                    opts = service.get_cv_optimizations()
                     return [
                         [
+                            o.get("created_at", "")[:10] if o.get("created_at") else "",
+                            o.get("company", ""),
+                            o.get("job_title", ""),
+                            o.get("job_posting_identifier", ""),
                             o.get("identifier", ""),
-                            o.get("job_posting", ""),
-                            o.get("cv", ""),
-                            o.get("date", ""),
                         ]
                         for o in opts
                     ]
 
+                # Wire up optimize button with clear-then-run pattern
                 optimize_btn.click(
+                    fn=lambda: (
+                        None,
+                        "",
+                        None,
+                        "",
+                        False,
+                        {},
+                        gr.update(visible=False),
+                        "⏳ Optimizing CV...",
+                    ),
+                    outputs=[
+                        opt_plan_json,
+                        opt_plan_md,
+                        opt_cv_json,
+                        opt_cv_md,
+                        opt_is_saved,
+                        opt_identifiers,
+                        opt_save_controls,
+                        opt_status,
+                    ],
+                ).then(
                     fn=run_optimization,
-                    inputs=[job_dropdown, cv_dropdown],
-                    outputs=[optimization_status, optimization_result],
+                    inputs=[opt_job_dropdown, opt_cv_dropdown],
+                    outputs=[
+                        opt_plan_json,
+                        opt_plan_md,
+                        opt_cv_json,
+                        opt_cv_md,
+                        opt_is_saved,
+                        opt_identifiers,
+                        opt_save_controls,
+                        opt_status,
+                    ],
+                )
+
+                optimization_list.select(
+                    fn=view_saved_optimization,
+                    outputs=[
+                        opt_plan_json,
+                        opt_plan_md,
+                        opt_cv_json,
+                        opt_cv_md,
+                        opt_is_saved,
+                        opt_identifiers,
+                        opt_save_controls,
+                        opt_status,
+                    ],
+                )
+
+                save_opt_btn.click(
+                    fn=save_optimization,
+                    inputs=[opt_identifiers, opt_is_saved],
+                    outputs=[
+                        opt_status,
+                        opt_is_saved,
+                        opt_save_controls,
+                        optimization_list,
+                    ],
+                )
+
+                purge_opt_btn.click(
+                    fn=purge_optimization,
+                    inputs=[opt_identifiers, opt_is_saved],
+                    outputs=[
+                        opt_status,
+                        opt_plan_json,
+                        opt_plan_md,
+                        opt_cv_json,
+                        opt_cv_md,
+                        opt_is_saved,
+                        opt_identifiers,
+                        opt_save_controls,
+                    ],
                 )
 
                 refresh_optimizations_btn.click(
-                    fn=load_optimizations, outputs=[optimization_list]
+                    fn=load_cv_optimizations, outputs=[optimization_list]
                 )
 
                 # Load optimizations and choices on startup
-                app.load(fn=load_job_choices, outputs=[job_dropdown])
-                app.load(fn=load_cv_choices, outputs=[cv_dropdown])
-                app.load(fn=load_optimizations, outputs=[optimization_list])
+                app.load(fn=load_opt_job_choices, outputs=[opt_job_dropdown])
+                app.load(fn=load_opt_cv_choices, outputs=[opt_cv_dropdown])
+                app.load(fn=load_cv_optimizations, outputs=[optimization_list])
 
             # Tab 4: PDF Generation
             with gr.Tab("PDF Generation"):
                 with gr.Group():
                     gr.Markdown("### Generate PDF")
 
-                    optimization_dropdown = gr.Dropdown(
-                        label="Select Optimization",
+                    cv_data_selection = gr.Dropdown(
+                        label="Select CV",
                         choices=[],
                         interactive=True,
                     )
@@ -796,10 +1035,10 @@ def create_app():
                     gr.Markdown("Or upload CV JSON:")
                     cv_json_file = gr.File(label="CV JSON File", file_types=[".json"])
 
-                    template_dropdown = gr.Dropdown(
+                    cv_template_selection = gr.Dropdown(
                         label="Template",
-                        choices=["cv.tex", "cover-letter.tex"],
-                        value="cv.tex",
+                        choices=[],
+                        interactive=True,
                     )
 
                     generate_pdf_btn = gr.Button("Generate PDF", variant="primary")
@@ -809,36 +1048,35 @@ def create_app():
                     pdf_status = gr.Textbox(label="Status", interactive=False)
                     pdf_download = gr.File(label="Download PDF", interactive=False)
 
-                # Event handlers for PDF tab
-                def load_optimization_choices():
-                    opts = service.get_optimizations()
+                def load_cv_data_choices():
+                    files = service.get_cv_data_filepaths()
                     return gr.Dropdown(
-                        choices=[
-                            (f"{o['job_posting']} - {o['date']}", o["identifier"])
-                            for o in opts
-                        ]
+                        choices=[(f["identifier"], f["filepath"]) for f in files]
                     )
 
-                def generate_pdf(optimization_id, cv_json, template):
-                    if not optimization_id and not cv_json:
-                        return (
-                            "⚠ Please select an optimization or upload a CV JSON",
-                            None,
-                        )
+                def load_cv_template_choices():
+                    templates = service.get_cv_template_names()
+                    return gr.Dropdown(choices=templates)
 
-                    result = service.generate_pdf(optimization_id)
-                    status = f"✓ PDF generated: {result.get('pdf_path', '')}"
-                    # TODO: Actually return the PDF file for download
-                    return status, None
+                def generate_pdf(data_path, json_file, template_name):
+                    data_path = json_file.name if json_file else data_path
+                    if not data_path and not template_name:
+                        return "⚠ Please select or upload a JSON data file", None
+                    if not template_name:
+                        return "⚠ Please select a template", None
+
+                    pdf_path = service.generate_pdf_file(data_path, template_name)
+
+                    return " PDF generated", pdf_path
 
                 generate_pdf_btn.click(
                     fn=generate_pdf,
-                    inputs=[optimization_dropdown, cv_json_file, template_dropdown],
+                    inputs=[cv_data_selection, cv_json_file, cv_template_selection],
                     outputs=[pdf_status, pdf_download],
                 )
 
-                # Load optimization choices on startup
-                app.load(fn=load_optimization_choices, outputs=[optimization_dropdown])
+                app.load(fn=load_cv_data_choices, outputs=[cv_data_selection])
+                app.load(fn=load_cv_template_choices, outputs=[cv_template_selection])
 
             # Tab 5: Knowledge Chat
             with gr.Tab(f"Knowledge Chat ({chat_config['model']})"):

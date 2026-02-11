@@ -3,13 +3,14 @@
 Run the CvOptimization crew from the command line.
 
 Usage:
-    uv run python -m crews.cv_optimization.main <job_posting_json> <cv_json>
+    uv run python -m crews.cv_optimization.main <job_posting_path> <cv_path> [output_dir]
     JOB_POSTING_PATH=<path> CV_PATH=<path> uv run python -m crews.cv_optimization.main
 
 With crewai CLI (add entry point to pyproject.toml first):
     JOB_POSTING_PATH=<path> CV_PATH=<path> crewai run
 
-The JSON files should contain serialized JobPosting and CurriculumVitae models.
+Paths should point to JSON files containing serialized JobPosting and CurriculumVitae models.
+OUTPUT_DIR controls where output files are written (defaults to a temp directory).
 """
 import os
 import sys
@@ -34,27 +35,26 @@ def run():
         print(__doc__)
         sys.exit(1)
 
-    with open(job_posting_path) as f:
-        job_posting_json = f.read()
+    output_directory = os.environ.get("OUTPUT_DIR") or (
+        sys.argv[3] if len(sys.argv) > 3 else None
+    )
+    if not output_directory:
+        output_directory = tempfile.mkdtemp()
 
-    with open(cv_path) as f:
-        cv_json = f.read()
+    inputs = {
+        "job_posting_path": job_posting_path,
+        "cv_path": cv_path,
+        "output_directory": output_directory,
+    }
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        inputs = {
-            "job_posting_json": job_posting_json,
-            "cv_json": cv_json,
-            "output_directory": temp_dir,
-        }
+    crew = CvOptimizationCrew()
+    result = crew.crew().kickoff(inputs=inputs)
 
-        crew = CvOptimizationCrew()
-        result = crew.crew().kickoff(inputs=inputs)
+    if result.pydantic is None:
+        print("Error: crew did not return a pydantic model", file=sys.stderr)
+        sys.exit(1)
 
-        if result.pydantic is None:
-            print("Error: crew did not return a pydantic model", file=sys.stderr)
-            sys.exit(1)
-
-        print(result.pydantic.model_dump_json(indent=2))
+    print(result.pydantic.model_dump_json(indent=2))
 
 
 if __name__ == "__main__":

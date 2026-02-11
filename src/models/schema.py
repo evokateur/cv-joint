@@ -199,6 +199,9 @@ class CvOptimizationRecord(BaseModel):
     """
 
     identifier: str = Field(description="Unique identifier of the CV optimization")
+    job_posting_identifier: str = Field(
+        description="Identifier of the job posting this CV optimization aligns with"
+    )
     base_cv_identifier: str = Field(
         description="Identifier of the CV this optimization transforms"
     )

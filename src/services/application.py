@@ -1,13 +1,17 @@
+import tempfile
+from pathlib import Path
 from typing import Any, Optional
 
 from config.settings import get_markdown_root_dir
 from config.settings import get_data_dir
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
+from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter
 from .exporters import MarkdownExporter
 from repositories import FileSystemRepository
 from infrastructure import MarkdownWriter
+from renderers.latex import render_latex, latex_to_pdf
 
 
 class ApplicationService:
@@ -22,6 +26,7 @@ class ApplicationService:
     ):
         self.job_posting_analyzer = JobPostingAnalyzer()
         self.cv_analyzer = CvAnalyzer()
+        self.cv_optimizer = CvOptimizer()
         self.repository = repository or FileSystemRepository(data_dir=get_data_dir())
         self.markdown_converter = MarkdownConverter()
         markdown_writer = markdown_writer or MarkdownWriter(
@@ -103,12 +108,8 @@ class ApplicationService:
         return f"{slugify(company)}-{slugify(title)}"
 
     def get_job_posting(self, identifier: str):
-        """Retrieve a single job posting by identifier."""
+        """Retrieve a job posting by identifier."""
         return self.repository.get_job_posting(identifier)
-
-    def get_job_posting_markdown(self, job_posting) -> str:
-        """Convert a job posting to markdown."""
-        return self.markdown_converter.convert(job_posting)
 
     def get_job_postings(self) -> list[dict[str, Any]]:
         """
@@ -182,12 +183,8 @@ class ApplicationService:
         return f"{slugify(name)}-{slugify(profession)}"
 
     def get_cv(self, identifier: str):
-        """Retrieve a single CV by identifier."""
+        """Retrieve a CV by identifier."""
         return self.repository.get_cv(identifier)
-
-    def get_cv_markdown(self, cv) -> str:
-        """Convert a CV to markdown."""
-        return self.markdown_converter.convert(cv)
 
     def get_cvs(self) -> list[dict[str, Any]]:
         """
@@ -206,68 +203,163 @@ class ApplicationService:
         """
         return self.markdown_exporter.export(collection_name)
 
-    def create_optimization(self, job_posting_id: str, cv_id: str) -> dict[str, Any]:
+    def create_cv_optimization(
+        self, job_posting_identifier: str, cv_identifier: str
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
         """
         Create a CV optimization for a job posting.
 
         Args:
-            job_posting_id: Identifier of the job posting
-            cv_id: Identifier of the base CV
+            job_posting_identifier: Identifier of the job posting
+            cv_identifier: Identifier of the base CV
 
         Returns:
-            dict with optimization data including identifier
+            tuple of (plan_data, cv_data, identifiers_dict)
+            where identifiers_dict contains job_posting_identifier, identifier, base_cv_identifier
         """
-        # TODO: Implement actual optimization workflow
         import datetime
 
-        optimization_id = f"{job_posting_id}-{datetime.date.today()}"
+        cv_path = str(self.repository.get_absolute_path("cvs", cv_identifier))
 
-        return {
-            "identifier": optimization_id,
-            "job_posting_id": job_posting_id,
-            "cv_id": cv_id,
-            "status": "completed",
-            "files": {
-                "transformation_plan": f"optimizations/{optimization_id}/cv_transformation_plan.json",
-                "optimized_cv": f"optimizations/{optimization_id}/optimized_cv.json",
-            },
+        job_posting_path = str(
+            self.repository.get_absolute_path("job-postings", job_posting_identifier)
+        )
+
+        identifier = f"{datetime.date.today()}"
+        output_directory = str(
+            self.repository.get_cv_optimization_dir(job_posting_identifier, identifier)
+        )
+
+        self.cv_optimizer.optimize(
+            cv_path,
+            job_posting_path,
+            output_directory,
+        )
+
+        plan = self.repository.get_cv_transformation_plan(
+            job_posting_identifier, identifier
+        )
+        cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
+
+        identifiers = {
+            "job_posting_identifier": job_posting_identifier,
+            "identifier": identifier,
+            "base_cv_identifier": cv_identifier,
         }
 
-    def get_optimizations(self) -> list[dict[str, Any]]:
-        """
-        Retrieve all saved optimizations.
+        return (
+            plan.model_dump() if plan else {},
+            cv.model_dump() if cv else {},
+            identifiers,
+        )
 
-        Returns:
-            list of optimization dictionaries
+    def get_cv_transformation_plan(
+        self, job_posting_identifier: str, optimization_identifier: str
+    ):
         """
-        # TODO: Implement actual repository query
-        return [
-            {
-                "identifier": "automattic-senior-engineer-2024-11-06",
-                "job_posting": "Automattic - Senior Engineer",
-                "cv": "Septimus Fall",
-                "date": "2024-11-06",
-            },
-            {
-                "identifier": "google-staff-swe-2024-11-05",
-                "job_posting": "Google - Staff SWE",
-                "cv": "Fritzi Ritz",
-                "date": "2024-11-05",
-            },
-        ]
+        Retrieve the CV transformation plan for a CV optimization.
+        """
+        return self.repository.get_cv_transformation_plan(
+            job_posting_identifier, optimization_identifier
+        )
 
-    def generate_pdf(self, optimization_id: str) -> dict[str, Any]:
+    def save_cv_optimization(
+        self, job_posting_identifier: str, identifier: str, base_cv_identifier: str
+    ):
         """
-        Generate a PDF from an optimized CV.
+        Save a CV optimization to the repository
 
         Args:
-            optimization_id: Identifier of the optimization
+            job_posting_identifier: Identifier of the job posting
+            identifier: Identifier for this optimization
+            base_cv_identifier: Identifier of the base CV
 
         Returns:
-            dict with PDF generation result
+            CvOptimizationRecord
         """
-        # TODO: Implement actual PDF generation
-        return {
-            "status": "success",
-            "pdf_path": f"optimizations/{optimization_id}/optimized_cv.pdf",
-        }
+
+        plan = self.repository.get_cv_transformation_plan(
+            job_posting_identifier, identifier
+        )
+
+        cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
+
+        if plan is None or cv is None:
+            raise ValueError(
+                f"Cannot save CV optimization {identifier} for job posting {job_posting_identifier}  because the transformation plan or optimized CV is missing."
+            )
+
+        record = self.repository.add_cv_optimization(
+            job_posting_identifier, identifier, base_cv_identifier
+        )
+
+        self.markdown_exporter.export_cv_transformation_plan(record, plan)
+        self.markdown_exporter.export_cv(record, cv)
+
+        return record
+
+    def get_cv_optimizations(self) -> list[dict[str, Any]]:
+        """
+        Retrieve all saved cv optimizations.
+
+        Returns:
+            list of optimization metadata dictionaries
+        """
+        return self.repository.list_cv_optimizations()
+
+    def get_cv_optimization(
+        self, job_posting_identifier: str, identifier: str
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """
+        Retrieve a specific CV optimization (plan and cv) for viewing.
+
+        Args:
+            job_posting_identifier: Identifier of the job posting
+            identifier: Identifier of the optimization
+
+        Returns:
+            tuple of (plan_data, cv_data)
+        """
+        plan = self.repository.get_cv_transformation_plan(
+            job_posting_identifier, identifier
+        )
+        cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
+
+        return (
+            plan.model_dump() if plan else {},
+            cv.model_dump() if cv else {},
+        )
+
+    def purge_cv_optimization(
+        self, job_posting_identifier: str, identifier: str
+    ) -> bool:
+        """
+        Delete an unsaved CV optimization from disk.
+
+        Args:
+            job_posting_identifier: Identifier of the job posting
+            identifier: Identifier of the optimization
+
+        Returns:
+            True if deleted, False if not found
+        """
+        return self.repository.purge_cv_optimization(job_posting_identifier, identifier)
+
+    def get_cv_data_filepaths(self) -> list[dict[str, Any]]:
+        return self.repository.list_cv_data_files()
+
+    def get_cv_template_names(self) -> list[str]:
+        from pathlib import Path
+
+        project_root = Path(__file__).parent.parent.parent
+        templates_dir = project_root / "templates"
+        return [str(p.name) for p in templates_dir.glob("*cv*.tex")]
+
+    def to_markdown(self, domain_object) -> str:
+        return self.markdown_converter.convert(domain_object)
+
+    def generate_pdf_file(self, data_path: str, template_name: str) -> str:
+        tmp_dir = tempfile.mkdtemp()
+        tex_path = str(Path(tmp_dir) / "output.tex")
+        render_latex(data_path, tex_path, template_name)
+        return latex_to_pdf(tex_path)

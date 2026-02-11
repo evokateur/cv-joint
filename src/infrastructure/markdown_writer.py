@@ -23,6 +23,35 @@ class MarkdownWriter:
         md_path = self.root_dir / "cvs" / identifier / "cv.md"
         self._write(md_path, cv)
 
+    def write_cv_transformation_plan(
+        self, job_posting_identifier: str, identifier: str, plan: str
+    ):
+        md_path = (
+            self.root_dir
+            / "job-postings"
+            / job_posting_identifier
+            / "cv-optimizations"
+            / identifier
+            / "transformation-plan.md"
+        )
+        self._write(md_path, plan)
+
+    def write_optimized_cv(
+        self,
+        job_posting_identifier: str,
+        identifier: str,
+        cv: str,
+    ):
+        md_path = (
+            self.root_dir
+            / "job-postings"
+            / job_posting_identifier
+            / "cv-optimizations"
+            / identifier
+            / "cv.md"
+        )
+        self._write(md_path, cv)
+
     def _write(self, path: Path, content: str):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)

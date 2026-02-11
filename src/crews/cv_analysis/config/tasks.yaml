@@ -31,5 +31,4 @@ cv_analysis_task:
   expected_output: >
     A structured CurriculumVitae JSON object with all sections properly organized
     and compliant with the established schema, ready for optimization processing.
-  output_file: "{output_directory}/original_cv.json"
   agent: cv_analyst
