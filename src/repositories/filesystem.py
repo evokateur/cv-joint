@@ -356,24 +356,16 @@ class FileSystemRepository:
                 if not optimization_dir.is_dir():
                     continue
 
-                record_path = optimization_dir / "record.json"
-                if not record_path.exists():
+                cv_path = optimization_dir / "cv.json"
+                if not cv_path.exists():
                     continue
 
-                with open(record_path, "r") as f:
-                    record_data = json.load(f)
-
-                separator = "."
-                cv_path = optimization_dir / "cv.json"
+                separator = "-"
                 result = {
                     "identifier": separator.join(
-                        [
-                            job_posting_dir.name,
-                            optimization_dir.name,
-                            record_data.get("base_cv_identifier"),
-                        ]
+                        [job_posting_dir.name, optimization_dir.name]
                     ),
-                    "filepath": str(self._resolve_path(cv_path.name)),
+                    "filepath": str(self._resolve_path(str(cv_path))),
                 }
 
                 results.append(result)
@@ -383,7 +375,7 @@ class FileSystemRepository:
             results.append(
                 {
                     "identifier": item.get("identifier"),
-                    "filepath": str(self._resolve_path(item.get("filepath"))),
+                    "filepath": str(self._resolve_path(str(item.get("filepath")))),
                 }
             )
 
