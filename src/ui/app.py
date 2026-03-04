@@ -58,6 +58,12 @@ def create_app():
                         "Clear", variant="secondary", visible=False
                     )
                     job_is_saved = gr.State(value=False)
+                    job_uri = gr.Textbox(
+                        label="URI",
+                        interactive=False,
+                        show_copy_button=True,
+                        visible=False,
+                    )
 
                     with gr.Group(visible=False) as job_save_controls:
                         job_identifier = gr.Textbox(
@@ -99,6 +105,7 @@ def create_app():
                             "⚠ Please enter a URL",
                             gr.update(variant="primary"),
                             gr.update(visible=False),
+                            gr.update(value="", visible=False),
                         )
 
                     content_path = content_file.name if content_file else None
@@ -115,6 +122,7 @@ def create_app():
                         "✓ Analysis complete",
                         gr.update(variant="secondary"),
                         gr.update(visible=False),
+                        gr.update(value="", visible=False),
                     )
 
                 def view_saved_job(evt: gr.SelectData):
@@ -130,6 +138,7 @@ def create_app():
                             gr.update(visible=False),
                             "",
                             gr.update(visible=False),
+                            gr.update(value="", visible=False),
                         )
 
                     job_posting = service.get_job_posting(identifier)
@@ -143,6 +152,7 @@ def create_app():
                             gr.update(visible=False),
                             f"⚠ Job posting not found",
                             gr.update(visible=False),
+                            gr.update(value="", visible=False),
                         )
 
                     job_data = job_posting.model_dump()
@@ -158,6 +168,7 @@ def create_app():
                         gr.update(visible=False),
                         f"✓ Loaded: {identifier}",
                         gr.update(visible=True),
+                        gr.update(value=f"job-postings/{identifier}", visible=True),
                     )
 
                 def save_job(job_data, identifier, is_saved):
@@ -174,6 +185,7 @@ def create_app():
                             None,
                             gr.update(interactive=False, variant="primary"),
                             gr.update(visible=False),
+                            gr.update(),
                         )
 
                     if not job_data or not identifier:
@@ -189,6 +201,7 @@ def create_app():
                             job_data,
                             gr.update(variant="secondary"),
                             gr.update(visible=False),
+                            gr.update(),
                         )
 
                     try:
@@ -218,6 +231,7 @@ def create_app():
                             None,
                             gr.update(interactive=False, variant="primary"),
                             gr.update(visible=False),
+                            gr.update(value=f"job-postings/{metadata.identifier}", visible=True),
                         )
                     except Exception as e:
                         return (
@@ -232,6 +246,7 @@ def create_app():
                             job_data,
                             gr.update(variant="secondary"),
                             gr.update(visible=False),
+                            gr.update(),
                         )
 
                 def load_jobs():
@@ -265,6 +280,7 @@ def create_app():
                         False,
                         gr.update(visible=False),
                         "⏳ Analyzing job posting...",
+                        gr.update(value="", visible=False),
                     ),
                     outputs=[
                         job_result_md,
@@ -273,6 +289,7 @@ def create_app():
                         job_is_saved,
                         job_save_controls,
                         save_job_status,
+                        job_uri,
                     ],
                 ).then(
                     fn=analyze_job,
@@ -286,6 +303,7 @@ def create_app():
                         save_job_status,
                         analyze_job_btn,
                         clear_job_btn,
+                        job_uri,
                     ],
                 )
 
@@ -300,6 +318,7 @@ def create_app():
                         job_save_controls,
                         save_job_status,
                         clear_job_btn,
+                        job_uri,
                     ],
                 )
 
@@ -318,6 +337,7 @@ def create_app():
                         job_result_json,
                         analyze_job_btn,
                         clear_job_btn,
+                        job_uri,
                     ],
                 )
 
@@ -334,6 +354,7 @@ def create_app():
                         "",
                         gr.update(interactive=False, variant="primary"),
                         gr.update(visible=False),
+                        gr.update(value="", visible=False),
                     ),
                     outputs=[
                         job_result_md,
@@ -347,12 +368,13 @@ def create_app():
                         save_job_status,
                         analyze_job_btn,
                         clear_job_btn,
+                        job_uri,
                     ],
                 )
 
                 clear_job_btn.click(
-                    fn=lambda: ("", None, gr.update(visible=False)),
-                    outputs=[job_result_md, job_result_json, clear_job_btn],
+                    fn=lambda: ("", None, gr.update(visible=False), gr.update(value="", visible=False)),
+                    outputs=[job_result_md, job_result_json, clear_job_btn, job_uri],
                 )
 
                 refresh_jobs_btn.click(fn=load_jobs, outputs=[job_list])
@@ -389,6 +411,12 @@ def create_app():
                         "Clear", variant="secondary", visible=False
                     )
                     cv_is_saved = gr.State(value=False)
+                    cv_uri = gr.Textbox(
+                        label="URI",
+                        interactive=False,
+                        show_copy_button=True,
+                        visible=False,
+                    )
 
                     with gr.Group(visible=False) as cv_save_controls:
                         cv_identifier = gr.Textbox(
@@ -441,6 +469,7 @@ def create_app():
                         "✓ Analysis complete",
                         gr.update(variant="secondary"),
                         gr.update(visible=False),
+                        gr.update(value="", visible=False),
                     )
 
                 def view_saved_cv(evt: gr.SelectData):
@@ -457,6 +486,7 @@ def create_app():
                             gr.update(visible=False),
                             "",
                             gr.update(visible=False),
+                            gr.update(value="", visible=False),
                         )
 
                     cv = service.get_cv(identifier)
@@ -469,6 +499,7 @@ def create_app():
                             gr.update(visible=False),
                             "⚠ CV not found",
                             gr.update(visible=False),
+                            gr.update(value="", visible=False),
                         )
 
                     cv_data = cv.model_dump()
@@ -483,6 +514,7 @@ def create_app():
                         gr.update(visible=False),
                         f"✓ Loaded: {identifier}",
                         gr.update(visible=True),
+                        gr.update(value=f"cvs/{identifier}", visible=True),
                     )
 
                 def save_cv(cv_data, identifier, is_saved):
@@ -499,6 +531,7 @@ def create_app():
                             gr.update(interactive=False, variant="primary"),
                             gr.update(visible=False),
                             gr.update(open=False),
+                            gr.update(),
                         )
 
                     if not cv_data or not identifier:
@@ -513,6 +546,7 @@ def create_app():
                             None,
                             gr.update(variant="secondary"),
                             gr.update(visible=False),
+                            gr.update(),
                             gr.update(),
                         )
 
@@ -542,6 +576,7 @@ def create_app():
                             gr.update(interactive=False, variant="primary"),
                             gr.update(visible=False),
                             gr.update(open=False),
+                            gr.update(value=f"cvs/{metadata.identifier}", visible=True),
                         )
                     except Exception as e:
                         return (
@@ -555,6 +590,7 @@ def create_app():
                             None,
                             gr.update(variant="secondary"),
                             gr.update(visible=False),
+                            gr.update(),
                             gr.update(),
                         )
 
@@ -599,6 +635,7 @@ def create_app():
                         False,
                         gr.update(visible=False),
                         "⏳ Analyzing CV...",
+                        gr.update(value="", visible=False),
                     ),
                     outputs=[
                         cv_result_md,
@@ -607,6 +644,7 @@ def create_app():
                         cv_is_saved,
                         cv_save_controls,
                         save_cv_status,
+                        cv_uri,
                     ],
                 ).then(
                     fn=analyze_cv,
@@ -620,6 +658,7 @@ def create_app():
                         save_cv_status,
                         analyze_cv_btn,
                         clear_cv_btn,
+                        cv_uri,
                     ],
                 )
 
@@ -633,6 +672,7 @@ def create_app():
                         cv_save_controls,
                         save_cv_status,
                         clear_cv_btn,
+                        cv_uri,
                     ],
                 )
 
@@ -651,6 +691,7 @@ def create_app():
                         analyze_cv_btn,
                         clear_cv_btn,
                         cv_source_accordion,
+                        cv_uri,
                     ],
                 )
 
@@ -666,6 +707,7 @@ def create_app():
                         "",
                         gr.update(interactive=False, variant="primary"),
                         gr.update(visible=False),
+                        gr.update(value="", visible=False),
                     ),
                     outputs=[
                         cv_result_md,
@@ -678,12 +720,13 @@ def create_app():
                         save_cv_status,
                         analyze_cv_btn,
                         clear_cv_btn,
+                        cv_uri,
                     ],
                 )
 
                 clear_cv_btn.click(
-                    fn=lambda: ("", None, gr.update(visible=False)),
-                    outputs=[cv_result_md, cv_result_json, clear_cv_btn],
+                    fn=lambda: ("", None, gr.update(visible=False), gr.update(value="", visible=False)),
+                    outputs=[cv_result_md, cv_result_json, clear_cv_btn, cv_uri],
                 )
 
                 refresh_cvs_btn.click(fn=load_cvs, outputs=[cv_list])
@@ -723,6 +766,12 @@ def create_app():
                             opt_cv_md = gr.Markdown(elem_classes=["markdown-container"])
                     opt_is_saved = gr.State(value=False)
                     opt_identifiers = gr.State(value={})
+                    opt_uri = gr.Textbox(
+                        label="URI",
+                        interactive=False,
+                        show_copy_button=True,
+                        visible=False,
+                    )
 
                     with gr.Group(visible=False) as opt_save_controls:
                         with gr.Row():
@@ -771,6 +820,7 @@ def create_app():
                             {},
                             gr.update(visible=False),
                             "⚠ Please select both a job posting and a CV",
+                            gr.update(value="", visible=False),
                         )
 
                     plan_data, cv_data, identifiers = service.create_cv_optimization(
@@ -791,6 +841,7 @@ def create_app():
                         identifiers,
                         gr.update(visible=True),
                         f"✓ Optimization complete: {identifiers.get('identifier', '')}",
+                        gr.update(value="", visible=False),
                     )
 
                 def view_saved_optimization(evt: gr.SelectData):
@@ -807,6 +858,7 @@ def create_app():
                             {},
                             gr.update(visible=False),
                             "",
+                            gr.update(value="", visible=False),
                         )
 
                     plan_data, cv_data = service.get_cv_optimization(
@@ -830,6 +882,7 @@ def create_app():
                         },
                         gr.update(visible=False),
                         f"✓ Loaded: {identifier}",
+                        gr.update(value=f"job-postings/{job_posting_identifier}/cv-optimizations/{identifier}", visible=True),
                     )
 
                 def save_optimization(identifiers, is_saved):
@@ -839,6 +892,7 @@ def create_app():
                             True,
                             gr.update(visible=False),
                             None,
+                            gr.update(),
                         )
 
                     if not identifiers:
@@ -847,6 +901,7 @@ def create_app():
                             False,
                             gr.update(visible=True),
                             None,
+                            gr.update(),
                         )
 
                     try:
@@ -873,6 +928,7 @@ def create_app():
                             True,
                             gr.update(visible=False),
                             opt_list_data,
+                            gr.update(value=f"job-postings/{record.job_posting_identifier}/cv-optimizations/{record.identifier}", visible=True),
                         )
                     except Exception as e:
                         return (
@@ -880,6 +936,7 @@ def create_app():
                             False,
                             gr.update(visible=True),
                             None,
+                            gr.update(),
                         )
 
                 def purge_optimization(identifiers, is_saved):
@@ -893,6 +950,7 @@ def create_app():
                             True,
                             {},
                             gr.update(visible=False),
+                            gr.update(),
                         )
 
                     if not identifiers:
@@ -905,6 +963,7 @@ def create_app():
                             False,
                             {},
                             gr.update(visible=False),
+                            gr.update(),
                         )
 
                     service.purge_cv_optimization(
@@ -920,6 +979,7 @@ def create_app():
                         False,
                         {},
                         gr.update(visible=False),
+                        gr.update(value="", visible=False),
                     )
 
                 def load_cv_optimizations():
@@ -946,6 +1006,7 @@ def create_app():
                         {},
                         gr.update(visible=False),
                         "⏳ Optimizing CV...",
+                        gr.update(value="", visible=False),
                     ),
                     outputs=[
                         opt_plan_json,
@@ -956,6 +1017,7 @@ def create_app():
                         opt_identifiers,
                         opt_save_controls,
                         opt_status,
+                        opt_uri,
                     ],
                 ).then(
                     fn=run_optimization,
@@ -969,6 +1031,7 @@ def create_app():
                         opt_identifiers,
                         opt_save_controls,
                         opt_status,
+                        opt_uri,
                     ],
                 )
 
@@ -983,6 +1046,7 @@ def create_app():
                         opt_identifiers,
                         opt_save_controls,
                         opt_status,
+                        opt_uri,
                     ],
                 )
 
@@ -994,6 +1058,7 @@ def create_app():
                         opt_is_saved,
                         opt_save_controls,
                         optimization_list,
+                        opt_uri,
                     ],
                 )
 
@@ -1009,6 +1074,7 @@ def create_app():
                         opt_is_saved,
                         opt_identifiers,
                         opt_save_controls,
+                        opt_uri,
                     ],
                 )
 
