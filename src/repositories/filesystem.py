@@ -185,9 +185,9 @@ class FileSystemRepository:
 
     def remove_job_posting(self, identifier: str) -> bool:
         """
-        Remove a job posting from the collection.
+        Remove a job posting from the collection and delete its data directory.
 
-        Note: Does not delete the actual file, only removes from collection.
+        Cascades to any nested cv-optimizations.
 
         Args:
             identifier: Unique identifier for the job posting
@@ -195,16 +195,23 @@ class FileSystemRepository:
         Returns:
             True if removed, False if not found
         """
+        import shutil
+
         collection = self._load_collection(self.job_postings_collection)
         original_length = len(collection)
 
         collection = [item for item in collection if item["identifier"] != identifier]
 
-        if len(collection) < original_length:
-            self._save_collection(self.job_postings_collection, collection)
-            return True
+        if len(collection) == original_length:
+            return False
 
-        return False
+        self._save_collection(self.job_postings_collection, collection)
+
+        job_posting_dir = self.data_dir / "job-postings" / identifier
+        if job_posting_dir.exists():
+            shutil.rmtree(job_posting_dir)
+
+        return True
 
     def add_cv(self, cv: CurriculumVitae, identifier: str) -> CurriculumVitaeRecord:
         """
@@ -313,9 +320,7 @@ class FileSystemRepository:
 
     def remove_cv(self, identifier: str) -> bool:
         """
-        Remove a CV from the collection.
-
-        Note: Does not delete the actual file, only removes from collection.
+        Remove a CV from the collection and delete its data directory.
 
         Args:
             identifier: Unique identifier for the CV
@@ -323,16 +328,44 @@ class FileSystemRepository:
         Returns:
             True if removed, False if not found
         """
+        import shutil
+
         collection = self._load_collection(self.cvs_collection)
         original_length = len(collection)
 
         collection = [item for item in collection if item["identifier"] != identifier]
 
-        if len(collection) < original_length:
-            self._save_collection(self.cvs_collection, collection)
-            return True
+        if len(collection) == original_length:
+            return False
 
-        return False
+        self._save_collection(self.cvs_collection, collection)
+
+        cv_dir = self.data_dir / "cvs" / identifier
+        if cv_dir.exists():
+            shutil.rmtree(cv_dir)
+
+        return True
+
+    def remove_cv_optimization(
+        self,
+        job_posting_identifier: str,
+        identifier: str,
+    ) -> bool:
+        """
+        Remove a saved cv optimization and delete its data directory.
+
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            identifier: Identifier of the optimization
+
+        Returns:
+            True if removed, False if not found
+        """
+        record = self.get_cv_optimization_record(job_posting_identifier, identifier)
+        if record is None:
+            return False
+
+        return self.purge_cv_optimization(job_posting_identifier, identifier)
 
     def list_cv_data_files(self) -> list[dict[str, Any]]:
         """

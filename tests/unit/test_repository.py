@@ -98,10 +98,16 @@ class TestJobPostingOperations:
         listings = repository.list_job_postings()
         assert listings == []
 
-    def test_remove_job_posting(self, repository, sample_job_posting):
+    def test_remove_job_posting(self, repository, sample_job_posting, temp_data_dir):
         repository.add_job_posting(sample_job_posting, "to-delete")
         assert repository.remove_job_posting("to-delete") is True
         assert repository.get_job_posting("to-delete") is None
+        assert not (Path(temp_data_dir) / "job-postings" / "to-delete").exists()
+
+    def test_remove_job_posting_not_in_listing(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "to-delete")
+        repository.remove_job_posting("to-delete")
+        assert all(item["identifier"] != "to-delete" for item in repository.list_job_postings())
 
     def test_remove_nonexistent_job_posting(self, repository):
         assert repository.remove_job_posting("nonexistent") is False
@@ -166,10 +172,16 @@ class TestCvOperations:
         listings = repository.list_cvs()
         assert listings == []
 
-    def test_remove_cv(self, repository, sample_cv):
+    def test_remove_cv(self, repository, sample_cv, temp_data_dir):
         repository.add_cv(sample_cv, "to-delete")
         assert repository.remove_cv("to-delete") is True
         assert repository.get_cv("to-delete") is None
+        assert not (Path(temp_data_dir) / "cvs" / "to-delete").exists()
+
+    def test_remove_cv_not_in_listing(self, repository, sample_cv):
+        repository.add_cv(sample_cv, "to-delete")
+        repository.remove_cv("to-delete")
+        assert all(item["identifier"] != "to-delete" for item in repository.list_cvs())
 
     def test_remove_nonexistent_cv(self, repository):
         assert repository.remove_cv("nonexistent") is False
@@ -406,5 +418,45 @@ class TestCvOptimizationOperations:
         result = repository_with_job_posting.purge_cv_optimization(
             job_posting_identifier="acme-swe",
             identifier="nonexistent",
+        )
+        assert result is False
+
+    def test_remove_cv_optimization(self, repository_with_job_posting, temp_data_dir):
+        repository_with_job_posting.add_cv_optimization(
+            identifier="opt-123",
+            job_posting_identifier="acme-swe",
+            base_cv_identifier="jane-doe-cv",
+        )
+
+        result = repository_with_job_posting.remove_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="opt-123",
+        )
+        assert result is True
+
+        optimization_dir = (
+            Path(temp_data_dir)
+            / "job-postings"
+            / "acme-swe"
+            / "cv-optimizations"
+            / "opt-123"
+        )
+        assert not optimization_dir.exists()
+
+    def test_remove_cv_optimization_not_found(self, repository_with_job_posting):
+        result = repository_with_job_posting.remove_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="nonexistent",
+        )
+        assert result is False
+
+    def test_remove_cv_optimization_requires_record(
+        self, repository_with_job_posting, sample_plan, temp_data_dir
+    ):
+        self._write_plan_file(temp_data_dir, "acme-swe", "orphaned", sample_plan)
+
+        result = repository_with_job_posting.remove_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="orphaned",
         )
         assert result is False

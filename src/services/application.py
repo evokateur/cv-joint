@@ -32,6 +32,7 @@ class ApplicationService:
         markdown_writer = markdown_writer or MarkdownWriter(
             root_dir=get_markdown_root_dir()
         )
+        self.markdown_writer = markdown_writer
         self.markdown_exporter = MarkdownExporter(
             self.repository, markdown_writer, self.markdown_converter
         )
@@ -194,6 +195,54 @@ class ApplicationService:
             list of CV metadata dictionaries
         """
         return self.repository.list_cvs()
+
+    def remove_job_posting(self, identifier: str) -> bool:
+        """
+        Remove a job posting and all nested cv optimizations.
+
+        Args:
+            identifier: Identifier of the job posting
+
+        Returns:
+            True if removed, False if not found
+        """
+        removed = self.repository.remove_job_posting(identifier)
+        if removed:
+            self.markdown_writer.delete_job_posting(identifier)
+        return removed
+
+    def remove_cv(self, identifier: str) -> bool:
+        """
+        Remove a CV.
+
+        Args:
+            identifier: Identifier of the CV
+
+        Returns:
+            True if removed, False if not found
+        """
+        removed = self.repository.remove_cv(identifier)
+        if removed:
+            self.markdown_writer.delete_cv(identifier)
+        return removed
+
+    def remove_cv_optimization(
+        self, job_posting_identifier: str, identifier: str
+    ) -> bool:
+        """
+        Remove a saved cv optimization.
+
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            identifier: Identifier of the optimization
+
+        Returns:
+            True if removed, False if not found
+        """
+        removed = self.repository.remove_cv_optimization(job_posting_identifier, identifier)
+        if removed:
+            self.markdown_writer.delete_cv_optimization(job_posting_identifier, identifier)
+        return removed
 
     def regenerate_markdown(self, collection_name: Optional[str] = None) -> int:
         """

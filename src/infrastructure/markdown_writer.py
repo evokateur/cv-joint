@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 
@@ -51,6 +52,27 @@ class MarkdownWriter:
             / "cv.md"
         )
         self._write(md_path, cv)
+
+    def delete_job_posting(self, identifier: str):
+        path = self.root_dir / "job-postings" / identifier
+        if path.exists():
+            shutil.rmtree(path)
+
+    def delete_cv(self, identifier: str):
+        path = self.root_dir / "cvs" / identifier
+        if path.exists():
+            shutil.rmtree(path)
+
+    def delete_cv_optimization(self, job_posting_identifier: str, identifier: str):
+        path = (
+            self.root_dir
+            / "job-postings"
+            / job_posting_identifier
+            / "cv-optimizations"
+            / identifier
+        )
+        if path.exists():
+            shutil.rmtree(path)
 
     def _write(self, path: Path, content: str):
         path.parent.mkdir(parents=True, exist_ok=True)

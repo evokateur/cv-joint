@@ -23,6 +23,11 @@ def main():
         metavar="COLLECTION",
         help="Regenerate markdown files from stored data and exit. Optional: COLLECTION (job-postings|cvs)",
     )
+    parser.add_argument(
+        "--remove",
+        metavar="URI",
+        help="Remove an object by URI and exit. URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cv-optimizations/{id}",
+    )
     args = parser.parse_args()
 
     if args.show_config:
@@ -30,6 +35,34 @@ def main():
 
         config = get_merged_config()
         yaml.dump(config, sys.stdout, default_flow_style=False, sort_keys=False)
+        return
+
+    if args.remove is not None:
+        from services.application import ApplicationService
+
+        service = ApplicationService()
+        uri = args.remove
+        parts = uri.strip("/").split("/")
+
+        if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cv-optimizations":
+            removed = service.remove_cv_optimization(parts[1], parts[3])
+        elif parts[0] == "job-postings" and len(parts) == 2:
+            removed = service.remove_job_posting(parts[1])
+        elif parts[0] == "cvs" and len(parts) == 2:
+            removed = service.remove_cv(parts[1])
+        else:
+            print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
+            print(
+                "Expected: job-postings/{id}, cvs/{id}, or job-postings/{id}/cv-optimizations/{id}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if removed:
+            print(f"Removed {uri}")
+        else:
+            print(f"Not found: {uri}", file=sys.stderr)
+            sys.exit(1)
         return
 
     if args.regenerate_markdown is not None:
