@@ -407,8 +407,8 @@ class ApplicationService:
     def to_markdown(self, domain_object) -> str:
         return self.markdown_converter.convert(domain_object)
 
-    def generate_pdf_file(self, data_path: str, template_name: str) -> str:
+    def generate_pdf_file(self, data_path: str, template_name: str, stem: str = "output") -> str:
         tmp_dir = tempfile.mkdtemp()
-        tex_path = str(Path(tmp_dir) / "output.tex")
+        tex_path = str(Path(tmp_dir) / f"{stem}.tex")
         render_latex(data_path, tex_path, template_name)
         return latex_to_pdf(tex_path)

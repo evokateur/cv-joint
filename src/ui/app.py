@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import gradio as gr
 import validators
 from models import JobPosting, CurriculumVitae, CvTransformationPlan
@@ -220,7 +222,10 @@ def create_app():
                             "",
                             None,
                             gr.update(interactive=False, variant="primary"),
-                            gr.update(value=f"job-postings/{metadata.identifier}", visible=True),
+                            gr.update(
+                                value=f"job-postings/{metadata.identifier}",
+                                visible=True,
+                            ),
                         )
                     except Exception as e:
                         return (
@@ -839,7 +844,10 @@ def create_app():
                         },
                         gr.update(visible=False),
                         f"✓ Loaded: {identifier}",
-                        gr.update(value=f"job-postings/{job_posting_identifier}/cv-optimizations/{identifier}", visible=True),
+                        gr.update(
+                            value=f"job-postings/{job_posting_identifier}/cv-optimizations/{identifier}",
+                            visible=True,
+                        ),
                     )
 
                 def save_optimization(identifiers, is_saved):
@@ -885,7 +893,10 @@ def create_app():
                             True,
                             gr.update(visible=False),
                             opt_list_data,
-                            gr.update(value=f"job-postings/{record.job_posting_identifier}/cv-optimizations/{record.identifier}", visible=True),
+                            gr.update(
+                                value=f"job-postings/{record.job_posting_identifier}/cv-optimizations/{record.identifier}",
+                                visible=True,
+                            ),
                         )
                     except Exception as e:
                         return (
@@ -1079,7 +1090,18 @@ def create_app():
 
                 def load_cv_template_choices():
                     templates = service.get_cv_template_names()
-                    return gr.Dropdown(choices=templates)
+                    default = "cv.tex" if "cv.tex" in templates else None
+                    return gr.Dropdown(choices=templates, value=default)
+
+                def pdf_stem_from_path(data_path: str) -> str:
+                    parts = Path(data_path).parts
+                    if "cv-optimizations" in parts:
+                        opt_idx = parts.index("cv-optimizations")
+                        return f"{parts[opt_idx - 1]}-{parts[opt_idx + 1]}"
+                    if "cvs" in parts:
+                        cvs_idx = parts.index("cvs")
+                        return parts[cvs_idx + 1]
+                    return Path(data_path).stem
 
                 def generate_pdf(data_path, json_file, template_name):
                     data_path = json_file.name if json_file else data_path
@@ -1088,7 +1110,8 @@ def create_app():
                     if not template_name:
                         return "⚠ Please select a template", None
 
-                    pdf_path = service.generate_pdf_file(data_path, template_name)
+                    stem = pdf_stem_from_path(data_path)
+                    pdf_path = service.generate_pdf_file(data_path, template_name, stem)
 
                     return " PDF generated", pdf_path
 
