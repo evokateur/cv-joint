@@ -26,6 +26,9 @@ cv_alignment_task:
     - Use terminology from the job posting for ATS alignment
     - Be specific: "Change experience[0].responsibilities[2] to..." not "improve bullet points"
     - Do not fabricate experience - only use what's in CV or KB
+    - Only add quantification_suggestions when a specific, real figure exists in the CV or KB
+      (e.g. "reduced build time from 45 to 12 minutes"). Never suggest placeholder values like
+      "X%", "N users", or "~50%". If no real figure is available, omit the suggestion entirely.
 
     **Output:** A CvTransformationPlan JSON object.
 
@@ -56,6 +59,8 @@ cv_transformation_task:
     - Maintain data types (lists stay lists, strings stay strings)
     - Keep professional tone and consistent formatting
     - Do not fabricate content beyond what the plan specifies
+    - Only apply a quantification_suggestion if it contains a real, specific figure from the CV
+      or knowledge base. If a suggestion uses a placeholder (e.g. "X%", "N users"), skip it entirely.
 
     **Output:** A complete CurriculumVitae JSON object with transformations applied.
 

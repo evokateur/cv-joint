@@ -149,7 +149,11 @@ class CvTransformationPlan(BaseModel):
     )
     quantification_suggestions: List[str] = Field(
         default_factory=list,
-        description="Suggestions to add metrics/numbers where possible",
+        description=(
+            "Suggestions to add metrics where a specific, real figure is available in the CV or "
+            "knowledge base. Never include placeholder values like 'X%' or 'N users'. "
+            "Omit entirely if no real figure exists."
+        ),
     )
 
     # Evidence from knowledge base
