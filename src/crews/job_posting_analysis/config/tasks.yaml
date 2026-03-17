@@ -8,25 +8,51 @@ job_analysis_task:
     Extract structured information into the JobPosting schema:
 
     **1. Metadata**
-    - Extract job title, company name, industry, full description, and experience level.
+    - Extract job title, company name, industry, and experience level.
+    - Extract the narrative description: the prose overview of the role, company, and context. Copy
+      it faithfully without summarizing or condensing. Do not include structured sections (skills,
+      responsibilities, deliverables, application instructions) — those are captured in dedicated fields.
 
-    **2. Requirements**
+    **2. Engagement Details**
+    - Employment type: full-time, part-time, contract, freelance/hourly, etc.
+    - Location: remote, on-site, hybrid, or specific city/country.
+    - Compensation range: extract exactly as stated (e.g., "$15–$35/hr", "$120k–$150k/yr").
+    - Duration: project length or contract term if stated (e.g., "1–3 months", "ongoing").
+
+    **3. Requirements**
     - Extract degrees, certifications, and explicit "years of experience" requirements.
     - Identify hard requirements (licenses, mandatory credentials).
 
-    **3. Skills**
+    **4. Skills**
     - Technical skills: programming languages, frameworks, cloud platforms, tools.
     - Soft skills: communication, teamwork, leadership, problem-solving.
     - Preferred skills: "nice-to-have" extras.
 
-    **4. Responsibilities**
+    **5. Responsibilities**
     - Bullet out day-to-day tasks, focusing on specific duties (not vague culture blurbs).
 
-    **5. ATS Alignment**
-    - Keywords: important phrases used in the posting for filtering.
-    - Tools/tech stack: specific named technologies (AWS, Docker, React, etc).
+    **6. Deliverables**
+    - List the concrete outputs or artifacts the employer expects to receive (e.g., "working API
+      integration", "technical documentation", "test suite"). These are distinct from
+      responsibilities — they are the end results, not the ongoing work.
 
-    **6. Normalization**
+    **7. ATS Alignment**
+    - Tools/tech stack: all specifically named technologies, platforms, and products — including
+      third-party SaaS tools, APIs, and named services (e.g., PracticeQ, Bridge, Salesforce, Stripe),
+      not just generic infrastructure tech (AWS, Docker, React). If a product or platform is named
+      in the posting, it belongs here.
+    - Keywords: ATS-relevant terms not already captured in skills, tools, responsibilities, or
+      deliverables — domain buzzwords, industry terminology, and important phrases a recruiter
+      or ATS might filter on (e.g., "telemedicine", "billing workflow", "HIPAA"). Do not repeat
+      terms already present in other fields.
+
+    **8. Application Instructions**
+    - Extract each discrete instruction for applicants as a separate list item: required materials,
+      questions to answer, secret keywords to include, formatting requirements, etc.
+    - Preserve the exact wording of each item — do not paraphrase. These are critical for the
+      applicant to follow when submitting a proposal.
+
+    **9. Normalization**
     - Deduplicate terms (merge "Python 3" and "Python").
     - Expand acronyms if possible (e.g., "CI/CD" -> "Continuous Integration / Continuous Deployment").
     - Filter out vague corporate jargon ("fast-paced environment", "great culture").

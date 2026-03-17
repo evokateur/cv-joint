@@ -86,6 +86,12 @@ class JobPosting(BaseModel):
     description: str
     experience_level: str  # entry, mid, senior, etc.
 
+    # Engagement details
+    employment_type: Optional[str] = None  # full-time, contract, hourly, freelance
+    location: Optional[str] = None  # remote, on-site, hybrid, city/country
+    compensation_range: Optional[str] = None  # "$15–$35/hr", "$120k–$150k"
+    duration: Optional[str] = None  # "1–3 months", "ongoing", "permanent"
+
     # Requirements
     education: List[str] = []  # degrees, certifications
     years_experience: Optional[str] = None  # "5+ years"
@@ -96,12 +102,16 @@ class JobPosting(BaseModel):
     soft_skills: List[str] = []  # e.g., "leadership", "teamwork"
     preferred_skills: List[str] = []  # nice-to-have
 
-    # Responsibilities
-    responsibilities: List[str] = []  # parsed job duties
+    # Responsibilities and deliverables
+    responsibilities: List[str] = []  # day-to-day duties
+    deliverables: List[str] = []  # expected outputs/artifacts
 
     # Extracted for ATS alignment
     keywords: List[str] = []  # important phrases/terms from posting
     tools_and_tech: List[str] = []  # specific stack/tools
+
+    # Application
+    application_instructions: Optional[List[str]] = None  # special requirements, secret keywords, required materials
 
 
 class CvTransformationPlan(BaseModel):
