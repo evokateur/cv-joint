@@ -86,12 +86,6 @@ class JobPosting(BaseModel):
     description: str
     experience_level: str  # entry, mid, senior, etc.
 
-    # Engagement details
-    employment_type: Optional[str] = None  # full-time, contract, hourly, freelance
-    location: Optional[str] = None  # remote, on-site, hybrid, city/country
-    compensation_range: Optional[str] = None  # "$15–$35/hr", "$120k–$150k"
-    duration: Optional[str] = None  # "1–3 months", "ongoing", "permanent"
-
     # Requirements
     education: List[str] = []  # degrees, certifications
     years_experience: Optional[str] = None  # "5+ years"
@@ -111,7 +105,9 @@ class JobPosting(BaseModel):
     tools_and_tech: List[str] = []  # specific stack/tools
 
     # Application
-    application_instructions: Optional[List[str]] = None  # special requirements, secret keywords, required materials
+    application_instructions: Optional[List[str]] = (
+        None  # special requirements, secret keywords, required materials
+    )
 
 
 class CvTransformationPlan(BaseModel):

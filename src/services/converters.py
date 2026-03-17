@@ -50,18 +50,6 @@ def _compose_job_posting(job: JobPosting) -> dict:
     if job.experience_level:
         document["experience_level"] = job.experience_level
 
-    engagement = {}
-    if job.employment_type:
-        engagement["employment_type"] = job.employment_type
-    if job.location:
-        engagement["location"] = job.location
-    if job.compensation_range:
-        engagement["compensation"] = job.compensation_range
-    if job.duration:
-        engagement["duration"] = job.duration
-    if engagement:
-        document["engagement"] = engagement
-
     if job.description:
         document["description"] = job.description
 
