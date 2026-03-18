@@ -96,12 +96,18 @@ class JobPosting(BaseModel):
     soft_skills: List[str] = []  # e.g., "leadership", "teamwork"
     preferred_skills: List[str] = []  # nice-to-have
 
-    # Responsibilities
-    responsibilities: List[str] = []  # parsed job duties
+    # Responsibilities and deliverables
+    responsibilities: List[str] = []  # day-to-day duties
+    deliverables: List[str] = []  # expected outputs/artifacts
 
     # Extracted for ATS alignment
     keywords: List[str] = []  # important phrases/terms from posting
     tools_and_tech: List[str] = []  # specific stack/tools
+
+    # Application
+    application_instructions: Optional[List[str]] = (
+        None  # special requirements, secret keywords, required materials
+    )
 
 
 class CvTransformationPlan(BaseModel):

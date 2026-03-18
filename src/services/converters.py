@@ -76,6 +76,9 @@ def _compose_job_posting(job: JobPosting) -> dict:
     if job.responsibilities:
         document["responsibilities"] = job.responsibilities
 
+    if job.deliverables:
+        document["deliverables"] = job.deliverables
+
     if job.keywords or job.tools_and_tech:
         ats = {}
         if job.keywords:
@@ -83,6 +86,9 @@ def _compose_job_posting(job: JobPosting) -> dict:
         if job.tools_and_tech:
             ats["tools_and_technologies"] = job.tools_and_tech
         document["ats_optimization"] = ats
+
+    if job.application_instructions:
+        document["application_instructions"] = job.application_instructions
 
     return document
 
