@@ -28,7 +28,20 @@ def main():
         metavar="URI",
         help="Remove an object by URI and exit. URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cv-optimizations/{id}",
     )
+    parser.add_argument(
+        "--regenerate",
+        metavar="URI",
+        help="Re-analyze a job posting by URI and overwrite the existing record. URI format: job-postings/{id}",
+    )
+    parser.add_argument(
+        "--content-file",
+        metavar="PATH",
+        help="Local file to use as content source for --regenerate (instead of fetching the URL)",
+    )
     args = parser.parse_args()
+
+    if args.content_file and not args.regenerate:
+        parser.error("--content-file requires --regenerate")
 
     if args.show_config:
         from config.settings import get_merged_config
@@ -62,6 +75,26 @@ def main():
             print(f"Removed {uri}")
         else:
             print(f"Not found: {uri}", file=sys.stderr)
+            sys.exit(1)
+        return
+
+    if args.regenerate is not None:
+        from services.application import ApplicationService
+
+        service = ApplicationService()
+        uri = args.regenerate
+        parts = uri.strip("/").split("/")
+
+        if parts[0] == "job-postings" and len(parts) == 2:
+            try:
+                service.regenerate_job_posting(parts[1], args.content_file)
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                sys.exit(1)
+            print(f"Regenerated {uri}")
+        else:
+            print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
+            print("Expected: job-postings/{id}", file=sys.stderr)
             sys.exit(1)
         return
 

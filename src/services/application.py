@@ -196,6 +196,31 @@ class ApplicationService:
         """
         return self.repository.list_cvs()
 
+    def regenerate_job_posting(self, identifier: str, content_file: Optional[str] = None):
+        """
+        Re-analyze a job posting from its stored URL and overwrite the existing record.
+
+        CV optimizations nested under this job posting are preserved.
+
+        Args:
+            identifier: Identifier of the job posting to regenerate
+            content_file: Optional local file path to use instead of fetching the URL
+
+        Returns:
+            JobPostingRecord
+
+        Raises:
+            ValueError: If job posting not found
+        """
+        record = self.repository.get_job_posting_record(identifier)
+        if record is None:
+            raise ValueError(f"Job posting not found: {identifier}")
+
+        job_posting = self.job_posting_analyzer.analyze(record.url, content_file)
+        new_record = self.repository.add_job_posting(job_posting, identifier)
+        self.markdown_exporter.export_job_posting(new_record, job_posting)
+        return new_record
+
     def remove_job_posting(self, identifier: str) -> bool:
         """
         Remove a job posting and all nested cv optimizations.
