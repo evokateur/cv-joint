@@ -371,7 +371,8 @@ def create_app():
                     gr.Markdown("### Import CV")
                     with gr.Accordion("CV Source", open=False) as cv_source_accordion:
                         cv_file = gr.File(
-                            label="CV File", file_types=[".json", ".yaml", ".txt"]
+                            label="CV File",
+                            file_types=[".json", ".yaml", ".txt", ".md"],
                         )
                         cv_path = gr.Textbox(
                             label="Or File Path",
