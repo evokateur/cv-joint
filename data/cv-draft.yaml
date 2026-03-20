@@ -1,0 +1,85 @@
+# yaml-language-server: $schema=./cv-schema.json
+
+name: Wesley Hinkle
+contact:
+  city: Oakland
+  state: CA
+  email: wesley@evokateur.net
+  phone: +1-510-384-8010
+  linkedin: wesley-c-hinkle
+  github: evokateur
+profession: Software Engineer
+core_expertise:
+  - Backend Development
+  - "Domain Modeling & API Design"
+  - AI-Assisted Development
+summary_of_qualifications:
+  - Backend Engineer with extensive experience in data integration and transformation, skilled in modeling domains and designing relational schemas. Successfully led projects involving complex operations like dues collection and benefits tracking for workers' unions, impacting thousands of employees. Adept at overcoming challenges with inconsistent data and varying system requirements, aiming to leverage expertise in structured, scalable solutions to enhance backend systems. Works with CLI-based AI coding agents as a development tool, applying the same architectural discipline and requirements clarity to LLM-assisted workflows as to conventional software work.
+education:
+  - degree: Bachelor of Arts in Cognitive Science (Credit Hours Completed)
+    coursework: Interdisciplinary program combining Computer Science, Linguistics, Philosophy of Mind, Cognitive Psychology, and Neuroscience
+    institution: University of California, Berkeley
+    location: Berkeley, CA
+    start_date: "2006"
+    end_date: "2009"
+experience:
+  - title: Backend Developer
+    company: MultiEmployer, Inc.
+    location: Berkeley, CA
+    start_date: April 2009
+    end_date: July 2024
+    responsibilities:
+      - Developed enterprise applications and REST APIs for third-party integrations and client mobile apps
+      - Led domain modeling for union remittance, dues collection, and ACH processes; produced domain documentation and use cases to align team understanding
+      - Engineered data migration scripts mapping legacy data from heterogeneous sources into relational schemas, preserving backward compatibility
+      - Stood up and administered GitLab; managed migrations from source install to Omnibus and from MySQL to PostgreSQL
+      - Refactored legacy codebases for modularity and maintainability; designed Git workflows with structured release tagging for deployment and rollback
+      - Managed dev environments via a customized Laravel Homestead/Vagrant setup; wrote build scripts to provision 10+ legacy applications with varying infrastructure requirements
+      - Automated deployments with shell scripts and cron jobs; leveraged AWS (EC2, RDS) for cloud hosting and managed database infrastructure
+      - Integrated WordPress with PHP frameworks; developed Git workflow strategy, plugin dependency scripts, and deployment provisioning using Migrate DB Pro
+additional_experience:
+  - title: "Research Assistant & Programmer"
+    company: Center for the Built Environment
+    location: Berkeley, CA
+    start_date: "2007"
+    end_date: "2012"
+  - title: Software Engineer
+    company: Synovation
+    location: Modesto, CA
+    start_date: "2001"
+    end_date: "2002"
+  - title: Programmer
+    company: American Medical Response
+    location: Modesto, CA
+    start_date: "1998"
+    end_date: "2001"
+areas_of_expertise:
+  - name: Languages
+    skills:
+      - PHP
+      - JavaScript
+      - Python
+      - SQL
+      - Shell Scripting
+  - name: Technologies
+    skills:
+      - FastAPI
+      - Laravel
+      - Symfony
+      - MySQL
+      - PostgreSQL
+      - MSSQL
+      - Nginx
+      - Gitlab
+      - Claude Code
+      - Codex
+  - name: "Methods & Practices"
+    skills:
+      - REST
+      - DDD
+      - Clean Architecture
+languages:
+  - language: English
+    level: Native
+  - language: French
+    level: A2-B1
