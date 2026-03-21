@@ -221,6 +221,73 @@ class ApplicationService:
         self.markdown_exporter.export_job_posting(new_record, job_posting)
         return new_record
 
+    def regenerate_cv(self, identifier: str, content_file: str):
+        """
+        Re-analyze a CV from a source file and overwrite the existing record.
+
+        Args:
+            identifier: Identifier of the CV to regenerate
+            content_file: Path to CV file (JSON, YAML, or plain text)
+
+        Returns:
+            CurriculumVitaeRecord
+
+        Raises:
+            ValueError: If CV not found
+        """
+        if self.repository.get_cv_record(identifier) is None:
+            raise ValueError(f"CV not found: {identifier}")
+
+        cv = self.cv_analyzer.analyze(content_file)
+        new_record = self.repository.add_cv(cv, identifier)
+        self.markdown_exporter.export_cv(new_record, cv)
+        return new_record
+
+    def regenerate_cv_optimization(self, job_posting_identifier: str, identifier: str):
+        """
+        Re-run a CV optimization using its stored inputs and overwrite the existing record.
+
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            identifier: Identifier of the optimization
+
+        Returns:
+            CvOptimizationRecord
+
+        Raises:
+            ValueError: If CV optimization not found
+        """
+        record = self.repository.get_cv_optimization_record(job_posting_identifier, identifier)
+        if record is None:
+            raise ValueError(
+                f"CV optimization not found: job-postings/{job_posting_identifier}/cvs/{identifier}"
+            )
+
+        cv_path = str(self.repository.get_absolute_path("cvs", record.base_cv_identifier))
+        job_posting_path = str(
+            self.repository.get_absolute_path("job-postings", job_posting_identifier)
+        )
+        output_directory = str(
+            self.repository.get_cv_optimization_dir(job_posting_identifier, identifier)
+        )
+
+        self.cv_optimizer.optimize(cv_path, job_posting_path, output_directory)
+
+        plan = self.repository.get_cv_transformation_plan(job_posting_identifier, identifier)
+        cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
+
+        if plan is None or cv is None:
+            raise ValueError(
+                f"Optimization output missing after re-run: job-postings/{job_posting_identifier}/cvs/{identifier}"
+            )
+
+        new_record = self.repository.add_cv_optimization(
+            job_posting_identifier, identifier, record.base_cv_identifier
+        )
+        self.markdown_exporter.export_cv_transformation_plan(new_record, plan)
+        self.markdown_exporter.export_cv(new_record, cv)
+        return new_record
+
     def remove_job_posting(self, identifier: str) -> bool:
         """
         Remove a job posting and all nested cv optimizations.

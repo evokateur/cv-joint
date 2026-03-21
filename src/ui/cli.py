@@ -31,12 +31,12 @@ def main():
     parser.add_argument(
         "--regenerate",
         metavar="URI",
-        help="Re-analyze a job posting by URI and overwrite the existing record. URI format: job-postings/{id}",
+        help="Re-analyze an object by URI and overwrite the existing record. URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cvs/{id}",
     )
     parser.add_argument(
         "--content-file",
         metavar="PATH",
-        help="Local file to use as content source for --regenerate (instead of fetching the URL)",
+        help="Local file to use as content source for --regenerate cvs/{id}",
     )
     args = parser.parse_args()
 
@@ -85,17 +85,26 @@ def main():
         uri = args.regenerate
         parts = uri.strip("/").split("/")
 
-        if parts[0] == "job-postings" and len(parts) == 2:
-            try:
+        try:
+            if parts[0] == "job-postings" and len(parts) == 2:
                 service.regenerate_job_posting(parts[1], args.content_file)
-            except ValueError as e:
-                print(f"Error: {e}", file=sys.stderr)
+            elif parts[0] == "cvs" and len(parts) == 2:
+                if not args.content_file:
+                    parser.error("--regenerate cvs/{id} requires --content-file")
+                service.regenerate_cv(parts[1], args.content_file)
+            elif parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
+                service.regenerate_cv_optimization(parts[1], parts[3])
+            else:
+                print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
+                print(
+                    "Expected: job-postings/{id}, cvs/{id}, or job-postings/{id}/cvs/{id}",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
-            print(f"Regenerated {uri}")
-        else:
-            print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
-            print("Expected: job-postings/{id}", file=sys.stderr)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
+        print(f"Regenerated {uri}")
         return
 
     if args.regenerate_markdown is not None:
