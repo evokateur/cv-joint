@@ -31,7 +31,7 @@ class MarkdownWriter:
             self.root_dir
             / "job-postings"
             / job_posting_identifier
-            / "cv-optimizations"
+            / "cvs"
             / identifier
             / "transformation-plan.md"
         )
@@ -47,7 +47,7 @@ class MarkdownWriter:
             self.root_dir
             / "job-postings"
             / job_posting_identifier
-            / "cv-optimizations"
+            / "cvs"
             / identifier
             / "cv.md"
         )
@@ -68,7 +68,7 @@ class MarkdownWriter:
             self.root_dir
             / "job-postings"
             / job_posting_identifier
-            / "cv-optimizations"
+            / "cvs"
             / identifier
         )
         if path.exists():

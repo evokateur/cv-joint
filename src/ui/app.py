@@ -846,7 +846,7 @@ def create_app():
                         gr.update(visible=False),
                         f"✓ Loaded: {identifier}",
                         gr.update(
-                            value=f"job-postings/{job_posting_identifier}/cv-optimizations/{identifier}",
+                            value=f"job-postings/{job_posting_identifier}/cvs/{identifier}",
                             visible=True,
                         ),
                     )
@@ -895,7 +895,7 @@ def create_app():
                             gr.update(visible=False),
                             opt_list_data,
                             gr.update(
-                                value=f"job-postings/{record.job_posting_identifier}/cv-optimizations/{record.identifier}",
+                                value=f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}",
                                 visible=True,
                             ),
                         )
@@ -1096,9 +1096,9 @@ def create_app():
 
                 def pdf_stem_from_path(data_path: str) -> str:
                     parts = Path(data_path).parts
-                    if "cv-optimizations" in parts:
-                        opt_idx = parts.index("cv-optimizations")
-                        return f"{parts[opt_idx - 1]}-{parts[opt_idx + 1]}"
+                    if "job-postings" in parts:
+                        cvs_idx = parts.index("cvs")
+                        return f"{parts[cvs_idx - 1]}-{parts[cvs_idx + 1]}"
                     if "cvs" in parts:
                         cvs_idx = parts.index("cvs")
                         return parts[cvs_idx + 1]

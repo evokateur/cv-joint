@@ -127,7 +127,7 @@ data/
 │   └── cvs.json
 ├── job-postings/{identifier}/
 │   ├── job-posting.json
-│   └── cv-optimizations/{identifier}/
+│   └── cvs/{identifier}/
 │       ├── record.json
 │       ├── transformation-plan.json
 │       └── cv.json

@@ -26,7 +26,7 @@ def main():
     parser.add_argument(
         "--remove",
         metavar="URI",
-        help="Remove an object by URI and exit. URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cv-optimizations/{id}",
+        help="Remove an object by URI and exit. URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cvs/{id}",
     )
     parser.add_argument(
         "--regenerate",
@@ -57,7 +57,7 @@ def main():
         uri = args.remove
         parts = uri.strip("/").split("/")
 
-        if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cv-optimizations":
+        if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
             removed = service.remove_cv_optimization(parts[1], parts[3])
         elif parts[0] == "job-postings" and len(parts) == 2:
             removed = service.remove_job_posting(parts[1])
@@ -66,7 +66,7 @@ def main():
         else:
             print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
             print(
-                "Expected: job-postings/{id}, cvs/{id}, or job-postings/{id}/cv-optimizations/{id}",
+                "Expected: job-postings/{id}, cvs/{id}, or job-postings/{id}/cvs/{id}",
                 file=sys.stderr,
             )
             sys.exit(1)

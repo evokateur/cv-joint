@@ -187,7 +187,7 @@ class FileSystemRepository:
         """
         Remove a job posting from the collection and delete its data directory.
 
-        Cascades to any nested cv-optimizations.
+        Cascades to any nested cvs.
 
         Args:
             identifier: Unique identifier for the job posting
@@ -380,7 +380,7 @@ class FileSystemRepository:
             job_posting_dirs = []
 
         for job_posting_dir in job_posting_dirs:
-            cv_optimizations_dir = job_posting_dir / "cv-optimizations"
+            cv_optimizations_dir = job_posting_dir / "cvs"
 
             if not cv_optimizations_dir.exists():
                 continue
@@ -422,7 +422,7 @@ class FileSystemRepository:
             self.data_dir
             / "job-postings"
             / job_posting_identifier
-            / "cv-optimizations"
+            / "cvs"
             / identifier
         )
 
@@ -488,7 +488,7 @@ class FileSystemRepository:
             job_posting_dirs = [d for d in job_postings_root.iterdir() if d.is_dir()]
 
         for job_posting_dir in job_posting_dirs:
-            cv_optimizations_dir = job_posting_dir / "cv-optimizations"
+            cv_optimizations_dir = job_posting_dir / "cvs"
             if not cv_optimizations_dir.exists():
                 continue
 

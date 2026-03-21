@@ -231,7 +231,7 @@ class TestCvOptimizationOperations:
             Path(temp_data_dir)
             / "job-postings"
             / job_posting_identifier
-            / "cv-optimizations"
+            / "cvs"
             / identifier
         )
         plan_dir.mkdir(parents=True, exist_ok=True)
@@ -266,7 +266,7 @@ class TestCvOptimizationOperations:
             Path(temp_data_dir)
             / "job-postings"
             / "acme-swe"
-            / "cv-optimizations"
+            / "cvs"
             / "opt-123"
             / "record.json"
         )
@@ -409,7 +409,7 @@ class TestCvOptimizationOperations:
             Path(temp_data_dir)
             / "job-postings"
             / "acme-swe"
-            / "cv-optimizations"
+            / "cvs"
             / "opt-123"
         )
         assert not optimization_dir.exists()
@@ -438,7 +438,7 @@ class TestCvOptimizationOperations:
             Path(temp_data_dir)
             / "job-postings"
             / "acme-swe"
-            / "cv-optimizations"
+            / "cvs"
             / "opt-123"
         )
         assert not optimization_dir.exists()
