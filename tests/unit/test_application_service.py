@@ -295,3 +295,94 @@ class TestRegenerateCvOptimization:
         plan_md = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "transformation-plan.md"
         assert cv_md.exists()
         assert plan_md.exists()
+
+
+class TestRenameJobPosting:
+    def test_raises_when_not_found(self, service):
+        with pytest.raises(ValueError, match="not found"):
+            service.rename_job_posting("nonexistent", "new-id")
+
+    def test_raises_on_collision(self, service, sample_job_posting_data):
+        service.save_job_posting(sample_job_posting_data, "job-1")
+        service.save_job_posting(sample_job_posting_data, "job-2")
+        with pytest.raises(ValueError, match="already exists"):
+            service.rename_job_posting("job-1", "job-2")
+
+    def test_data_accessible_at_new_identifier(self, service, sample_job_posting_data):
+        service.save_job_posting(sample_job_posting_data, "old-id")
+        service.rename_job_posting("old-id", "new-id")
+        assert service.get_job_posting("old-id") is None
+        assert service.get_job_posting("new-id") is not None
+
+    def test_moves_markdown(self, service, sample_job_posting_data, temp_data_dir):
+        service.save_job_posting(sample_job_posting_data, "old-id")
+        service.rename_job_posting("old-id", "new-id")
+        assert not (Path(temp_data_dir) / "job-postings" / "old-id").exists()
+        assert (Path(temp_data_dir) / "job-postings" / "new-id" / "job-posting.md").exists()
+
+
+class TestRenameCv:
+    def test_raises_when_not_found(self, service):
+        with pytest.raises(ValueError, match="not found"):
+            service.rename_cv("nonexistent", "new-id")
+
+    def test_raises_on_collision(self, service, sample_cv_data):
+        service.save_cv(sample_cv_data, "cv-1")
+        service.save_cv(sample_cv_data, "cv-2")
+        with pytest.raises(ValueError, match="already exists"):
+            service.rename_cv("cv-1", "cv-2")
+
+    def test_data_accessible_at_new_identifier(self, service, sample_cv_data):
+        service.save_cv(sample_cv_data, "old-id")
+        service.rename_cv("old-id", "new-id")
+        assert service.get_cv("old-id") is None
+        assert service.get_cv("new-id") is not None
+
+    def test_moves_markdown(self, service, sample_cv_data, temp_data_dir):
+        service.save_cv(sample_cv_data, "old-id")
+        service.rename_cv("old-id", "new-id")
+        assert not (Path(temp_data_dir) / "cvs" / "old-id").exists()
+        assert (Path(temp_data_dir) / "cvs" / "new-id" / "cv.md").exists()
+
+    def test_repairs_optimization_references(
+        self, service, sample_job_posting_data, sample_cv_data
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.save_cv(sample_cv_data, "old-cv")
+        service.repository.add_cv_optimization("acme-swe", "opt-1", "old-cv")
+        service.rename_cv("old-cv", "new-cv")
+        record = service.repository.get_cv_optimization_record("acme-swe", "opt-1")
+        assert record.base_cv_identifier == "new-cv"
+
+
+class TestRenameCvOptimization:
+    def test_raises_when_not_found(self, service, sample_job_posting_data):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        with pytest.raises(ValueError, match="not found"):
+            service.rename_cv_optimization("acme-swe", "nonexistent", "new-id")
+
+    def test_raises_on_collision(self, service, sample_job_posting_data):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+        service.repository.add_cv_optimization("acme-swe", "opt-2", "jane-doe")
+        with pytest.raises(ValueError, match="already exists"):
+            service.rename_cv_optimization("acme-swe", "opt-1", "opt-2")
+
+    def test_data_accessible_at_new_identifier(
+        self, service, sample_job_posting_data
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+        service.rename_cv_optimization("acme-swe", "opt-1", "new-id")
+        assert service.repository.get_cv_optimization_record("acme-swe", "opt-1") is None
+        assert service.repository.get_cv_optimization_record("acme-swe", "new-id") is not None
+
+    def test_moves_markdown(self, service, sample_job_posting_data, temp_data_dir):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+        opt_dir = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs"
+        (opt_dir / "opt-1").mkdir(parents=True, exist_ok=True)
+        (opt_dir / "opt-1" / "cv.md").write_text("# CV")
+        service.rename_cv_optimization("acme-swe", "opt-1", "new-id")
+        assert not (opt_dir / "opt-1").exists()
+        assert (opt_dir / "new-id" / "cv.md").exists()

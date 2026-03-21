@@ -53,6 +53,26 @@ class MarkdownWriter:
         )
         self._write(md_path, cv)
 
+    def move_job_posting(self, identifier: str, new_identifier: str):
+        self._move(
+            self.root_dir / "job-postings" / identifier,
+            self.root_dir / "job-postings" / new_identifier,
+        )
+
+    def move_cv(self, identifier: str, new_identifier: str):
+        self._move(
+            self.root_dir / "cvs" / identifier,
+            self.root_dir / "cvs" / new_identifier,
+        )
+
+    def move_cv_optimization(
+        self, job_posting_identifier: str, identifier: str, new_identifier: str
+    ):
+        self._move(
+            self.root_dir / "job-postings" / job_posting_identifier / "cvs" / identifier,
+            self.root_dir / "job-postings" / job_posting_identifier / "cvs" / new_identifier,
+        )
+
     def delete_job_posting(self, identifier: str):
         path = self.root_dir / "job-postings" / identifier
         if path.exists():
@@ -73,6 +93,16 @@ class MarkdownWriter:
         )
         if path.exists():
             shutil.rmtree(path)
+
+    def _move(self, source: Path, target: Path):
+        source_exists = source.exists()
+        target_exists = target.exists()
+        if source_exists and target_exists:
+            raise ValueError(
+                f"Cannot move markdown: both {source} and {target} exist"
+            )
+        if source_exists:
+            shutil.move(str(source), str(target))
 
     def _write(self, path: Path, content: str):
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -38,6 +38,12 @@ def main():
         metavar="PATH",
         help="Local file to use as content source for --regenerate cvs/{id}",
     )
+    parser.add_argument(
+        "--rename",
+        nargs=2,
+        metavar=("URI", "NEW_ID"),
+        help="Rename an object by URI and exit. URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cvs/{id}",
+    )
     args = parser.parse_args()
 
     if args.content_file and not args.regenerate:
@@ -105,6 +111,33 @@ def main():
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
         print(f"Regenerated {uri}")
+        return
+
+    if args.rename is not None:
+        from services.application import ApplicationService
+
+        service = ApplicationService()
+        uri, new_identifier = args.rename
+        parts = uri.strip("/").split("/")
+
+        try:
+            if parts[0] == "job-postings" and len(parts) == 2:
+                service.rename_job_posting(parts[1], new_identifier)
+            elif parts[0] == "cvs" and len(parts) == 2:
+                service.rename_cv(parts[1], new_identifier)
+            elif parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
+                service.rename_cv_optimization(parts[1], parts[3], new_identifier)
+            else:
+                print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
+                print(
+                    "Expected: job-postings/{id}, cvs/{id}, or job-postings/{id}/cvs/{id}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Renamed {uri} to {new_identifier}")
         return
 
     if args.regenerate_markdown is not None:

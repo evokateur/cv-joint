@@ -460,3 +460,155 @@ class TestCvOptimizationOperations:
             identifier="orphaned",
         )
         assert result is False
+
+
+class TestRenameJobPosting:
+    def test_raises_when_not_found(self, repository):
+        with pytest.raises(ValueError, match="not found"):
+            repository.rename_job_posting("nonexistent", "new-id")
+
+    def test_raises_on_collision(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "job-1")
+        repository.add_job_posting(sample_job_posting, "job-2")
+        with pytest.raises(ValueError, match="already exists"):
+            repository.rename_job_posting("job-1", "job-2")
+
+    def test_renames_directory(self, repository, sample_job_posting, temp_data_dir):
+        repository.add_job_posting(sample_job_posting, "old-id")
+        repository.rename_job_posting("old-id", "new-id")
+        assert not (Path(temp_data_dir) / "job-postings" / "old-id").exists()
+        assert (Path(temp_data_dir) / "job-postings" / "new-id").exists()
+
+    def test_updates_collection(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "old-id")
+        repository.rename_job_posting("old-id", "new-id")
+        assert repository.get_job_posting_record("old-id") is None
+        record = repository.get_job_posting_record("new-id")
+        assert record is not None
+        assert record.identifier == "new-id"
+
+    def test_returns_new_record(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "old-id")
+        record = repository.rename_job_posting("old-id", "new-id")
+        assert record.identifier == "new-id"
+
+    def test_preserves_created_at(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "old-id")
+        original = repository.get_job_posting_record("old-id")
+        record = repository.rename_job_posting("old-id", "new-id")
+        assert record.created_at == original.created_at
+
+    def test_repairs_job_posting_identifier_in_optimization_records(
+        self, repository, sample_job_posting
+    ):
+        repository.add_job_posting(sample_job_posting, "old-id")
+        repository.add_cv_optimization("old-id", "opt-1", "jane-doe")
+        repository.add_cv_optimization("old-id", "opt-2", "jane-doe")
+
+        repository.rename_job_posting("old-id", "new-id")
+
+        opt1 = repository.get_cv_optimization_record("new-id", "opt-1")
+        opt2 = repository.get_cv_optimization_record("new-id", "opt-2")
+        assert opt1.job_posting_identifier == "new-id"
+        assert opt2.job_posting_identifier == "new-id"
+
+
+class TestRenameCv:
+    def test_raises_when_not_found(self, repository):
+        with pytest.raises(ValueError, match="not found"):
+            repository.rename_cv("nonexistent", "new-id")
+
+    def test_raises_on_collision(self, repository, sample_cv):
+        repository.add_cv(sample_cv, "cv-1")
+        repository.add_cv(sample_cv, "cv-2")
+        with pytest.raises(ValueError, match="already exists"):
+            repository.rename_cv("cv-1", "cv-2")
+
+    def test_renames_directory(self, repository, sample_cv, temp_data_dir):
+        repository.add_cv(sample_cv, "old-id")
+        repository.rename_cv("old-id", "new-id")
+        assert not (Path(temp_data_dir) / "cvs" / "old-id").exists()
+        assert (Path(temp_data_dir) / "cvs" / "new-id").exists()
+
+    def test_updates_collection(self, repository, sample_cv):
+        repository.add_cv(sample_cv, "old-id")
+        repository.rename_cv("old-id", "new-id")
+        assert repository.get_cv_record("old-id") is None
+        record = repository.get_cv_record("new-id")
+        assert record is not None
+        assert record.identifier == "new-id"
+
+    def test_returns_new_record(self, repository, sample_cv):
+        repository.add_cv(sample_cv, "old-id")
+        record = repository.rename_cv("old-id", "new-id")
+        assert record.identifier == "new-id"
+
+    def test_repairs_base_cv_identifier_in_optimizations(
+        self, repository, sample_job_posting, sample_cv
+    ):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_cv(sample_cv, "old-cv")
+        repository.add_cv_optimization("acme-swe", "opt-1", "old-cv")
+        repository.add_cv_optimization("acme-swe", "opt-2", "old-cv")
+
+        repository.rename_cv("old-cv", "new-cv")
+
+        opt1 = repository.get_cv_optimization_record("acme-swe", "opt-1")
+        opt2 = repository.get_cv_optimization_record("acme-swe", "opt-2")
+        assert opt1.base_cv_identifier == "new-cv"
+        assert opt2.base_cv_identifier == "new-cv"
+
+    def test_does_not_repair_unrelated_optimizations(
+        self, repository, sample_job_posting, sample_cv
+    ):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_cv(sample_cv, "old-cv")
+        repository.add_cv(sample_cv, "other-cv")
+        repository.add_cv_optimization("acme-swe", "opt-1", "old-cv")
+        repository.add_cv_optimization("acme-swe", "opt-2", "other-cv")
+
+        repository.rename_cv("old-cv", "new-cv")
+
+        opt2 = repository.get_cv_optimization_record("acme-swe", "opt-2")
+        assert opt2.base_cv_identifier == "other-cv"
+
+
+class TestRenameCvOptimization:
+    def test_raises_when_not_found(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        with pytest.raises(ValueError, match="not found"):
+            repository.rename_cv_optimization("acme-swe", "nonexistent", "new-id")
+
+    def test_raises_on_collision(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+        repository.add_cv_optimization("acme-swe", "opt-2", "jane-doe")
+        with pytest.raises(ValueError, match="already exists"):
+            repository.rename_cv_optimization("acme-swe", "opt-1", "opt-2")
+
+    def test_renames_directory(self, repository, sample_job_posting, temp_data_dir):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_cv_optimization("acme-swe", "old-id", "jane-doe")
+        repository.rename_cv_optimization("acme-swe", "old-id", "new-id")
+        assert not (
+            Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "old-id"
+        ).exists()
+        assert (
+            Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "new-id"
+        ).exists()
+
+    def test_updates_record_identifier(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_cv_optimization("acme-swe", "old-id", "jane-doe")
+        repository.rename_cv_optimization("acme-swe", "old-id", "new-id")
+        assert repository.get_cv_optimization_record("acme-swe", "old-id") is None
+        record = repository.get_cv_optimization_record("acme-swe", "new-id")
+        assert record is not None
+        assert record.identifier == "new-id"
+
+    def test_returns_new_record(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_cv_optimization("acme-swe", "old-id", "jane-doe")
+        record = repository.rename_cv_optimization("acme-swe", "old-id", "new-id")
+        assert record.identifier == "new-id"
+        assert record.base_cv_identifier == "jane-doe"

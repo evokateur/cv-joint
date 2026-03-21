@@ -1,4 +1,5 @@
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -195,8 +196,6 @@ class FileSystemRepository:
         Returns:
             True if removed, False if not found
         """
-        import shutil
-
         collection = self._load_collection(self.job_postings_collection)
         original_length = len(collection)
 
@@ -328,8 +327,6 @@ class FileSystemRepository:
         Returns:
             True if removed, False if not found
         """
-        import shutil
-
         collection = self._load_collection(self.cvs_collection)
         original_length = len(collection)
 
@@ -366,6 +363,143 @@ class FileSystemRepository:
             return False
 
         return self.purge_cv_optimization(job_posting_identifier, identifier)
+
+    def rename_job_posting(self, identifier: str, new_identifier: str) -> JobPostingRecord:
+        """
+        Rename a job posting, updating its directory and collection entry.
+
+        Args:
+            identifier: Current identifier
+            new_identifier: New identifier
+
+        Returns:
+            Updated JobPostingRecord
+
+        Raises:
+            ValueError: If not found or new identifier already exists
+        """
+        if self.get_job_posting_record(identifier) is None:
+            raise ValueError(f"Job posting not found: {identifier}")
+        if self.get_job_posting_record(new_identifier) is not None:
+            raise ValueError(f"Job posting already exists: {new_identifier}")
+
+        old_dir = self.data_dir / "job-postings" / identifier
+        new_dir = self.data_dir / "job-postings" / new_identifier
+        shutil.move(str(old_dir), str(new_dir))
+
+        opt_base = new_dir / "cvs"
+        if opt_base.exists():
+            for record_path in opt_base.glob("*/record.json"):
+                with open(record_path, "r") as f:
+                    record_data = json.load(f)
+                record_data["job_posting_identifier"] = new_identifier
+                with open(record_path, "w") as f:
+                    json.dump(record_data, f, indent=2)
+
+        collection = self._load_collection(self.job_postings_collection)
+        new_record_data = None
+        for i, item in enumerate(collection):
+            if item["identifier"] == identifier:
+                item = dict(item)
+                item["identifier"] = new_identifier
+                item["filepath"] = self._generate_relative_path("job-postings", new_identifier)
+                item["updated_at"] = datetime.now().isoformat()
+                collection[i] = item
+                new_record_data = item
+                break
+        self._save_collection(self.job_postings_collection, collection)
+        assert new_record_data is not None
+        return JobPostingRecord(**new_record_data)
+
+    def rename_cv(self, identifier: str, new_identifier: str) -> CurriculumVitaeRecord:
+        """
+        Rename a CV, updating its directory, collection entry, and any optimization
+        records that reference it via base_cv_identifier.
+
+        Args:
+            identifier: Current identifier
+            new_identifier: New identifier
+
+        Returns:
+            Updated CurriculumVitaeRecord
+
+        Raises:
+            ValueError: If not found or new identifier already exists
+        """
+        if self.get_cv_record(identifier) is None:
+            raise ValueError(f"CV not found: {identifier}")
+        if self.get_cv_record(new_identifier) is not None:
+            raise ValueError(f"CV already exists: {new_identifier}")
+
+        for opt in self.list_cv_optimizations():
+            if opt["base_cv_identifier"] == identifier:
+                record_path = (
+                    self._cv_optimization_dir(opt["job_posting_identifier"], opt["identifier"])
+                    / "record.json"
+                )
+                with open(record_path, "r") as f:
+                    record_data = json.load(f)
+                record_data["base_cv_identifier"] = new_identifier
+                with open(record_path, "w") as f:
+                    json.dump(record_data, f, indent=2)
+
+        old_dir = self.data_dir / "cvs" / identifier
+        new_dir = self.data_dir / "cvs" / new_identifier
+        shutil.move(str(old_dir), str(new_dir))
+
+        collection = self._load_collection(self.cvs_collection)
+        new_record_data = None
+        for i, item in enumerate(collection):
+            if item["identifier"] == identifier:
+                item = dict(item)
+                item["identifier"] = new_identifier
+                item["filepath"] = self._generate_relative_path("cvs", new_identifier)
+                item["updated_at"] = datetime.now().isoformat()
+                collection[i] = item
+                new_record_data = item
+                break
+        self._save_collection(self.cvs_collection, collection)
+        assert new_record_data is not None
+        return CurriculumVitaeRecord(**new_record_data)
+
+    def rename_cv_optimization(
+        self, job_posting_identifier: str, identifier: str, new_identifier: str
+    ) -> CvOptimizationRecord:
+        """
+        Rename a CV optimization, updating its directory and record.json.
+
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            identifier: Current identifier
+            new_identifier: New identifier
+
+        Returns:
+            Updated CvOptimizationRecord
+
+        Raises:
+            ValueError: If not found or new identifier already exists
+        """
+        if self.get_cv_optimization_record(job_posting_identifier, identifier) is None:
+            raise ValueError(
+                f"CV optimization not found: job-postings/{job_posting_identifier}/cvs/{identifier}"
+            )
+        if self.get_cv_optimization_record(job_posting_identifier, new_identifier) is not None:
+            raise ValueError(
+                f"CV optimization already exists: job-postings/{job_posting_identifier}/cvs/{new_identifier}"
+            )
+
+        old_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
+        new_dir = self._cv_optimization_dir(job_posting_identifier, new_identifier)
+        shutil.move(str(old_dir), str(new_dir))
+
+        record_path = new_dir / "record.json"
+        with open(record_path, "r") as f:
+            record_data = json.load(f)
+        record_data["identifier"] = new_identifier
+        with open(record_path, "w") as f:
+            json.dump(record_data, f, indent=2)
+
+        return CvOptimizationRecord(**record_data)
 
     def list_cv_data_files(self) -> list[dict[str, Any]]:
         """
@@ -610,8 +744,6 @@ class FileSystemRepository:
         Returns:
             True if deleted, False if not found
         """
-        import shutil
-
         optimization_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
 
         if not optimization_dir.exists():

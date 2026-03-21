@@ -336,6 +336,46 @@ class ApplicationService:
             self.markdown_writer.delete_cv_optimization(job_posting_identifier, identifier)
         return removed
 
+    def rename_job_posting(self, identifier: str, new_identifier: str):
+        """
+        Rename a job posting, moving its data and markdown to the new identifier.
+
+        Raises:
+            ValueError: If not found or new identifier already exists
+        """
+        record = self.repository.rename_job_posting(identifier, new_identifier)
+        self.markdown_writer.move_job_posting(identifier, new_identifier)
+        return record
+
+    def rename_cv(self, identifier: str, new_identifier: str):
+        """
+        Rename a CV, moving its data and markdown to the new identifier.
+        Also repairs any cv optimization records that reference this CV.
+
+        Raises:
+            ValueError: If not found or new identifier already exists
+        """
+        record = self.repository.rename_cv(identifier, new_identifier)
+        self.markdown_writer.move_cv(identifier, new_identifier)
+        return record
+
+    def rename_cv_optimization(
+        self, job_posting_identifier: str, identifier: str, new_identifier: str
+    ):
+        """
+        Rename a CV optimization, moving its data and markdown to the new identifier.
+
+        Raises:
+            ValueError: If not found or new identifier already exists
+        """
+        record = self.repository.rename_cv_optimization(
+            job_posting_identifier, identifier, new_identifier
+        )
+        self.markdown_writer.move_cv_optimization(
+            job_posting_identifier, identifier, new_identifier
+        )
+        return record
+
     def regenerate_markdown(self, collection_name: Optional[str] = None) -> int:
         """
         Regenerate all markdown files from stored domain objects.
