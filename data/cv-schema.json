@@ -22,10 +22,7 @@
                     }
                 },
                 "summary_of_qualifications": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                    "type": "string"
                 },
                 "education": {
                     "type": "array",

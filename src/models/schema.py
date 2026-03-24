@@ -53,7 +53,7 @@ class CurriculumVitae(BaseModel):
     contact: Contact
     profession: str
     core_expertise: List[str]
-    summary_of_qualifications: List[str]
+    summary_of_qualifications: str
     education: List[Education]
     experience: List[Experience]
     additional_experience: List[AdditionalExperience]

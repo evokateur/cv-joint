@@ -1268,4 +1268,4 @@ def create_app():
 def launch():
     """Launch the Gradio application."""
     app = create_app()
-    app.launch()
+    app.launch(inbrowser=True)

@@ -51,7 +51,7 @@ def sample_cv():
             github="github.com/janedoe",
         ),
         core_expertise=["Python", "Testing"],
-        summary_of_qualifications=["10 years experience"],
+        summary_of_qualifications="10 years experience",
         education=[],
         experience=[],
         additional_experience=[],

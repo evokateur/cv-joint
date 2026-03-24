@@ -13,8 +13,7 @@ core_expertise:
   - Backend Development
   - "Domain Modeling & API Design"
   - AI-Assisted Development
-summary_of_qualifications:
-  - Backend Engineer with extensive experience in data integration and transformation, skilled in modeling domains and designing relational schemas. Successfully led projects involving complex operations like dues collection and benefits tracking for workers' unions, impacting thousands of employees. Adept at overcoming challenges with inconsistent data and varying system requirements, aiming to leverage expertise in structured, scalable solutions to enhance backend systems. Works with CLI-based AI coding agents as a development tool, applying the same architectural discipline and requirements clarity to LLM-assisted workflows as to conventional software work.
+summary_of_qualifications: Backend Engineer with extensive experience in data integration and transformation, skilled in modeling domains and designing relational schemas. Successfully led projects involving complex operations like dues collection and benefits tracking for workers' unions, impacting thousands of employees. Adept at overcoming challenges with inconsistent data and varying system requirements, aiming to leverage expertise in structured, scalable solutions to enhance backend systems. Works with CLI-based AI coding agents as a development tool, applying the same architectural discipline and requirements clarity to LLM-assisted workflows as to conventional software work.
 education:
   - degree: Bachelor of Arts in Cognitive Science (Credit Hours Completed)
     coursework: Interdisciplinary program combining Computer Science, Linguistics, Philosophy of Mind, Cognitive Psychology, and Neuroscience
