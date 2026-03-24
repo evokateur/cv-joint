@@ -134,7 +134,7 @@ class ApplicationService:
             tuple of (cv_data, suggested_identifier)
         """
         cv = self.cv_analyzer.analyze(file_path)
-        identifier = self._generate_cv_identifier(cv.name, cv.profession)
+        identifier = self._generate_cv_identifier(cv.profession)
         return cv.model_dump(), identifier
 
     def save_cv(self, cv_data: dict[str, Any], identifier: str):
@@ -171,8 +171,8 @@ class ApplicationService:
         self.markdown_exporter.export_cv(record, cv)
         return record
 
-    def _generate_cv_identifier(self, name: str, profession: str) -> str:
-        """Generate a URL-safe identifier from name and profession."""
+    def _generate_cv_identifier(self, profession: str) -> str:
+        """Generate a URL-safe identifier from profession."""
         import re
 
         def slugify(text: str) -> str:
@@ -181,7 +181,7 @@ class ApplicationService:
             text = re.sub(r"[-\s]+", "-", text)
             return text.strip("-")
 
-        return f"{slugify(name)}-{slugify(profession)}"
+        return slugify(profession)
 
     def get_cv(self, identifier: str):
         """Retrieve a CV by identifier."""
