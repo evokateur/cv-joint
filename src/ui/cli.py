@@ -39,6 +39,11 @@ def main():
         help="Local file to use as content source for --regenerate cvs/{id}",
     )
     parser.add_argument(
+        "--browser",
+        action="store_true",
+        help="Open the app in a browser on launch",
+    )
+    parser.add_argument(
         "--rename",
         nargs=2,
         metavar=("URI", "NEW_ID"),
@@ -144,7 +149,9 @@ def main():
         from services.application import ApplicationService
 
         service = ApplicationService()
-        collection_name = None if args.regenerate_markdown == "all" else args.regenerate_markdown
+        collection_name = (
+            None if args.regenerate_markdown == "all" else args.regenerate_markdown
+        )
         try:
             count = service.regenerate_markdown(collection_name)
         except ValueError as e:
@@ -155,7 +162,7 @@ def main():
 
     from ui.app import launch
 
-    launch()
+    launch(inbrowser=args.browse)
 
 
 if __name__ == "__main__":

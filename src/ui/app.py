@@ -1265,7 +1265,7 @@ def create_app():
     return app
 
 
-def launch():
+def launch(inbrowser=False):
     """Launch the Gradio application."""
     app = create_app()
-    app.launch(inbrowser=True)
+    app.launch(inbrowser=inbrowser)
