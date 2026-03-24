@@ -21,7 +21,7 @@ def main():
         nargs="?",
         const="all",
         metavar="COLLECTION",
-        help="Regenerate markdown files from stored data and exit. Optional: COLLECTION (job-postings|cvs)",
+        help="Regenerate markdown files from stored data and exit. Optional: COLLECTION (job-postings|cvs|optimizations)",
     )
     parser.add_argument(
         "--remove",

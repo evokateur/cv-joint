@@ -47,7 +47,7 @@ class MarkdownExporter:
 
     def export(self, collection_name: Optional[str] = None) -> int:
         """Bulk export (regeneration). Iterates repository, exports each object."""
-        if collection_name and collection_name not in ("job-postings", "cvs"):
+        if collection_name and collection_name not in ("job-postings", "cvs", "optimizations"):
             raise ValueError(f"Unknown collection: {collection_name}")
 
         count = 0
@@ -63,4 +63,19 @@ class MarkdownExporter:
                 cv = self.repository.get_cv(record.identifier)
                 self.export_cv(record, cv)
                 count += 1
+        if collection_name is None or collection_name == "optimizations":
+            for item in self.repository.list_cv_optimizations():
+                record = CvOptimizationRecord(**item)
+                cv = self.repository.get_optimized_cv(
+                    record.job_posting_identifier, record.identifier
+                )
+                plan = self.repository.get_cv_transformation_plan(
+                    record.job_posting_identifier, record.identifier
+                )
+                if cv:
+                    self.export_cv(record, cv)
+                    count += 1
+                if plan:
+                    self.export_cv_transformation_plan(record, plan)
+                    count += 1
         return count

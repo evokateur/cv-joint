@@ -131,6 +131,32 @@ class TestRegenerateMarkdown:
         assert job_md.exists()
         assert not cv_md.exists()
 
+    def test_regenerate_optimizations(
+        self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
+    ):
+        service.save_job_posting(sample_job_posting_data, "job-1")
+        service.save_cv(sample_cv_data, "cv-1")
+
+        opt_dir = Path(temp_data_dir) / "job-postings" / "job-1" / "cvs" / "opt-1"
+        opt_dir.mkdir(parents=True)
+
+        plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
+        cv = CurriculumVitae(**sample_cv_data)
+        (opt_dir / "transformation-plan.json").write_text(plan.model_dump_json())
+        (opt_dir / "cv.json").write_text(cv.model_dump_json())
+
+        service.save_cv_optimization("job-1", "opt-1", "cv-1")
+
+        plan_md = opt_dir / "transformation-plan.md"
+        cv_md = opt_dir / "cv.md"
+        plan_md.unlink()
+        cv_md.unlink()
+
+        count = service.regenerate_markdown(collection_name="optimizations")
+        assert count == 2
+        assert plan_md.exists()
+        assert cv_md.exists()
+
     def test_unknown_collection_raises(self, service):
         with pytest.raises(ValueError, match="Unknown collection: invalid"):
             service.regenerate_markdown(collection_name="invalid")
