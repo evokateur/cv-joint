@@ -162,7 +162,7 @@ def main():
 
     from ui.app import launch
 
-    launch(inbrowser=args.browse)
+    launch(inbrowser=args.browser)
 
 
 if __name__ == "__main__":
