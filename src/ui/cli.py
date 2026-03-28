@@ -39,9 +39,14 @@ def main():
         help="Local file to use as content source for --regenerate cvs/{id}",
     )
     parser.add_argument(
-        "--browser",
+        "--launch",
         action="store_true",
-        help="Open the app in a browser on launch",
+        help="Start the Gradio server",
+    )
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Start the Gradio server and open it in a browser",
     )
     parser.add_argument(
         "--rename",
@@ -162,7 +167,7 @@ def main():
 
     from ui.app import launch
 
-    launch(inbrowser=args.browser)
+    launch(inbrowser=args.open)
 
 
 if __name__ == "__main__":

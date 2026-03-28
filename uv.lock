@@ -902,7 +902,7 @@ dependencies = [
     { name = "validators" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -922,14 +922,17 @@ requires-dist = [
     { name = "langchain-openai" },
     { name = "markdownify" },
     { name = "pydantic" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "requests" },
     { name = "validators" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0" },
+    { name = "pytest-asyncio" },
+]
 
 [[package]]
 name = "dataclasses-json"

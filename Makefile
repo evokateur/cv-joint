@@ -1,4 +1,4 @@
-.PHONY: test test-all clean setup dev-setup cv upwork-cv cover-letter
+.PHONY: install test test-all clean cv upwork-cv cover-letter
 
 OPEN =
 ifeq ($(shell uname), Darwin)
@@ -6,6 +6,9 @@ OPEN = open
 else ifeq ($(shell uname), Linux)
 OPEN = xdg-open
 endif
+
+install:
+	uv tool install --editable .
 
 cv:
 	uv run build-cv data/cv.yaml output/cv.tex
@@ -30,12 +33,6 @@ clean:
 	rm -f output/*.log
 	rm -f output/*.out
 	rm -f output/*.synctex.gz
-
-setup:
-	uv sync
-
-dev-setup:
-	uv sync --extra dev
 
 test:
 	uv run pytest tests/ --tb=short

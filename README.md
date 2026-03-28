@@ -56,20 +56,16 @@ Simplified project structure:
     └── cv.tex
 ```
 
-## Setup
-
-Initial setup:
+## Installation
 
 ```sh
-uv sync # or..
-uv sync --extra dev # for tests, etc.
+uv tool install --editable . # --editable: reflect code changes when run
 ```
 
-`PHONY` make targets are also available:
+If `cv-joint` is not found after installation:
 
 ```sh
-make setup # runs 'uv sync'
-make dev-setup  # runs 'uv sync --extra dev'
+uv tool update-shell
 ```
 
 Set environment variables:
@@ -138,22 +134,19 @@ data/
 To dump all merged (tilde expanded) configuration:
 
 ```sh
-uv run joint --show-config
+cv-joint --show-config
 ```
 
 ## Testing
 
-Run all tests (with short tracebacks):
-
 ```sh
-uv run pytest /tests --tb=short # or..
-make test
+uv run pytest tests/ --tb=short # or: make test
 ```
 
 ## Usage
 
 ```sh
-uv run joint
+cv-joint # or
+cv-joint --launch  # serve at http://localhost:7860
+cv-joint --open    # serve and open in browser
 ```
-
-A browser window should open at [`http://localhost:7860`](http://localhost:7860)
