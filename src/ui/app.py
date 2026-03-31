@@ -698,7 +698,7 @@ def create_app():
                 app.load(fn=load_cvs, outputs=[cv_list])
 
             # Tab 3: Optimizations
-            with gr.Tab("Optimizations"):
+            with gr.Tab("Optimizations") as optimizations_tab:
                 with gr.Group():
                     gr.Markdown("### Create New Optimization")
 
@@ -1057,7 +1057,7 @@ def create_app():
                 app.load(fn=load_cv_optimizations, outputs=[optimization_list])
 
             # Tab 4: PDF Generation
-            with gr.Tab("PDF Generation"):
+            with gr.Tab("PDF Generation") as pdf_tab:
                 with gr.Group():
                     gr.Markdown("### Generate PDF")
 
@@ -1261,6 +1261,11 @@ def create_app():
                         inputs=[chat_exchanges],
                         outputs=[export_file],
                     )
+
+        # Refresh dropdowns when tabs become active
+        optimizations_tab.select(fn=load_opt_job_choices, outputs=[opt_job_dropdown])
+        optimizations_tab.select(fn=load_opt_cv_choices, outputs=[opt_cv_dropdown])
+        pdf_tab.select(fn=load_cv_data_choices, outputs=[cv_data_selection])
 
     return app
 
