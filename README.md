@@ -134,7 +134,7 @@ data/
 To dump all merged (tilde expanded) configuration:
 
 ```sh
-cv-joint --show-config
+cv-joint show-config
 ```
 
 ## Testing
@@ -146,8 +146,8 @@ uv run pytest tests/ --tb=short # or: make test
 ## Usage
 
 ```sh
-cv-joint # or
-cv-joint --launch  # serve at http://localhost:7860
-cv-joint --open    # serve and open in browser
+cv-joint           # serve at http://localhost:7860
+cv-joint launch    # same
+cv-joint open      # serve and open in browser
 cv-joint --help    # show additional functionality
 ```

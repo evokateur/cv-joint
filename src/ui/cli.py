@@ -2,75 +2,93 @@
 CLI entry point for the Gradio UI.
 """
 
-import argparse
 import sys
 
 import yaml
 
 
 def main():
-    """Launch the Gradio UI or show config."""
+    """Launch the Gradio UI or run a management command."""
+    import argparse
+
     parser = argparse.ArgumentParser(description="CV Joint application")
-    parser.add_argument(
-        "--show-config",
-        action="store_true",
-        help="Print merged configuration to stdout and exit",
+    subparsers = parser.add_subparsers(dest="command")
+
+    subparsers.add_parser("launch", help="Start the Gradio server")
+    subparsers.add_parser("open", help="Start the Gradio server and open it in a browser")
+    subparsers.add_parser("show-config", help="Print merged configuration to stdout and exit")
+
+    regen_md = subparsers.add_parser(
+        "regenerate-markdown",
+        help="Regenerate markdown files from stored data and exit",
     )
-    parser.add_argument(
-        "--regenerate-markdown",
+    regen_md.add_argument(
+        "collection",
         nargs="?",
-        const="all",
         metavar="COLLECTION",
-        help="Regenerate markdown files from stored data and exit. Optional: COLLECTION (job-postings|cvs|optimizations)",
+        help="Collection to regenerate (job-postings|cvs|optimizations); omit for all",
     )
-    parser.add_argument(
-        "--remove",
+
+    remove_cmd = subparsers.add_parser("remove", help="Remove an object by URI and exit")
+    remove_cmd.add_argument(
+        "uri",
         metavar="URI",
-        help="Remove an object by URI and exit. URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cvs/{id}",
+        help="URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cvs/{id}",
     )
-    parser.add_argument(
-        "--regenerate",
+
+    regen_cmd = subparsers.add_parser(
+        "regenerate",
+        help="Re-analyze an object by URI and overwrite the existing record",
+    )
+    regen_cmd.add_argument(
+        "uri",
         metavar="URI",
-        help="Re-analyze an object by URI and overwrite the existing record. URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cvs/{id}",
+        help="URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cvs/{id}",
     )
-    parser.add_argument(
-        "--content-file",
-        metavar="PATH",
-        help="Local file to use as content source for --regenerate cvs/{id}",
+    regen_cmd.add_argument(
+        "content_file",
+        nargs="?",
+        metavar="CONTENT_FILE",
+        help="Local file to use as content source (required for cvs/{id})",
     )
-    parser.add_argument(
-        "--launch",
-        action="store_true",
-        help="Start the Gradio server",
-    )
-    parser.add_argument(
-        "--open",
-        action="store_true",
-        help="Start the Gradio server and open it in a browser",
-    )
-    parser.add_argument(
-        "--rename",
-        nargs=2,
-        metavar=("URI", "NEW_ID"),
-        help="Rename an object by URI and exit. URI formats: job-postings/{id}, cvs/{id}, job-postings/{id}/cvs/{id}",
-    )
+
+    rename_cmd = subparsers.add_parser("rename", help="Rename an object by URI and exit")
+    rename_cmd.add_argument("uri", metavar="URI")
+    rename_cmd.add_argument("new_id", metavar="NEW_ID")
+
     args = parser.parse_args()
 
-    if args.content_file and not args.regenerate:
-        parser.error("--content-file requires --regenerate")
+    if args.command is None or args.command == "launch":
+        from ui.app import launch
+        launch(inbrowser=False)
+        return
 
-    if args.show_config:
+    if args.command == "open":
+        from ui.app import launch
+        launch(inbrowser=True)
+        return
+
+    if args.command == "show-config":
         from config.settings import get_merged_config
-
         config = get_merged_config()
         yaml.dump(config, sys.stdout, default_flow_style=False, sort_keys=False)
         return
 
-    if args.remove is not None:
+    if args.command == "regenerate-markdown":
         from services.application import ApplicationService
-
         service = ApplicationService()
-        uri = args.remove
+        try:
+            count = service.regenerate_markdown(args.collection)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Regenerated {count} markdown file(s)")
+        return
+
+    if args.command == "remove":
+        from services.application import ApplicationService
+        service = ApplicationService()
+        uri = args.uri
         parts = uri.strip("/").split("/")
 
         if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
@@ -94,11 +112,10 @@ def main():
             sys.exit(1)
         return
 
-    if args.regenerate is not None:
+    if args.command == "regenerate":
         from services.application import ApplicationService
-
         service = ApplicationService()
-        uri = args.regenerate
+        uri = args.uri
         parts = uri.strip("/").split("/")
 
         try:
@@ -106,7 +123,7 @@ def main():
                 service.regenerate_job_posting(parts[1], args.content_file)
             elif parts[0] == "cvs" and len(parts) == 2:
                 if not args.content_file:
-                    parser.error("--regenerate cvs/{id} requires --content-file")
+                    parser.error("regenerate cvs/{id} requires CONTENT_FILE")
                 service.regenerate_cv(parts[1], args.content_file)
             elif parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
                 service.regenerate_cv_optimization(parts[1], parts[3])
@@ -123,20 +140,19 @@ def main():
         print(f"Regenerated {uri}")
         return
 
-    if args.rename is not None:
+    if args.command == "rename":
         from services.application import ApplicationService
-
         service = ApplicationService()
-        uri, new_identifier = args.rename
+        uri = args.uri
         parts = uri.strip("/").split("/")
 
         try:
             if parts[0] == "job-postings" and len(parts) == 2:
-                service.rename_job_posting(parts[1], new_identifier)
+                service.rename_job_posting(parts[1], args.new_id)
             elif parts[0] == "cvs" and len(parts) == 2:
-                service.rename_cv(parts[1], new_identifier)
+                service.rename_cv(parts[1], args.new_id)
             elif parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
-                service.rename_cv_optimization(parts[1], parts[3], new_identifier)
+                service.rename_cv_optimization(parts[1], parts[3], args.new_id)
             else:
                 print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
                 print(
@@ -147,27 +163,8 @@ def main():
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
-        print(f"Renamed {uri} to {new_identifier}")
+        print(f"Renamed {uri} to {args.new_id}")
         return
-
-    if args.regenerate_markdown is not None:
-        from services.application import ApplicationService
-
-        service = ApplicationService()
-        collection_name = (
-            None if args.regenerate_markdown == "all" else args.regenerate_markdown
-        )
-        try:
-            count = service.regenerate_markdown(collection_name)
-        except ValueError as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
-        print(f"Regenerated {count} markdown file(s)")
-        return
-
-    from ui.app import launch
-
-    launch(inbrowser=args.open)
 
 
 if __name__ == "__main__":
