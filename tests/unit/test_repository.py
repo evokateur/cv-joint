@@ -608,6 +608,10 @@ class TestRenameJobPosting:
         opt2 = repository.get_cv_optimization_record("new-id", "opt-2")
         assert opt1.job_posting_identifier == "new-id"
         assert opt2.job_posting_identifier == "new-id"
+        assert repository.get_cv_record("new-id--opt-1") is not None
+        assert repository.get_cv_record("new-id--opt-2") is not None
+        assert repository.get_cv_record("old-id--opt-1") is None
+        assert repository.get_cv_record("old-id--opt-2") is None
 
 
 class TestRenameCv:
@@ -702,6 +706,8 @@ class TestRenameCvOptimization:
         record = repository.get_cv_optimization_record("acme-swe", "new-id")
         assert record is not None
         assert record.identifier == "new-id"
+        assert repository.get_cv_record("acme-swe--old-id") is None
+        assert repository.get_cv_record("acme-swe--new-id") is not None
 
     def test_returns_new_record(self, repository, sample_job_posting):
         repository.add_job_posting(sample_job_posting, "acme-swe")
