@@ -401,6 +401,21 @@ class TestCvOptimizationOperations:
         assert opt["job_title"] == "Software Engineer"
         assert opt["company"] == "Acme Corp"
 
+    def test_list_cv_optimizations_reads_from_collection(
+        self, repository_with_job_posting, sample_plan, temp_data_dir
+    ):
+        self._write_plan_file(temp_data_dir, "acme-swe", "opt-123", sample_plan)
+        repository_with_job_posting.add_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="opt-123",
+            base_cv_identifier="jane-doe-cv",
+        )
+        (Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-123" / "record.json").unlink()
+
+        optimizations = repository_with_job_posting.list_cv_optimizations("acme-swe")
+        assert len(optimizations) == 1
+        assert optimizations[0]["identifier"] == "opt-123"
+
     def test_list_cv_optimizations_empty(self, repository_with_job_posting):
         optimizations = repository_with_job_posting.list_cv_optimizations("acme-swe")
         assert optimizations == []

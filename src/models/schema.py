@@ -218,4 +218,6 @@ class CvOptimizationRecord(BaseModel):
     transformation_plan_filepath: str = Field(
         description="Path to transformation-plan.json relative to data dir"
     )
+    job_title: Optional[str] = Field(default=None, description="Job title (for listing display)")
+    company: Optional[str] = Field(default=None, description="Company (for listing display)")
     created_at: datetime = Field(description="When this CV optimization was created")
