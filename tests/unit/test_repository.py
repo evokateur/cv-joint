@@ -433,8 +433,6 @@ class TestCvOptimizationOperations:
             identifier="opt-123",
             base_cv_identifier="jane-doe-cv",
         )
-        (Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-123" / "record.json").unlink()
-
         optimizations = repository_with_job_posting.list_cv_optimizations("acme-swe")
         assert len(optimizations) == 1
         assert optimizations[0]["identifier"] == "opt-123"
@@ -557,6 +555,51 @@ class TestCvOptimizationOperations:
             identifier="orphaned",
         )
         assert result is False
+
+
+class TestListCvDataFiles:
+    def _write_cv_file(self, temp_data_dir, job_posting_identifier, identifier, cv):
+        import json
+
+        cv_dir = (
+            Path(temp_data_dir)
+            / "job-postings"
+            / job_posting_identifier
+            / "cvs"
+            / identifier
+        )
+        cv_dir.mkdir(parents=True, exist_ok=True)
+        cv_path = cv_dir / "cv.json"
+        with open(cv_path, "w") as f:
+            json.dump(cv.model_dump(mode="json"), f)
+
+    def test_includes_base_cvs(self, repository, sample_cv, temp_data_dir):
+        repository.add_cv(sample_cv, "jane-doe")
+        files = repository.list_cv_data_files()
+        assert any(f["identifier"] == "jane-doe" for f in files)
+
+    def test_uses_double_dash_separator_for_optimized_cvs(
+        self, repository, sample_job_posting, sample_cv, temp_data_dir
+    ):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        self._write_cv_file(temp_data_dir, "acme-swe", "opt-123", sample_cv)
+        repository.add_cv_optimization("acme-swe", "opt-123", "jane-doe")
+
+        files = repository.list_cv_data_files()
+        identifiers = [f["identifier"] for f in files]
+        assert "acme-swe--opt-123" in identifiers
+        assert "acme-swe-opt-123" not in identifiers
+
+    def test_no_duplicates_for_optimized_cvs(
+        self, repository, sample_job_posting, sample_cv, temp_data_dir
+    ):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        self._write_cv_file(temp_data_dir, "acme-swe", "opt-123", sample_cv)
+        repository.add_cv_optimization("acme-swe", "opt-123", "jane-doe")
+
+        files = repository.list_cv_data_files()
+        compound_matches = [f for f in files if "opt-123" in f["identifier"]]
+        assert len(compound_matches) == 1
 
 
 class TestRenameJobPosting:

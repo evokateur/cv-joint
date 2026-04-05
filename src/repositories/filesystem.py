@@ -581,48 +581,14 @@ class FileSystemRepository:
         """
         List the absolute file paths for all CVs, base and optimized.
         """
-        results = []
-
-        job_postings_root = self.data_dir / "job-postings"
-        if job_postings_root.exists():
-            job_posting_dirs = [d for d in job_postings_root.iterdir() if d.is_dir()]
-        else:
-            job_posting_dirs = []
-
-        for job_posting_dir in job_posting_dirs:
-            cv_optimizations_dir = job_posting_dir / "cvs"
-
-            if not cv_optimizations_dir.exists():
-                continue
-
-            for optimization_dir in cv_optimizations_dir.iterdir():
-                if not optimization_dir.is_dir():
-                    continue
-
-                cv_path = optimization_dir / "cv.json"
-                if not cv_path.exists():
-                    continue
-
-                separator = "-"
-                result = {
-                    "identifier": separator.join(
-                        [job_posting_dir.name, optimization_dir.name]
-                    ),
-                    "filepath": str(self._resolve_path(str(cv_path))),
-                }
-
-                results.append(result)
-
         collection = self._load_collection(self.cvs_collection)
-        for item in collection:
-            results.append(
-                {
-                    "identifier": item.get("identifier"),
-                    "filepath": str(self._resolve_path(str(item.get("filepath")))),
-                }
-            )
-
-        return results
+        return [
+            {
+                "identifier": item["identifier"],
+                "filepath": str(self._resolve_path(item["filepath"])),
+            }
+            for item in collection
+        ]
 
     def _cv_optimization_dir(
         self, job_posting_identifier: str, identifier: str
@@ -701,10 +667,6 @@ class FileSystemRepository:
         else:
             opt_collection.append(record_dict)
         self._save_collection(self.optimization_plans_collection, opt_collection)
-
-        record_path = optimization_dir / "record.json"
-        with open(record_path, "w") as f:
-            json.dump(record_dict, f, indent=2)
 
         cv_filepath = f"job-postings/{job_posting_identifier}/cvs/{identifier}/cv.json"
         cv_identifier = f"{job_posting_identifier}--{identifier}"
