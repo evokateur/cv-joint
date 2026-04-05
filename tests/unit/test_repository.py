@@ -112,6 +112,29 @@ class TestJobPostingOperations:
     def test_remove_nonexistent_job_posting(self, repository):
         assert repository.remove_job_posting("nonexistent") is False
 
+    def test_remove_job_posting_cascades_to_optimization_plans(
+        self, repository, sample_job_posting
+    ):
+        repository.add_job_posting(sample_job_posting, "to-delete")
+        repository.add_cv_optimization("to-delete", "opt-1", "jane-doe")
+        repository.add_cv_optimization("to-delete", "opt-2", "jane-doe")
+
+        repository.remove_job_posting("to-delete")
+
+        assert repository.list_cv_optimizations("to-delete") == []
+
+    def test_remove_job_posting_cascades_to_cvs_collection(
+        self, repository, sample_job_posting
+    ):
+        repository.add_job_posting(sample_job_posting, "to-delete")
+        repository.add_cv_optimization("to-delete", "opt-1", "jane-doe")
+        repository.add_cv_optimization("to-delete", "opt-2", "jane-doe")
+
+        repository.remove_job_posting("to-delete")
+
+        assert repository.get_cv_record("to-delete--opt-1") is None
+        assert repository.get_cv_record("to-delete--opt-2") is None
+
     def test_add_job_posting_updates_existing(self, repository, sample_job_posting):
         repository.add_job_posting(sample_job_posting, "update-test")
 
@@ -514,6 +537,8 @@ class TestCvOptimizationOperations:
             / "opt-123"
         )
         assert not optimization_dir.exists()
+        assert repository_with_job_posting.get_cv_optimization_record("acme-swe", "opt-123") is None
+        assert repository_with_job_posting.get_cv_record("acme-swe--opt-123") is None
 
     def test_remove_cv_optimization_not_found(self, repository_with_job_posting):
         result = repository_with_job_posting.remove_cv_optimization(

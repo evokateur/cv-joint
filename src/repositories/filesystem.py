@@ -207,6 +207,25 @@ class FileSystemRepository:
 
         self._save_collection(self.job_postings_collection, collection)
 
+        opt_collection = self._load_collection(self.optimization_plans_collection)
+        child_opts = [
+            item for item in opt_collection
+            if item.get("job_posting_identifier") == identifier
+        ]
+        opt_collection = [
+            item for item in opt_collection
+            if item.get("job_posting_identifier") != identifier
+        ]
+        self._save_collection(self.optimization_plans_collection, opt_collection)
+
+        cvs_collection = self._load_collection(self.cvs_collection)
+        child_cv_ids = {f"{identifier}--{opt['identifier']}" for opt in child_opts}
+        cvs_collection = [
+            item for item in cvs_collection
+            if item["identifier"] not in child_cv_ids
+        ]
+        self._save_collection(self.cvs_collection, cvs_collection)
+
         job_posting_dir = self.data_dir / "job-postings" / identifier
         if job_posting_dir.exists():
             shutil.rmtree(job_posting_dir)
@@ -362,6 +381,23 @@ class FileSystemRepository:
         record = self.get_cv_optimization_record(job_posting_identifier, identifier)
         if record is None:
             return False
+
+        opt_collection = self._load_collection(self.optimization_plans_collection)
+        opt_collection = [
+            item for item in opt_collection
+            if not (
+                item["identifier"] == identifier
+                and item["job_posting_identifier"] == job_posting_identifier
+            )
+        ]
+        self._save_collection(self.optimization_plans_collection, opt_collection)
+
+        cv_identifier = f"{job_posting_identifier}--{identifier}"
+        cvs_collection = self._load_collection(self.cvs_collection)
+        cvs_collection = [
+            item for item in cvs_collection if item["identifier"] != cv_identifier
+        ]
+        self._save_collection(self.cvs_collection, cvs_collection)
 
         return self.purge_cv_optimization(job_posting_identifier, identifier)
 
