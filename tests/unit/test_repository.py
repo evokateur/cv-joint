@@ -239,6 +239,22 @@ class TestCvOptimizationOperations:
         with open(plan_path, "w") as f:
             json.dump(plan.model_dump(mode="json"), f)
 
+    def _write_cv_file(self, temp_data_dir, job_posting_identifier, identifier, cv):
+        """Helper to simulate crew writing cv.json for an optimization."""
+        import json
+
+        cv_dir = (
+            Path(temp_data_dir)
+            / "job-postings"
+            / job_posting_identifier
+            / "cvs"
+            / identifier
+        )
+        cv_dir.mkdir(parents=True, exist_ok=True)
+        cv_path = cv_dir / "cv.json"
+        with open(cv_path, "w") as f:
+            json.dump(cv.model_dump(mode="json"), f)
+
     def test_add_and_get_cv_optimization_record(self, repository_with_job_posting):
         repository_with_job_posting.add_cv_optimization(
             job_posting_identifier="acme-swe",
@@ -257,20 +273,22 @@ class TestCvOptimizationOperations:
     def test_add_cv_optimization_creates_record(
         self, repository_with_job_posting, temp_data_dir
     ):
+        import json
+
         repository_with_job_posting.add_cv_optimization(
             job_posting_identifier="acme-swe",
             identifier="opt-123",
             base_cv_identifier="jane-doe-cv",
         )
-        expected_path = (
-            Path(temp_data_dir)
-            / "job-postings"
-            / "acme-swe"
-            / "cvs"
-            / "opt-123"
-            / "record.json"
+        collection_path = Path(temp_data_dir) / "collections" / "optimization-plans.json"
+        assert collection_path.exists()
+        with open(collection_path) as f:
+            collection = json.load(f)
+        assert any(
+            item["identifier"] == "opt-123"
+            and item["job_posting_identifier"] == "acme-swe"
+            for item in collection
         )
-        assert expected_path.exists()
 
     def test_add_cv_optimization_returns_record(self, repository_with_job_posting):
         record = repository_with_job_posting.add_cv_optimization(
@@ -281,6 +299,45 @@ class TestCvOptimizationOperations:
         assert record.identifier == "opt-123"
         assert record.base_cv_identifier == "jane-doe-cv"
         assert record.created_at is not None
+
+    def test_add_cv_optimization_adds_cv_to_collection(
+        self, repository_with_job_posting, sample_cv, temp_data_dir
+    ):
+        self._write_cv_file(temp_data_dir, "acme-swe", "opt-123", sample_cv)
+        repository_with_job_posting.add_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="opt-123",
+            base_cv_identifier="jane-doe-cv",
+        )
+        listings = repository_with_job_posting.list_cvs()
+        compound_id = "acme-swe--opt-123"
+        match = next((item for item in listings if item["identifier"] == compound_id), None)
+        assert match is not None
+        assert match["filepath"] == "job-postings/acme-swe/cvs/opt-123/cv.json"
+
+    def test_get_cv_record_compound_identifier(self, repository_with_job_posting, sample_cv, temp_data_dir):
+        self._write_cv_file(temp_data_dir, "acme-swe", "opt-123", sample_cv)
+        repository_with_job_posting.add_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="opt-123",
+            base_cv_identifier="jane-doe-cv",
+        )
+        record = repository_with_job_posting.get_cv_record("acme-swe--opt-123")
+        assert record is not None
+        assert record.identifier == "acme-swe--opt-123"
+        assert record.filepath == "job-postings/acme-swe/cvs/opt-123/cv.json"
+
+    def test_get_cv_compound_identifier(self, repository_with_job_posting, sample_cv, temp_data_dir):
+        self._write_cv_file(temp_data_dir, "acme-swe", "opt-123", sample_cv)
+        repository_with_job_posting.add_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="opt-123",
+            base_cv_identifier="jane-doe-cv",
+        )
+        cv = repository_with_job_posting.get_cv("acme-swe--opt-123")
+        assert cv is not None
+        assert cv.name == sample_cv.name
+        assert cv.profession == sample_cv.profession
 
     def test_get_cv_transformation_plan(
         self,

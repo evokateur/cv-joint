@@ -35,6 +35,7 @@ class FileSystemRepository:
 
         self.job_postings_collection = self.collections_dir / "job-postings.json"
         self.cvs_collection = self.collections_dir / "cvs.json"
+        self.optimization_plans_collection = self.collections_dir / "optimization-plans.json"
 
     def _load_collection(self, collection_file: Path) -> list[dict[str, Any]]:
         """Load collection metadata from JSON file."""
@@ -582,16 +583,76 @@ class FileSystemRepository:
         optimization_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
         optimization_dir.mkdir(parents=True, exist_ok=True)
 
+        transformation_plan_filepath = (
+            f"job-postings/{job_posting_identifier}/cvs/{identifier}/transformation-plan.json"
+        )
+
         record = CvOptimizationRecord(
             identifier=identifier,
             job_posting_identifier=job_posting_identifier,
             base_cv_identifier=base_cv_identifier,
+            transformation_plan_filepath=transformation_plan_filepath,
             created_at=datetime.now(),
         )
 
+        opt_collection = self._load_collection(self.optimization_plans_collection)
+        record_dict = record.model_dump(mode="json")
+        existing = next(
+            (
+                item for item in opt_collection
+                if item["identifier"] == identifier
+                and item["job_posting_identifier"] == job_posting_identifier
+            ),
+            None,
+        )
+        if existing:
+            opt_collection = [
+                item if not (
+                    item["identifier"] == identifier
+                    and item["job_posting_identifier"] == job_posting_identifier
+                ) else record_dict
+                for item in opt_collection
+            ]
+        else:
+            opt_collection.append(record_dict)
+        self._save_collection(self.optimization_plans_collection, opt_collection)
+
         record_path = optimization_dir / "record.json"
         with open(record_path, "w") as f:
-            json.dump(record.model_dump(mode="json"), f, indent=2)
+            json.dump(record_dict, f, indent=2)
+
+        cv_filepath = f"job-postings/{job_posting_identifier}/cvs/{identifier}/cv.json"
+        cv_identifier = f"{job_posting_identifier}--{identifier}"
+        cv_absolute = self._resolve_path(cv_filepath)
+        name, profession = "", ""
+        if cv_absolute.exists():
+            with open(cv_absolute, "r") as f:
+                cv_data = json.load(f)
+            name = cv_data.get("name", "")
+            profession = cv_data.get("profession", "")
+
+        cvs_collection = self._load_collection(self.cvs_collection)
+        now = datetime.now()
+        existing_cv = next(
+            (item for item in cvs_collection if item["identifier"] == cv_identifier), None
+        )
+        cv_record = CurriculumVitaeRecord(
+            identifier=cv_identifier,
+            filepath=cv_filepath,
+            name=name,
+            profession=profession,
+            created_at=datetime.fromisoformat(existing_cv["created_at"]) if existing_cv else now,
+            updated_at=now,
+        )
+        cv_record_dict = cv_record.model_dump(mode="json")
+        if existing_cv:
+            cvs_collection = [
+                item if item["identifier"] != cv_identifier else cv_record_dict
+                for item in cvs_collection
+            ]
+        else:
+            cvs_collection.append(cv_record_dict)
+        self._save_collection(self.cvs_collection, cvs_collection)
 
         return record
 

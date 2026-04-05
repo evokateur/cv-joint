@@ -215,4 +215,7 @@ class CvOptimizationRecord(BaseModel):
     base_cv_identifier: str = Field(
         description="Identifier of the CV this optimization transforms"
     )
+    transformation_plan_filepath: str = Field(
+        description="Path to transformation-plan.json relative to data dir"
+    )
     created_at: datetime = Field(description="When this CV optimization was created")
