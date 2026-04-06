@@ -422,3 +422,36 @@ class TestRenameCvOptimization:
         service.rename_cv_optimization("acme-swe", "opt-1", "new-id")
         assert not (opt_dir / "opt-1").exists()
         assert (opt_dir / "new-id" / "cv.md").exists()
+
+
+class TestGetJobPostings:
+    def test_forwards_archived_param(self):
+        mock_repo = MagicMock()
+        mock_repo.list_job_postings.return_value = []
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.get_job_postings(archived=True)
+        mock_repo.list_job_postings.assert_called_once_with(archived=True)
+
+
+class TestArchiveJobPosting:
+    def test_delegates_to_repository(self):
+        mock_repo = MagicMock()
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.archive_job_posting("acme-swe")
+        mock_repo.archive_job_posting.assert_called_once_with("acme-swe")
+
+
+class TestMarkApplied:
+    def test_delegates_to_repository(self):
+        mock_repo = MagicMock()
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.mark_applied("acme-swe", "my-cv")
+        mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
+
+    def test_forwards_applied_at(self):
+        from datetime import datetime
+        mock_repo = MagicMock()
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        date = datetime(2025, 1, 15)
+        service.mark_applied("acme-swe", "my-cv", applied_at=date)
+        mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=date)
