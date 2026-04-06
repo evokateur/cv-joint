@@ -1,4 +1,5 @@
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -112,14 +113,27 @@ class ApplicationService:
         """Retrieve a job posting by identifier."""
         return self.repository.get_job_posting(identifier)
 
-    def get_job_postings(self) -> list[dict[str, Any]]:
+    def get_job_postings(self, archived: bool = False) -> list[dict[str, Any]]:
         """
-        Retrieve all saved job postings.
+        Retrieve saved job postings.
+
+        Args:
+            archived: If False (default), excludes archived postings.
 
         Returns:
             list of job posting metadata dictionaries
         """
-        return self.repository.list_job_postings()
+        return self.repository.list_job_postings(archived=archived)
+
+    def archive_job_posting(self, identifier: str):
+        """Mark a job posting as archived."""
+        return self.repository.archive_job_posting(identifier)
+
+    def mark_applied(
+        self, identifier: str, cv_identifier: str, applied_at: Optional[datetime] = None
+    ):
+        """Record that a job posting was applied to with a given CV."""
+        return self.repository.mark_applied(identifier, cv_identifier, applied_at=applied_at)
 
     def create_cv(self, file_path: str) -> tuple[dict[str, Any], str]:
         """
@@ -482,12 +496,16 @@ class ApplicationService:
 
     def get_cv_optimizations(self) -> list[dict[str, Any]]:
         """
-        Retrieve all saved cv optimizations.
+        Retrieve saved cv optimizations, excluding those whose parent job posting is archived.
 
         Returns:
             list of optimization metadata dictionaries
         """
-        return self.repository.list_cv_optimizations()
+        opts = self.repository.list_cv_optimizations()
+        active_job_ids = {
+            item["identifier"] for item in self.repository.list_job_postings(archived=False)
+        }
+        return [o for o in opts if o.get("job_posting_identifier") in active_job_ids]
 
     def get_cv_optimization(
         self, job_posting_identifier: str, identifier: str
@@ -528,7 +546,15 @@ class ApplicationService:
         return self.repository.purge_cv_optimization(job_posting_identifier, identifier)
 
     def get_cv_data_filepaths(self) -> list[dict[str, Any]]:
-        return self.repository.list_cv_data_files()
+        all_files = self.repository.list_cv_data_files()
+        active_job_ids = {
+            item["identifier"] for item in self.repository.list_job_postings(archived=False)
+        }
+        return [
+            f for f in all_files
+            if f.get("job_posting_identifier") is None
+            or f.get("job_posting_identifier") in active_job_ids
+        ]
 
     def get_cv_template_names(self) -> list[str]:
         from pathlib import Path

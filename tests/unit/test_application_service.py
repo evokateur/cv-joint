@@ -422,3 +422,90 @@ class TestRenameCvOptimization:
         service.rename_cv_optimization("acme-swe", "opt-1", "new-id")
         assert not (opt_dir / "opt-1").exists()
         assert (opt_dir / "new-id" / "cv.md").exists()
+
+
+class TestGetJobPostings:
+    def test_forwards_archived_param(self):
+        mock_repo = MagicMock()
+        mock_repo.list_job_postings.return_value = []
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.get_job_postings(archived=True)
+        mock_repo.list_job_postings.assert_called_once_with(archived=True)
+
+
+class TestGetCvOptimizations:
+    def test_excludes_optimizations_from_archived_job_postings(
+        self, service, sample_job_posting_data
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+        service.archive_job_posting("acme-swe")
+
+        opts = service.get_cv_optimizations()
+        assert all(o.get("job_posting_identifier") != "acme-swe" for o in opts)
+
+    def test_includes_optimizations_from_active_job_postings(
+        self, service, sample_job_posting_data
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+
+        opts = service.get_cv_optimizations()
+        assert any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
+
+
+class TestGetCvDataFilepaths:
+    def test_excludes_optimized_cvs_from_archived_job_postings(
+        self, service, sample_job_posting_data, sample_cv_data
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.save_cv(sample_cv_data, "jane-doe")
+        service.repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+        service.archive_job_posting("acme-swe")
+
+        files = service.get_cv_data_filepaths()
+        assert all(f.get("job_posting_identifier") != "acme-swe" for f in files)
+
+    def test_includes_base_cvs_regardless_of_archived(
+        self, service, sample_job_posting_data, sample_cv_data
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.save_cv(sample_cv_data, "jane-doe")
+        service.archive_job_posting("acme-swe")
+
+        files = service.get_cv_data_filepaths()
+        assert any(f["identifier"] == "jane-doe" for f in files)
+
+    def test_includes_optimized_cvs_from_active_job_postings(
+        self, service, sample_job_posting_data, sample_cv_data
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.save_cv(sample_cv_data, "jane-doe")
+        service.repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+
+        files = service.get_cv_data_filepaths()
+        assert any(f.get("job_posting_identifier") == "acme-swe" for f in files)
+
+
+class TestArchiveJobPosting:
+    def test_delegates_to_repository(self):
+        mock_repo = MagicMock()
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.archive_job_posting("acme-swe")
+        mock_repo.archive_job_posting.assert_called_once_with("acme-swe")
+
+
+class TestMarkApplied:
+    def test_delegates_to_repository(self):
+        mock_repo = MagicMock()
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.mark_applied("acme-swe", "my-cv")
+        mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
+
+    def test_forwards_applied_at(self):
+        from datetime import datetime
+        mock_repo = MagicMock()
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        date = datetime(2025, 1, 15)
+        service.mark_applied("acme-swe", "my-cv", applied_at=date)
+        mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=date)

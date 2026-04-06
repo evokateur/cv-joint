@@ -56,6 +56,43 @@ def main():
     rename_cmd.add_argument("uri", metavar="URI")
     rename_cmd.add_argument("new_id", metavar="NEW_ID")
 
+    list_cmd = subparsers.add_parser("list", help="List objects by collection and exit")
+    list_cmd.add_argument(
+        "collection",
+        metavar="COLLECTION",
+        choices=["job-postings"],
+        help="Collection to list (job-postings)",
+    )
+    list_cmd.add_argument(
+        "--archived",
+        action="store_true",
+        help="Show only archived entries",
+    )
+
+    archive_cmd = subparsers.add_parser(
+        "archive", help="Archive a job posting by URI and exit"
+    )
+    archive_cmd.add_argument(
+        "uri",
+        metavar="URI",
+        help="URI format: job-postings/{id}",
+    )
+
+    apply_cmd = subparsers.add_parser(
+        "apply", help="Mark a job posting as applied to and exit"
+    )
+    apply_cmd.add_argument(
+        "uri",
+        metavar="URI",
+        help="URI format: job-postings/{id}",
+    )
+    apply_cmd.add_argument("cv_identifier", metavar="CV_IDENTIFIER")
+    apply_cmd.add_argument(
+        "--date",
+        metavar="YYYY-MM-DD",
+        help="Application date (defaults to today)",
+    )
+
     args = parser.parse_args()
 
     if args.command is None or args.command == "launch":
@@ -138,6 +175,52 @@ def main():
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
         print(f"Regenerated {uri}")
+        return
+
+    if args.command == "list":
+        from services.application import ApplicationService
+        service = ApplicationService()
+
+        if args.collection == "job-postings":
+            if args.archived:
+                jobs = [j for j in service.get_job_postings(archived=True) if j.get("is_archived")]
+            else:
+                jobs = service.get_job_postings(archived=False)
+            for j in jobs:
+                date = (j.get("created_at") or "")[:10]
+                print(f"{date}  {j.get('company', ''):<25} {j.get('title', ''):<30} {j.get('identifier', '')}")
+        return
+
+    if args.command == "archive":
+        from services.application import ApplicationService
+        service = ApplicationService()
+        uri = args.uri
+        parts = uri.strip("/").split("/")
+
+        if parts[0] == "job-postings" and len(parts) == 2:
+            service.archive_job_posting(parts[1])
+            print(f"Archived {uri}")
+        else:
+            print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
+            print("Expected: job-postings/{id}", file=sys.stderr)
+            sys.exit(1)
+        return
+
+    if args.command == "apply":
+        from datetime import datetime
+        from services.application import ApplicationService
+        service = ApplicationService()
+        uri = args.uri
+        parts = uri.strip("/").split("/")
+
+        if parts[0] == "job-postings" and len(parts) == 2:
+            applied_at = datetime.strptime(args.date, "%Y-%m-%d") if args.date else None
+            service.mark_applied(parts[1], args.cv_identifier, applied_at=applied_at)
+            print(f"Marked {uri} as applied with {args.cv_identifier}")
+        else:
+            print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
+            print("Expected: job-postings/{id}", file=sys.stderr)
+            sys.exit(1)
         return
 
     if args.command == "rename":
