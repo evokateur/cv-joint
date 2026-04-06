@@ -197,6 +197,9 @@ class CurriculumVitaeRecord(BaseModel):
     filepath: str = Field(description="Path to cv.json relative to data dir")
     name: str = Field(description="Person's name (for listing display)")
     profession: str = Field(description="Profession (for listing display)")
+    job_posting_identifier: Optional[str] = Field(
+        default=None, description="Parent job posting identifier, if this is an optimized CV"
+    )
     created_at: datetime = Field(description="When this record was created")
     updated_at: datetime = Field(description="When this record was last updated")
 

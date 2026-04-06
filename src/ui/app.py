@@ -484,12 +484,6 @@ def create_app():
                     cv_md = service.to_markdown(cv)
                     is_saved = True
 
-                    if "--" in identifier:
-                        job_id, opt_id = identifier.split("--", 1)
-                        uri = f"job-postings/{job_id}/cvs/{opt_id}"
-                    else:
-                        uri = f"cvs/{identifier}"
-
                     return (
                         cv_md,
                         cv_data,
@@ -497,7 +491,7 @@ def create_app():
                         is_saved,
                         gr.update(visible=False),
                         f"✓ Loaded: {identifier}",
-                        gr.update(value=uri, visible=True),
+                        gr.update(value=f"cvs/{identifier}", visible=True),
                     )
 
                 def save_cv(cv_data, identifier, is_saved):

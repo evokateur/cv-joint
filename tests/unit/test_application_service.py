@@ -157,7 +157,7 @@ class TestRegenerateMarkdown:
         assert plan_md.exists()
         assert cv_md.exists()
 
-    def test_regenerate_cvs_skips_compound_identifiers(
+    def test_regenerate_cvs_excludes_optimized(
         self, service, sample_job_posting_data, sample_cv_data
     ):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
@@ -194,10 +194,6 @@ class TestRemoveJobPosting:
 
 
 class TestRemoveCv:
-    def test_rejects_compound_identifier(self, service):
-        with pytest.raises(ValueError, match="compound"):
-            service.remove_cv("acme-swe--opt-1")
-
     def test_returns_true_when_found(self, service, sample_cv_data):
         service.save_cv(sample_cv_data, "jane-doe")
         assert service.remove_cv("jane-doe") is True
@@ -264,10 +260,6 @@ class TestRegenerateJobPosting:
 
 
 class TestRegenerateCv:
-    def test_rejects_compound_identifier(self, service):
-        with pytest.raises(ValueError, match="compound"):
-            service.regenerate_cv("acme-swe--opt-1", "/some/file.yaml")
-
     def test_raises_when_not_found(self, service):
         with pytest.raises(ValueError, match="CV not found"):
             service.regenerate_cv("nonexistent", "/some/file.yaml")
@@ -366,10 +358,6 @@ class TestRenameJobPosting:
 
 
 class TestRenameCv:
-    def test_rejects_compound_identifier(self, service):
-        with pytest.raises(ValueError, match="compound"):
-            service.rename_cv("acme-swe--opt-1", "new-id")
-
     def test_raises_when_not_found(self, service):
         with pytest.raises(ValueError, match="not found"):
             service.rename_cv("nonexistent", "new-id")

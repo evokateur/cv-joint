@@ -233,13 +233,8 @@ class ApplicationService:
             CurriculumVitaeRecord
 
         Raises:
-            ValueError: If identifier is compound or CV not found
+            ValueError: If CV not found
         """
-        if "--" in identifier:
-            raise ValueError(
-                f"Cannot regenerate compound identifier '{identifier}' as a base CV. "
-                "Use regenerate_cv_optimization instead."
-            )
         if self.repository.get_cv_record(identifier) is None:
             raise ValueError(f"CV not found: {identifier}")
 
@@ -318,14 +313,7 @@ class ApplicationService:
         Returns:
             True if removed, False if not found
 
-        Raises:
-            ValueError: If identifier is a compound identifier (belongs to an optimization aggregate)
         """
-        if "--" in identifier:
-            raise ValueError(
-                f"Cannot remove compound identifier '{identifier}' as a base CV. "
-                "Use remove_cv_optimization instead."
-            )
         removed = self.repository.remove_cv(identifier)
         if removed:
             self.markdown_writer.delete_cv(identifier)
@@ -366,13 +354,8 @@ class ApplicationService:
         Also repairs any cv optimization records that reference this CV.
 
         Raises:
-            ValueError: If identifier is compound, not found, or new identifier already exists
+            ValueError: If not found or new identifier already exists
         """
-        if "--" in identifier:
-            raise ValueError(
-                f"Cannot rename compound identifier '{identifier}' as a base CV. "
-                "Use rename_cv_optimization instead."
-            )
         record = self.repository.rename_cv(identifier, new_identifier)
         self.markdown_writer.move_cv(identifier, new_identifier)
         return record

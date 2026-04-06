@@ -60,8 +60,6 @@ class MarkdownExporter:
         if collection_name is None or collection_name == "cvs":
             for item in self.repository.list_cvs():
                 record = CurriculumVitaeRecord(**item)
-                if "--" in record.identifier:
-                    continue
                 cv = self.repository.get_cv(record.identifier)
                 self.export_cv(record, cv)
                 count += 1

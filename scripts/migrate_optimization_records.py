@@ -3,7 +3,8 @@ Migration: populate optimization-plans.json and cvs.json from record.json files.
 
 Reads every job-postings/{id}/cvs/{id}/record.json and upserts the entry into
 collections/optimization-plans.json. If a cv.json exists alongside it, also
-upserts a compound CV entry into collections/cvs.json.
+upserts an entry into collections/cvs.json using the composite key
+(identifier, job_posting_identifier).
 
 Safe to run multiple times. Deletes record.json files after migrating them.
 
@@ -66,7 +67,9 @@ def migrate(data_dir: str, dry_run: bool) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print what would happen without writing")
     args = parser.parse_args()
 
