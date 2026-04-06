@@ -171,6 +171,57 @@ class TestJobPostingOperations:
     def test_get_job_posting_record_not_found(self, repository):
         assert repository.get_job_posting_record("nonexistent") is None
 
+    def test_list_job_postings_excludes_archived_by_default(
+        self, repository, sample_job_posting
+    ):
+        repository.add_job_posting(sample_job_posting, "active-job")
+        repository.add_job_posting(sample_job_posting, "archived-job")
+        repository.archive_job_posting("archived-job")
+
+        listings = repository.list_job_postings()
+        identifiers = [item["identifier"] for item in listings]
+        assert "active-job" in identifiers
+        assert "archived-job" not in identifiers
+
+    def test_list_job_postings_includes_archived_when_requested(
+        self, repository, sample_job_posting
+    ):
+        repository.add_job_posting(sample_job_posting, "active-job")
+        repository.add_job_posting(sample_job_posting, "archived-job")
+        repository.archive_job_posting("archived-job")
+
+        listings = repository.list_job_postings(archived=True)
+        identifiers = [item["identifier"] for item in listings]
+        assert "active-job" in identifiers
+        assert "archived-job" in identifiers
+
+    def test_archive_job_posting_sets_flag(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "test-job")
+        record = repository.archive_job_posting("test-job")
+
+        assert record.is_archived is True
+        assert repository.get_job_posting_record("test-job").is_archived is True
+
+    def test_mark_applied_sets_fields(self, repository, sample_job_posting):
+        repository.add_job_posting(sample_job_posting, "test-job")
+        record = repository.mark_applied("test-job", "my-cv")
+
+        assert record.applied_with == "my-cv"
+        assert record.applied_at is not None
+        reloaded = repository.get_job_posting_record("test-job")
+        assert reloaded.applied_with == "my-cv"
+        assert reloaded.applied_at is not None
+
+    def test_mark_applied_accepts_explicit_date(self, repository, sample_job_posting):
+        from datetime import datetime
+
+        date = datetime(2025, 1, 15)
+        repository.add_job_posting(sample_job_posting, "test-job")
+        record = repository.mark_applied("test-job", "my-cv", applied_at=date)
+
+        assert record.applied_at == date
+        assert repository.get_job_posting_record("test-job").applied_at == date
+
 
 class TestCvOperations:
     def test_add_and_get_cv(self, repository, sample_cv):

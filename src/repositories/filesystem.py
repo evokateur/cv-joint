@@ -176,14 +176,62 @@ class FileSystemRepository:
 
         return JobPostingRecord(**data)
 
-    def list_job_postings(self) -> list[dict[str, Any]]:
+    def list_job_postings(self, archived: bool = False) -> list[dict[str, Any]]:
         """
-        List all job postings in the collection.
+        List job postings in the collection.
+
+        Args:
+            archived: If False (default), excludes archived postings.
 
         Returns:
             List of collection metadata dicts
         """
-        return self._load_collection(self.job_postings_collection)
+        collection = self._load_collection(self.job_postings_collection)
+        if archived:
+            return collection
+        return [item for item in collection if not item.get("is_archived", False)]
+
+    def archive_job_posting(self, identifier: str) -> JobPostingRecord:
+        """
+        Mark a job posting as archived.
+
+        Returns:
+            Updated JobPostingRecord
+        """
+        collection = self._load_collection(self.job_postings_collection)
+        record_data = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+        if record_data is None:
+            raise ValueError(f"Job posting not found: {identifier}")
+
+        record_data["is_archived"] = True
+        self._save_collection(self.job_postings_collection, collection)
+        return JobPostingRecord(**record_data)
+
+    def mark_applied(
+        self,
+        identifier: str,
+        cv_identifier: str,
+        applied_at: Optional[datetime] = None,
+    ) -> JobPostingRecord:
+        """
+        Record that a job posting was applied to.
+
+        Returns:
+            Updated JobPostingRecord
+        """
+        collection = self._load_collection(self.job_postings_collection)
+        record_data = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+        if record_data is None:
+            raise ValueError(f"Job posting not found: {identifier}")
+
+        record_data["applied_with"] = cv_identifier
+        record_data["applied_at"] = (applied_at or datetime.now()).isoformat()
+        self._save_collection(self.job_postings_collection, collection)
+        return JobPostingRecord(**record_data)
 
     def remove_job_posting(self, identifier: str) -> bool:
         """
