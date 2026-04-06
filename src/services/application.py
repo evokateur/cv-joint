@@ -312,6 +312,7 @@ class ApplicationService:
 
         Returns:
             True if removed, False if not found
+
         """
         removed = self.repository.remove_cv(identifier)
         if removed:

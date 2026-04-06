@@ -157,6 +157,16 @@ class TestRegenerateMarkdown:
         assert plan_md.exists()
         assert cv_md.exists()
 
+    def test_regenerate_cvs_excludes_optimized(
+        self, service, sample_job_posting_data, sample_cv_data
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.save_cv(sample_cv_data, "jane-doe")
+        service.repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+
+        count = service.regenerate_markdown(collection_name="cvs")
+        assert count == 1
+
     def test_unknown_collection_raises(self, service):
         with pytest.raises(ValueError, match="Unknown collection: invalid"):
             service.regenerate_markdown(collection_name="invalid")

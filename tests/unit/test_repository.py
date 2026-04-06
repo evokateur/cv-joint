@@ -112,6 +112,29 @@ class TestJobPostingOperations:
     def test_remove_nonexistent_job_posting(self, repository):
         assert repository.remove_job_posting("nonexistent") is False
 
+    def test_remove_job_posting_cascades_to_optimization_plans(
+        self, repository, sample_job_posting
+    ):
+        repository.add_job_posting(sample_job_posting, "to-delete")
+        repository.add_cv_optimization("to-delete", "opt-1", "jane-doe")
+        repository.add_cv_optimization("to-delete", "opt-2", "jane-doe")
+
+        repository.remove_job_posting("to-delete")
+
+        assert repository.list_cv_optimizations("to-delete") == []
+
+    def test_remove_job_posting_cascades_to_cvs_collection(
+        self, repository, sample_job_posting
+    ):
+        repository.add_job_posting(sample_job_posting, "to-delete")
+        repository.add_cv_optimization("to-delete", "opt-1", "jane-doe")
+        repository.add_cv_optimization("to-delete", "opt-2", "jane-doe")
+
+        repository.remove_job_posting("to-delete")
+
+        assert repository.get_optimized_cv_record("to-delete", "opt-1") is None
+        assert repository.get_optimized_cv_record("to-delete", "opt-2") is None
+
     def test_add_job_posting_updates_existing(self, repository, sample_job_posting):
         repository.add_job_posting(sample_job_posting, "update-test")
 
@@ -167,6 +190,23 @@ class TestCvOperations:
         identifiers = [item["identifier"] for item in listings]
         assert "cv-1" in identifiers
         assert "cv-2" in identifiers
+
+    def test_list_cvs_excludes_optimized(self, repository, sample_cv, sample_job_posting):
+        repository.add_cv(sample_cv, "jane-doe")
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+
+        listings = repository.list_cvs()
+        assert len(listings) == 1
+        assert listings[0]["identifier"] == "jane-doe"
+
+    def test_list_cvs_recursive_includes_optimized(self, repository, sample_cv, sample_job_posting):
+        repository.add_cv(sample_cv, "jane-doe")
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
+
+        listings = repository.list_cvs(recursive=True)
+        assert len(listings) == 2
 
     def test_list_cvs_empty(self, repository):
         listings = repository.list_cvs()
@@ -239,6 +279,22 @@ class TestCvOptimizationOperations:
         with open(plan_path, "w") as f:
             json.dump(plan.model_dump(mode="json"), f)
 
+    def _write_cv_file(self, temp_data_dir, job_posting_identifier, identifier, cv):
+        """Helper to simulate crew writing cv.json for an optimization."""
+        import json
+
+        cv_dir = (
+            Path(temp_data_dir)
+            / "job-postings"
+            / job_posting_identifier
+            / "cvs"
+            / identifier
+        )
+        cv_dir.mkdir(parents=True, exist_ok=True)
+        cv_path = cv_dir / "cv.json"
+        with open(cv_path, "w") as f:
+            json.dump(cv.model_dump(mode="json"), f)
+
     def test_add_and_get_cv_optimization_record(self, repository_with_job_posting):
         repository_with_job_posting.add_cv_optimization(
             job_posting_identifier="acme-swe",
@@ -257,20 +313,22 @@ class TestCvOptimizationOperations:
     def test_add_cv_optimization_creates_record(
         self, repository_with_job_posting, temp_data_dir
     ):
+        import json
+
         repository_with_job_posting.add_cv_optimization(
             job_posting_identifier="acme-swe",
             identifier="opt-123",
             base_cv_identifier="jane-doe-cv",
         )
-        expected_path = (
-            Path(temp_data_dir)
-            / "job-postings"
-            / "acme-swe"
-            / "cvs"
-            / "opt-123"
-            / "record.json"
+        collection_path = Path(temp_data_dir) / "collections" / "optimization-plans.json"
+        assert collection_path.exists()
+        with open(collection_path) as f:
+            collection = json.load(f)
+        assert any(
+            item["identifier"] == "opt-123"
+            and item["job_posting_identifier"] == "acme-swe"
+            for item in collection
         )
-        assert expected_path.exists()
 
     def test_add_cv_optimization_returns_record(self, repository_with_job_posting):
         record = repository_with_job_posting.add_cv_optimization(
@@ -281,6 +339,44 @@ class TestCvOptimizationOperations:
         assert record.identifier == "opt-123"
         assert record.base_cv_identifier == "jane-doe-cv"
         assert record.created_at is not None
+
+    def test_add_cv_optimization_adds_cv_to_collection(
+        self, repository_with_job_posting, sample_cv, temp_data_dir
+    ):
+        import json
+
+        self._write_cv_file(temp_data_dir, "acme-swe", "opt-123", sample_cv)
+        repository_with_job_posting.add_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="opt-123",
+            base_cv_identifier="jane-doe-cv",
+        )
+        collection_path = Path(temp_data_dir) / "collections" / "cvs.json"
+        with open(collection_path) as f:
+            collection = json.load(f)
+        match = next(
+            (
+                item for item in collection
+                if item["identifier"] == "opt-123"
+                and item.get("job_posting_identifier") == "acme-swe"
+            ),
+            None,
+        )
+        assert match is not None
+        assert match["filepath"] == "job-postings/acme-swe/cvs/opt-123/cv.json"
+
+    def test_get_optimized_cv_record(self, repository_with_job_posting, sample_cv, temp_data_dir):
+        self._write_cv_file(temp_data_dir, "acme-swe", "opt-123", sample_cv)
+        repository_with_job_posting.add_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="opt-123",
+            base_cv_identifier="jane-doe-cv",
+        )
+        record = repository_with_job_posting.get_optimized_cv_record("acme-swe", "opt-123")
+        assert record is not None
+        assert record.identifier == "opt-123"
+        assert record.job_posting_identifier == "acme-swe"
+        assert record.filepath == "job-postings/acme-swe/cvs/opt-123/cv.json"
 
     def test_get_cv_transformation_plan(
         self,
@@ -343,6 +439,19 @@ class TestCvOptimizationOperations:
         assert "created_at" in opt
         assert opt["job_title"] == "Software Engineer"
         assert opt["company"] == "Acme Corp"
+
+    def test_list_cv_optimizations_reads_from_collection(
+        self, repository_with_job_posting, sample_plan, temp_data_dir
+    ):
+        self._write_plan_file(temp_data_dir, "acme-swe", "opt-123", sample_plan)
+        repository_with_job_posting.add_cv_optimization(
+            job_posting_identifier="acme-swe",
+            identifier="opt-123",
+            base_cv_identifier="jane-doe-cv",
+        )
+        optimizations = repository_with_job_posting.list_cv_optimizations("acme-swe")
+        assert len(optimizations) == 1
+        assert optimizations[0]["identifier"] == "opt-123"
 
     def test_list_cv_optimizations_empty(self, repository_with_job_posting):
         optimizations = repository_with_job_posting.list_cv_optimizations("acme-swe")
@@ -442,6 +551,8 @@ class TestCvOptimizationOperations:
             / "opt-123"
         )
         assert not optimization_dir.exists()
+        assert repository_with_job_posting.get_cv_optimization_record("acme-swe", "opt-123") is None
+        assert repository_with_job_posting.get_optimized_cv_record("acme-swe", "opt-123") is None
 
     def test_remove_cv_optimization_not_found(self, repository_with_job_posting):
         result = repository_with_job_posting.remove_cv_optimization(
@@ -460,6 +571,55 @@ class TestCvOptimizationOperations:
             identifier="orphaned",
         )
         assert result is False
+
+
+class TestListCvDataFiles:
+    def _write_cv_file(self, temp_data_dir, job_posting_identifier, identifier, cv):
+        import json
+
+        cv_dir = (
+            Path(temp_data_dir)
+            / "job-postings"
+            / job_posting_identifier
+            / "cvs"
+            / identifier
+        )
+        cv_dir.mkdir(parents=True, exist_ok=True)
+        cv_path = cv_dir / "cv.json"
+        with open(cv_path, "w") as f:
+            json.dump(cv.model_dump(mode="json"), f)
+
+    def test_includes_base_cvs(self, repository, sample_cv, temp_data_dir):
+        repository.add_cv(sample_cv, "jane-doe")
+        files = repository.list_cv_data_files()
+        assert any(f["identifier"] == "jane-doe" for f in files)
+
+    def test_optimized_cvs_have_composite_identifier(
+        self, repository, sample_job_posting, sample_cv, temp_data_dir
+    ):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        self._write_cv_file(temp_data_dir, "acme-swe", "opt-123", sample_cv)
+        repository.add_cv_optimization("acme-swe", "opt-123", "jane-doe")
+
+        files = repository.list_cv_data_files()
+        match = next((f for f in files if f.get("job_posting_identifier") == "acme-swe"), None)
+        assert match is not None
+        assert match["identifier"] == "opt-123"
+        assert "--" not in match["identifier"]
+
+    def test_no_duplicates_for_optimized_cvs(
+        self, repository, sample_job_posting, sample_cv, temp_data_dir
+    ):
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        self._write_cv_file(temp_data_dir, "acme-swe", "opt-123", sample_cv)
+        repository.add_cv_optimization("acme-swe", "opt-123", "jane-doe")
+
+        files = repository.list_cv_data_files()
+        opt_matches = [
+            f for f in files
+            if f["identifier"] == "opt-123" and f.get("job_posting_identifier") == "acme-swe"
+        ]
+        assert len(opt_matches) == 1
 
 
 class TestRenameJobPosting:
@@ -511,6 +671,10 @@ class TestRenameJobPosting:
         opt2 = repository.get_cv_optimization_record("new-id", "opt-2")
         assert opt1.job_posting_identifier == "new-id"
         assert opt2.job_posting_identifier == "new-id"
+        assert repository.get_optimized_cv_record("new-id", "opt-1") is not None
+        assert repository.get_optimized_cv_record("new-id", "opt-2") is not None
+        assert repository.get_optimized_cv_record("old-id", "opt-1") is None
+        assert repository.get_optimized_cv_record("old-id", "opt-2") is None
 
 
 class TestRenameCv:
@@ -605,6 +769,8 @@ class TestRenameCvOptimization:
         record = repository.get_cv_optimization_record("acme-swe", "new-id")
         assert record is not None
         assert record.identifier == "new-id"
+        assert repository.get_optimized_cv_record("acme-swe", "old-id") is None
+        assert repository.get_optimized_cv_record("acme-swe", "new-id") is not None
 
     def test_returns_new_record(self, repository, sample_job_posting):
         repository.add_job_posting(sample_job_posting, "acme-swe")
