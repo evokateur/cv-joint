@@ -31,6 +31,37 @@ class TestArchiveCommand:
                     main()
 
 
+class TestListCommand:
+    def test_lists_active_job_postings(self, capsys):
+        mock_service = MagicMock()
+        mock_service.get_job_postings.return_value = [
+            {"identifier": "acme-swe", "company": "Acme", "title": "SWE", "created_at": "2025-01-15T00:00:00"},
+        ]
+        with patch("services.application.ApplicationService", return_value=mock_service):
+            with patch("sys.argv", ["cv-joint", "list", "job-postings"]):
+                main()
+        mock_service.get_job_postings.assert_called_once_with(archived=False)
+        assert "acme-swe" in capsys.readouterr().out
+
+    def test_archived_flag_shows_only_archived(self, capsys):
+        mock_service = MagicMock()
+        mock_service.get_job_postings.return_value = [
+            {"identifier": "old-job", "company": "Gone", "title": "Dev", "created_at": "2025-01-15T00:00:00", "is_archived": True},
+            {"identifier": "active-job", "company": "Here", "title": "Dev", "created_at": "2025-02-01T00:00:00", "is_archived": False},
+        ]
+        with patch("services.application.ApplicationService", return_value=mock_service):
+            with patch("sys.argv", ["cv-joint", "list", "job-postings", "--archived"]):
+                main()
+        out = capsys.readouterr().out
+        assert "old-job" in out
+        assert "active-job" not in out
+
+    def test_unknown_collection_exits(self):
+        with patch("sys.argv", ["cv-joint", "list", "cvs"]):
+            with pytest.raises(SystemExit):
+                main()
+
+
 class TestApplyCommand:
     def test_calls_service(self):
         with patch("services.application.ApplicationService") as MockService:
