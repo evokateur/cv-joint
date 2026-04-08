@@ -23,13 +23,13 @@ class MarkdownExporter:
         self.converter = converter
 
     def export_job_posting(self, record: JobPostingRecord, job_posting: JobPosting):
-        markdown = self.converter.convert(job_posting)
+        markdown = self.converter.convert_job_posting(job_posting, record)
         self.markdown_writer.write_job_posting(record.identifier, markdown)
 
     def export_cv(
         self, record: CurriculumVitaeRecord | CvOptimizationRecord, cv: CurriculumVitae
     ):
-        markdown = self.converter.convert(cv)
+        markdown = self.converter.convert_cv(cv, record)
         if isinstance(record, CurriculumVitaeRecord):
             self.markdown_writer.write_cv(record.identifier, markdown)
         elif isinstance(record, CvOptimizationRecord):
@@ -40,7 +40,7 @@ class MarkdownExporter:
     def export_cv_transformation_plan(
         self, record: CvOptimizationRecord, plan: CvTransformationPlan
     ):
-        markdown = self.converter.convert(plan)
+        markdown = self.converter.convert_transformation_plan(plan, record)
         self.markdown_writer.write_cv_transformation_plan(
             record.job_posting_identifier, record.identifier, markdown
         )
