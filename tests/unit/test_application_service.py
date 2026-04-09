@@ -491,14 +491,27 @@ class TestArchiveJobPosting:
     def test_delegates_to_repository(self):
         mock_repo = MagicMock()
         service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.markdown_exporter = MagicMock()
         service.archive_job_posting("acme-swe")
         mock_repo.archive_job_posting.assert_called_once_with("acme-swe")
+
+    def test_regenerates_markdown(self):
+        mock_repo = MagicMock()
+        mock_exporter = MagicMock()
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.markdown_exporter = mock_exporter
+        service.archive_job_posting("acme-swe")
+        mock_exporter.export_job_posting.assert_called_once_with(
+            mock_repo.archive_job_posting.return_value,
+            mock_repo.get_job_posting.return_value,
+        )
 
 
 class TestMarkApplied:
     def test_delegates_to_repository(self):
         mock_repo = MagicMock()
         service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.markdown_exporter = MagicMock()
         service.mark_applied("acme-swe", "my-cv")
         mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
 
@@ -506,6 +519,18 @@ class TestMarkApplied:
         from datetime import datetime
         mock_repo = MagicMock()
         service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.markdown_exporter = MagicMock()
         date = datetime(2025, 1, 15)
         service.mark_applied("acme-swe", "my-cv", applied_at=date)
         mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=date)
+
+    def test_regenerates_markdown(self):
+        mock_repo = MagicMock()
+        mock_exporter = MagicMock()
+        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service.markdown_exporter = mock_exporter
+        service.mark_applied("acme-swe", "my-cv")
+        mock_exporter.export_job_posting.assert_called_once_with(
+            mock_repo.mark_applied.return_value,
+            mock_repo.get_job_posting.return_value,
+        )

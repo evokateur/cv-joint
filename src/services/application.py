@@ -127,13 +127,21 @@ class ApplicationService:
 
     def archive_job_posting(self, identifier: str):
         """Mark a job posting as archived."""
-        return self.repository.archive_job_posting(identifier)
+        record = self.repository.archive_job_posting(identifier)
+        job_posting = self.repository.get_job_posting(identifier)
+        assert job_posting is not None
+        self.markdown_exporter.export_job_posting(record, job_posting)
+        return record
 
     def mark_applied(
         self, identifier: str, cv_identifier: str, applied_at: Optional[datetime] = None
     ):
         """Record that a job posting was applied to with a given CV."""
-        return self.repository.mark_applied(identifier, cv_identifier, applied_at=applied_at)
+        record = self.repository.mark_applied(identifier, cv_identifier, applied_at=applied_at)
+        job_posting = self.repository.get_job_posting(identifier)
+        assert job_posting is not None
+        self.markdown_exporter.export_job_posting(record, job_posting)
+        return record
 
     def create_cv(self, file_path: str) -> tuple[dict[str, Any], str]:
         """
