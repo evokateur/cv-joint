@@ -35,7 +35,9 @@ class FileSystemRepository:
 
         self.job_postings_collection = self.collections_dir / "job-postings.json"
         self.cvs_collection = self.collections_dir / "cvs.json"
-        self.optimization_plans_collection = self.collections_dir / "optimization-plans.json"
+        self.optimization_plans_collection = (
+            self.collections_dir / "optimization-plans.json"
+        )
 
     def _load_collection(self, collection_file: Path) -> list[dict[str, Any]]:
         """Load collection metadata from JSON file."""
@@ -257,14 +259,16 @@ class FileSystemRepository:
 
         opt_collection = self._load_collection(self.optimization_plans_collection)
         opt_collection = [
-            item for item in opt_collection
+            item
+            for item in opt_collection
             if item.get("job_posting_identifier") != identifier
         ]
         self._save_collection(self.optimization_plans_collection, opt_collection)
 
         cvs_collection = self._load_collection(self.cvs_collection)
         cvs_collection = [
-            item for item in cvs_collection
+            item
+            for item in cvs_collection
             if item.get("job_posting_identifier") != identifier
         ]
         self._save_collection(self.cvs_collection, cvs_collection)
@@ -387,7 +391,8 @@ class FileSystemRepository:
         collection = self._load_collection(self.cvs_collection)
         data = next(
             (
-                item for item in collection
+                item
+                for item in collection
                 if item["identifier"] == identifier
                 and item.get("job_posting_identifier") == job_posting_identifier
             ),
@@ -411,7 +416,9 @@ class FileSystemRepository:
         collection = self._load_collection(self.cvs_collection)
         if recursive:
             return collection
-        return [item for item in collection if item.get("job_posting_identifier") is None]
+        return [
+            item for item in collection if item.get("job_posting_identifier") is None
+        ]
 
     def remove_cv(self, identifier: str) -> bool:
         """
@@ -460,7 +467,8 @@ class FileSystemRepository:
 
         opt_collection = self._load_collection(self.optimization_plans_collection)
         opt_collection = [
-            item for item in opt_collection
+            item
+            for item in opt_collection
             if not (
                 item["identifier"] == identifier
                 and item["job_posting_identifier"] == job_posting_identifier
@@ -470,7 +478,8 @@ class FileSystemRepository:
 
         cvs_collection = self._load_collection(self.cvs_collection)
         cvs_collection = [
-            item for item in cvs_collection
+            item
+            for item in cvs_collection
             if not (
                 item["identifier"] == identifier
                 and item.get("job_posting_identifier") == job_posting_identifier
@@ -480,7 +489,9 @@ class FileSystemRepository:
 
         return self.purge_cv_optimization(job_posting_identifier, identifier)
 
-    def rename_job_posting(self, identifier: str, new_identifier: str) -> JobPostingRecord:
+    def rename_job_posting(
+        self, identifier: str, new_identifier: str
+    ) -> JobPostingRecord:
         """
         Rename a job posting, updating its directory and collection entry.
 
@@ -509,7 +520,9 @@ class FileSystemRepository:
             if item.get("job_posting_identifier") == identifier:
                 item = dict(item)
                 item["job_posting_identifier"] = new_identifier
-                item["transformation_plan_filepath"] = item["transformation_plan_filepath"].replace(
+                item["transformation_plan_filepath"] = item[
+                    "transformation_plan_filepath"
+                ].replace(
                     f"job-postings/{identifier}/", f"job-postings/{new_identifier}/", 1
                 )
             updated_opts.append(item)
@@ -534,7 +547,9 @@ class FileSystemRepository:
             if item["identifier"] == identifier:
                 item = dict(item)
                 item["identifier"] = new_identifier
-                item["filepath"] = self._generate_relative_path("job-postings", new_identifier)
+                item["filepath"] = self._generate_relative_path(
+                    "job-postings", new_identifier
+                )
                 item["updated_at"] = datetime.now().isoformat()
                 collection[i] = item
                 new_record_data = item
@@ -612,7 +627,10 @@ class FileSystemRepository:
             raise ValueError(
                 f"CV optimization not found: job-postings/{job_posting_identifier}/cvs/{identifier}"
             )
-        if self.get_cv_optimization_record(job_posting_identifier, new_identifier) is not None:
+        if (
+            self.get_cv_optimization_record(job_posting_identifier, new_identifier)
+            is not None
+        ):
             raise ValueError(
                 f"CV optimization already exists: job-postings/{job_posting_identifier}/cvs/{new_identifier}"
             )
@@ -621,9 +639,7 @@ class FileSystemRepository:
         new_dir = self._cv_optimization_dir(job_posting_identifier, new_identifier)
         shutil.move(str(old_dir), str(new_dir))
 
-        new_transformation_plan_filepath = (
-            f"job-postings/{job_posting_identifier}/cvs/{new_identifier}/transformation-plan.json"
-        )
+        new_transformation_plan_filepath = f"job-postings/{job_posting_identifier}/cvs/{new_identifier}/transformation-plan.json"
         opt_collection = self._load_collection(self.optimization_plans_collection)
         new_record_data = None
         for i, item in enumerate(opt_collection):
@@ -639,11 +655,17 @@ class FileSystemRepository:
                 break
         self._save_collection(self.optimization_plans_collection, opt_collection)
 
-        new_cv_filepath = f"job-postings/{job_posting_identifier}/cvs/{new_identifier}/cv.json"
+        new_cv_filepath = (
+            f"job-postings/{job_posting_identifier}/cvs/{new_identifier}/cv.json"
+        )
         cvs_collection = self._load_collection(self.cvs_collection)
         cvs_collection = [
-            dict(item, identifier=new_identifier, filepath=new_cv_filepath,
-                 updated_at=datetime.now().isoformat())
+            dict(
+                item,
+                identifier=new_identifier,
+                filepath=new_cv_filepath,
+                updated_at=datetime.now().isoformat(),
+            )
             if item["identifier"] == identifier
             and item.get("job_posting_identifier") == job_posting_identifier
             else item
@@ -675,11 +697,7 @@ class FileSystemRepository:
     ) -> Path:
         """Get the directory path for an optimization."""
         return (
-            self.data_dir
-            / "job-postings"
-            / job_posting_identifier
-            / "cvs"
-            / identifier
+            self.data_dir / "job-postings" / job_posting_identifier / "cvs" / identifier
         )
 
     def add_cv_optimization(
@@ -704,9 +722,7 @@ class FileSystemRepository:
         optimization_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
         optimization_dir.mkdir(parents=True, exist_ok=True)
 
-        transformation_plan_filepath = (
-            f"job-postings/{job_posting_identifier}/cvs/{identifier}/transformation-plan.json"
-        )
+        transformation_plan_filepath = f"job-postings/{job_posting_identifier}/cvs/{identifier}/transformation-plan.json"
 
         job_title, company = None, None
         plan_absolute = self._resolve_path(transformation_plan_filepath)
@@ -730,7 +746,8 @@ class FileSystemRepository:
         record_dict = record.model_dump(mode="json")
         existing = next(
             (
-                item for item in opt_collection
+                item
+                for item in opt_collection
                 if item["identifier"] == identifier
                 and item["job_posting_identifier"] == job_posting_identifier
             ),
@@ -738,10 +755,12 @@ class FileSystemRepository:
         )
         if existing:
             opt_collection = [
-                item if not (
+                item
+                if not (
                     item["identifier"] == identifier
                     and item["job_posting_identifier"] == job_posting_identifier
-                ) else record_dict
+                )
+                else record_dict
                 for item in opt_collection
             ]
         else:
@@ -761,7 +780,8 @@ class FileSystemRepository:
         now = datetime.now()
         existing_cv = next(
             (
-                item for item in cvs_collection
+                item
+                for item in cvs_collection
                 if item["identifier"] == identifier
                 and item.get("job_posting_identifier") == job_posting_identifier
             ),
@@ -773,16 +793,20 @@ class FileSystemRepository:
             name=name,
             profession=profession,
             job_posting_identifier=job_posting_identifier,
-            created_at=datetime.fromisoformat(existing_cv["created_at"]) if existing_cv else now,
+            created_at=datetime.fromisoformat(existing_cv["created_at"])
+            if existing_cv
+            else now,
             updated_at=now,
         )
         cv_record_dict = cv_record.model_dump(mode="json")
         if existing_cv:
             cvs_collection = [
-                item if not (
+                item
+                if not (
                     item["identifier"] == identifier
                     and item.get("job_posting_identifier") == job_posting_identifier
-                ) else cv_record_dict
+                )
+                else cv_record_dict
                 for item in cvs_collection
             ]
         else:
@@ -808,7 +832,8 @@ class FileSystemRepository:
         collection = self._load_collection(self.optimization_plans_collection)
         if job_posting_identifier is not None:
             collection = [
-                item for item in collection
+                item
+                for item in collection
                 if item.get("job_posting_identifier") == job_posting_identifier
             ]
         return collection
@@ -831,7 +856,8 @@ class FileSystemRepository:
         collection = self._load_collection(self.optimization_plans_collection)
         data = next(
             (
-                item for item in collection
+                item
+                for item in collection
                 if item["identifier"] == identifier
                 and item["job_posting_identifier"] == job_posting_identifier
             ),
