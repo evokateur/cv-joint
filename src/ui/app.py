@@ -82,7 +82,7 @@ def create_app():
                     gr.Markdown("### Saved Job Postings")
                     gr.Markdown("Click a row to view details")
                     job_search = gr.Textbox(
-                        placeholder="Filter by company, title, or level…",
+                        placeholder="Filter by company, title, level, or URL…",
                         show_label=False,
                     )
                     job_list = gr.Dataframe(

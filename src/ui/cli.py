@@ -71,7 +71,7 @@ def main():
     list_cmd.add_argument(
         "-q", "--query",
         metavar="QUERY",
-        help="Filter by company, title, or experience level",
+        help="Filter by company, title, experience level, or URL",
     )
 
     archive_cmd = subparsers.add_parser(
