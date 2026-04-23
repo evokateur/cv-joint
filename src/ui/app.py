@@ -81,6 +81,10 @@ def create_app():
                 with gr.Group():
                     gr.Markdown("### Saved Job Postings")
                     gr.Markdown("Click a row to view details")
+                    job_search = gr.Textbox(
+                        placeholder="Filter by company, title, or level…",
+                        show_label=False,
+                    )
                     job_list = gr.Dataframe(
                         headers=["Date", "Company", "Position", "URL", "Identifier"],
                         label="All Job Postings",
@@ -242,13 +246,13 @@ def create_app():
                             gr.update(),
                         )
 
-                def load_jobs():
-                    jobs = service.get_job_postings()
+                def load_jobs(query: str = ""):
+                    jobs = service.get_job_postings(query=query or None)
                     job_list_data = [
                         [
                             j.get("created_at", "")[:10]
                             if j.get("created_at")
-                            else "",  # Just the date part
+                            else "",
                             j.get("company", ""),
                             j.get("title", ""),
                             j.get("url", ""),
@@ -360,7 +364,10 @@ def create_app():
                     ],
                 )
 
-                refresh_jobs_btn.click(fn=load_jobs, outputs=[job_list])
+                job_search.change(fn=load_jobs, inputs=[job_search], outputs=[job_list])
+                refresh_jobs_btn.click(
+                    fn=lambda: load_jobs(""), outputs=[job_list]
+                )
 
                 # Load jobs on startup
                 app.load(fn=load_jobs, outputs=[job_list])

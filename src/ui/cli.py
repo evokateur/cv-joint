@@ -68,6 +68,11 @@ def main():
         action="store_true",
         help="Show only archived entries",
     )
+    list_cmd.add_argument(
+        "-q", "--query",
+        metavar="QUERY",
+        help="Filter by company, title, or experience level",
+    )
 
     archive_cmd = subparsers.add_parser(
         "archive", help="Archive a job posting by URI and exit"
@@ -183,9 +188,9 @@ def main():
 
         if args.collection == "job-postings":
             if args.archived:
-                jobs = [j for j in service.get_job_postings(archived=True) if j.get("is_archived")]
+                jobs = [j for j in service.get_job_postings(archived=True, query=args.query) if j.get("is_archived")]
             else:
-                jobs = service.get_job_postings(archived=False)
+                jobs = service.get_job_postings(archived=False, query=args.query)
             for j in jobs:
                 date = (j.get("created_at") or "")[:10]
                 print(f"{date}  {j.get('company', ''):<25} {j.get('title', ''):<30} {j.get('identifier', '')}")

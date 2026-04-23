@@ -113,17 +113,30 @@ class ApplicationService:
         """Retrieve a job posting by identifier."""
         return self.repository.get_job_posting(identifier)
 
-    def get_job_postings(self, archived: bool = False) -> list[dict[str, Any]]:
+    def get_job_postings(
+        self, archived: bool = False, query: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Retrieve saved job postings.
 
         Args:
             archived: If False (default), excludes archived postings.
+            query: Optional keyword to filter by company, title, or experience level.
 
         Returns:
             list of job posting metadata dictionaries
         """
-        return self.repository.list_job_postings(archived=archived)
+        results = self.repository.list_job_postings(archived=archived)
+        if query:
+            q = query.lower()
+            results = [
+                r for r in results
+                if any(
+                    q in (r.get(f) or "").lower()
+                    for f in ("company", "title", "experience_level")
+                )
+            ]
+        return results
 
     def archive_job_posting(self, identifier: str):
         """Mark a job posting as archived."""
