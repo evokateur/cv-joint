@@ -290,6 +290,8 @@ class TestRegenerateCv:
 class TestRegenerateCvOptimization:
     @pytest.fixture
     def service_with_optimization(self, service, sample_job_posting_data, sample_cv_data):
+        from services.analyzers.cv_optimizer import OptimizerOutput
+
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.save_cv(sample_cv_data, "jane-doe")
         service.repository.add_cv_optimization("acme-swe", "opt-1", "jane-doe")
@@ -303,15 +305,11 @@ class TestRegenerateCvOptimization:
         )
         cv = CurriculumVitae(**sample_cv_data)
 
-        def fake_optimize(_cv_path, _job_path, output_dir):
-            Path(output_dir).mkdir(parents=True, exist_ok=True)
-            with open(Path(output_dir) / "transformation-plan.json", "w") as f:
-                json.dump(plan.model_dump(mode="json"), f)
-            with open(Path(output_dir) / "cv.json", "w") as f:
-                json.dump(cv.model_dump(mode="json"), f)
-
         service.cv_optimizer = MagicMock()
-        service.cv_optimizer.optimize.side_effect = fake_optimize
+        service.cv_optimizer.optimize.return_value = OptimizerOutput(
+            cv=cv,
+            artifacts={"transformation-plan": plan},
+        )
         return service
 
     def test_raises_when_not_found(self, service, sample_job_posting_data):

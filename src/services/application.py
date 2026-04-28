@@ -298,20 +298,19 @@ class ApplicationService:
                 f"CV optimization not found: job-postings/{job_posting_identifier}/cvs/{identifier}"
             )
 
-        cv_path = str(self.repository.get_absolute_path("cvs", record.base_cv_identifier))
-        job_posting_path = str(
-            self.repository.get_absolute_path("job-postings", job_posting_identifier)
-        )
-        output_directory = str(
-            self.repository.get_cv_optimization_dir(job_posting_identifier, identifier)
-        )
+        cv = self.repository.get_cv(record.base_cv_identifier)
+        job_posting = self.repository.get_job_posting(job_posting_identifier)
 
-        self.cv_optimizer.optimize(cv_path, job_posting_path, output_directory)
+        if cv is None or job_posting is None:
+            raise ValueError(
+                f"Base CV or job posting missing for re-run: job-postings/{job_posting_identifier}/cvs/{identifier}"
+            )
 
-        plan = self.repository.get_cv_transformation_plan(job_posting_identifier, identifier)
-        cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
+        output = self.cv_optimizer.optimize(cv, job_posting)
+        self._write_optimization_outputs(job_posting_identifier, identifier, output)
 
-        if plan is None or cv is None:
+        plan = output.artifacts.get("transformation-plan")
+        if plan is None:
             raise ValueError(
                 f"Optimization output missing after re-run: job-postings/{job_posting_identifier}/cvs/{identifier}"
             )
@@ -320,7 +319,7 @@ class ApplicationService:
             job_posting_identifier, identifier, record.base_cv_identifier
         )
         self.markdown_exporter.export_cv_transformation_plan(new_record, plan)
-        self.markdown_exporter.export_cv(new_record, cv)
+        self.markdown_exporter.export_cv(new_record, output.cv)
         return new_record
 
     def remove_job_posting(self, identifier: str) -> bool:
@@ -436,27 +435,20 @@ class ApplicationService:
         """
         import datetime
 
-        cv_path = str(self.repository.get_absolute_path("cvs", cv_identifier))
+        cv = self.repository.get_cv(cv_identifier)
+        job_posting = self.repository.get_job_posting(job_posting_identifier)
 
-        job_posting_path = str(
-            self.repository.get_absolute_path("job-postings", job_posting_identifier)
-        )
+        if cv is None or job_posting is None:
+            raise ValueError(
+                f"CV or job posting not found: {cv_identifier}, {job_posting_identifier}"
+            )
 
         identifier = f"{datetime.date.today()}"
-        output_directory = str(
-            self.repository.get_cv_optimization_dir(job_posting_identifier, identifier)
-        )
 
-        self.cv_optimizer.optimize(
-            cv_path,
-            job_posting_path,
-            output_directory,
-        )
+        output = self.cv_optimizer.optimize(cv, job_posting)
+        self._write_optimization_outputs(job_posting_identifier, identifier, output)
 
-        plan = self.repository.get_cv_transformation_plan(
-            job_posting_identifier, identifier
-        )
-        cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
+        plan = output.artifacts.get("transformation-plan")
 
         identifiers = {
             "job_posting_identifier": job_posting_identifier,
@@ -466,9 +458,19 @@ class ApplicationService:
 
         return (
             plan.model_dump() if plan else {},
-            cv.model_dump() if cv else {},
+            output.cv.model_dump(),
             identifiers,
         )
+
+    def _write_optimization_outputs(
+        self, job_posting_identifier: str, identifier: str, output
+    ):
+        """Write optimizer outputs to the optimization directory on disk."""
+        opt_dir = self.repository.get_cv_optimization_dir(job_posting_identifier, identifier)
+        opt_dir.mkdir(parents=True, exist_ok=True)
+        (opt_dir / "cv.json").write_text(output.cv.model_dump_json())
+        for stem, artifact in output.artifacts.items():
+            (opt_dir / f"{stem}.json").write_text(artifact.model_dump_json())
 
     def get_cv_transformation_plan(
         self, job_posting_identifier: str, optimization_identifier: str
