@@ -174,11 +174,11 @@ class TestDocumentExists:
 
 
 class TestUpsertOptimizedCv:
-    def test_saves_cv_json_in_optimization_directory(
+    def test_saves_curriculum_vitae_json_in_optimization_directory(
         self, repository_with_job_posting, sample_cv, temp_data_dir
     ):
         repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
-        cv_path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "cv.json"
+        cv_path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "curriculum-vitae.json"
         assert cv_path.exists()
 
     def test_writes_record_to_collection(

@@ -459,15 +459,10 @@ class ApplicationService:
     def _write_optimization_outputs(
         self, job_posting_identifier: str, identifier: str, output
     ):
-        """Write peripheral optimizer outputs to the optimization directory on disk."""
-        from pathlib import Path
-        opt_dir = (
-            self.repository.data_dir
-            / "job-postings" / job_posting_identifier / "cvs" / identifier
-        )
-        opt_dir.mkdir(parents=True, exist_ok=True)
-        for stem, artifact in output.artifacts.items():
-            (opt_dir / f"{stem}.json").write_text(artifact.model_dump_json())
+        """Write peripheral optimizer artifacts via the repository (class-name convention)."""
+        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        for artifact in output.artifacts.values():
+            self.repository.save_object(base_uri, artifact)
 
     def save_cv_optimization(
         self, job_posting_identifier: str, identifier: str, base_cv_identifier: str

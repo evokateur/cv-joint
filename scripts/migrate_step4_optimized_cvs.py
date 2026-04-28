@@ -106,7 +106,7 @@ def migrate(data_dir: Path, dry_run: bool):
     print("\nBackfilling _type fields and renaming artifact files...")
     artifact_map = {
         # old_filename: (new_filename, _type value)
-        "cv.json": ("cv.json", "CurriculumVitae"),
+        "cv.json": ("curriculum-vitae.json", "CurriculumVitae"),
         "transformation-plan.json": ("cv-transformation-plan.json", "CvTransformationPlan"),
     }
     for jp_dir in (data_dir / "job-postings").iterdir():

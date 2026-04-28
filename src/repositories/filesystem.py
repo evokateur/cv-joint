@@ -574,10 +574,8 @@ class FileSystemRepository:
         base_cv_identifier: str,
         cv: CurriculumVitae,
     ) -> OptimizedCvRecord:
-        opt_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
-        opt_dir.mkdir(parents=True, exist_ok=True)
-        cv_path = opt_dir / "cv.json"
-        cv_path.write_text(json.dumps(cv.model_dump(mode="json"), indent=2))
+        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        self.save_object(base_uri, cv)
 
         job_posting_record = self.get_job_posting_record(job_posting_identifier)
         job_title = job_posting_record.title if job_posting_record else None
@@ -637,11 +635,8 @@ class FileSystemRepository:
     def get_optimized_cv(
         self, job_posting_identifier: str, identifier: str
     ) -> Optional[CurriculumVitae]:
-        cv_path = self._cv_optimization_dir(job_posting_identifier, identifier) / "cv.json"
-        if not cv_path.exists():
-            return None
-        data = json.loads(cv_path.read_text())
-        return CurriculumVitae(**data)
+        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        return self.load_object(base_uri, CurriculumVitae)
 
     def list_optimized_cvs(
         self, job_posting_identifier: Optional[str] = None
