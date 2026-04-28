@@ -9,7 +9,7 @@ from models import (
     CurriculumVitaeRecord,
     Contact,
     CvTransformationPlan,
-    CvOptimizationRecord,
+    OptimizedCvRecord,
 )
 
 TEMPLATES_DIR = "templates/markdown"
@@ -197,14 +197,16 @@ class TestConvertTransformationPlan:
 
     @pytest.fixture
     def sample_record(self):
-        return CvOptimizationRecord(
+        return OptimizedCvRecord(
             identifier="globex-staff-engineer-opt",
             job_posting_identifier="globex-staff-engineer",
             base_cv_identifier="jane-doe",
-            transformation_plan_filepath="job-postings/globex-staff-engineer/cvs/globex-staff-engineer-opt/transformation-plan.json",
+            name="Jane Doe",
+            profession="Software Engineer",
             job_title="Staff Engineer",
             company="Globex",
             created_at=datetime(2024, 1, 1),
+            updated_at=datetime(2024, 1, 1),
         )
 
     def test_title_includes_job_and_company(self, converter, sample_plan):

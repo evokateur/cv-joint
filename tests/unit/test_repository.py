@@ -829,3 +829,42 @@ class TestRenameCvOptimization:
         record = repository.rename_cv_optimization("acme-swe", "old-id", "new-id")
         assert record.identifier == "new-id"
         assert record.base_cv_identifier == "jane-doe"
+
+
+class TestOptimizedCvRecord:
+    def test_constructs_with_required_fields(self):
+        from models import OptimizedCvRecord
+        from datetime import datetime
+
+        record = OptimizedCvRecord(
+            identifier="opt-1",
+            job_posting_identifier="acme-swe",
+            base_cv_identifier="jane-doe",
+            name="Jane Doe",
+            profession="Software Engineer",
+            created_at=datetime(2024, 1, 1),
+            updated_at=datetime(2024, 1, 1),
+        )
+        assert record.identifier == "opt-1"
+        assert record.name == "Jane Doe"
+        assert record.profession == "Software Engineer"
+
+    def test_has_no_transformation_plan_filepath(self):
+        from models import OptimizedCvRecord
+        assert not hasattr(OptimizedCvRecord.model_fields, "transformation_plan_filepath")
+
+    def test_optional_job_title_and_company(self):
+        from models import OptimizedCvRecord
+        from datetime import datetime
+
+        record = OptimizedCvRecord(
+            identifier="opt-1",
+            job_posting_identifier="acme-swe",
+            base_cv_identifier="jane-doe",
+            name="Jane Doe",
+            profession="Software Engineer",
+            created_at=datetime(2024, 1, 1),
+            updated_at=datetime(2024, 1, 1),
+        )
+        assert record.job_title is None
+        assert record.company is None

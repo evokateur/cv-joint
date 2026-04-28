@@ -12,6 +12,7 @@ from .schema import (
     JobPosting,
     JobPostingRecord,
     Language,
+    OptimizedCvRecord,
 )
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "JobPosting",
     "JobPostingRecord",
     "Language",
+    "OptimizedCvRecord",
 ]
