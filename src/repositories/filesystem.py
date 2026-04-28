@@ -12,8 +12,6 @@ from models import (
     JobPostingRecord,
     CurriculumVitae,
     CurriculumVitaeRecord,
-    CvOptimizationRecord,
-    CvTransformationPlan,
     DOMAIN_OBJECT_REGISTRY,
     OptimizedCvRecord,
 )
@@ -69,18 +67,6 @@ class FileSystemRepository:
         "job-postings": "job-posting.json",
         "cvs": "cv.json",
     }
-
-    def get_absolute_path(self, collection_name: str, identifier: str) -> Path:
-        if collection_name not in self.FILE_NAMES:
-            raise ValueError(f"Unknown collection: {collection_name}")
-
-        relative_path = self._generate_relative_path(collection_name, identifier)
-        return self._resolve_path(relative_path)
-
-    def get_cv_optimization_dir(
-        self, job_posting_identifier: str, identifier: str
-    ) -> Path:
-        return self._cv_optimization_dir(job_posting_identifier, identifier)
 
     def _generate_relative_path(self, collection_name: str, identifier: str) -> str:
         """Generate default relative file path for a domain object."""
@@ -270,21 +256,12 @@ class FileSystemRepository:
 
         self._save_collection(self.job_postings_collection, collection)
 
-        opt_collection = self._load_collection(self.optimization_plans_collection)
+        opt_collection = self._load_collection(self.optimized_cvs_collection)
         opt_collection = [
-            item
-            for item in opt_collection
+            item for item in opt_collection
             if item.get("job_posting_identifier") != identifier
         ]
-        self._save_collection(self.optimization_plans_collection, opt_collection)
-
-        cvs_collection = self._load_collection(self.cvs_collection)
-        cvs_collection = [
-            item
-            for item in cvs_collection
-            if item.get("job_posting_identifier") != identifier
-        ]
-        self._save_collection(self.cvs_collection, cvs_collection)
+        self._save_collection(self.optimized_cvs_collection, opt_collection)
 
         job_posting_dir = self.data_dir / "job-postings" / identifier
         if job_posting_dir.exists():
@@ -388,47 +365,14 @@ class FileSystemRepository:
 
         return CurriculumVitaeRecord(**data)
 
-    def get_optimized_cv_record(
-        self, job_posting_identifier: str, identifier: str
-    ) -> Optional[CurriculumVitaeRecord]:
+    def list_cvs(self) -> list[dict[str, Any]]:
         """
-        Load a CV record for an optimized CV from the collection.
-
-        Args:
-            job_posting_identifier: Identifier of the parent job posting
-            identifier: Identifier of the optimization
-
-        Returns:
-            CurriculumVitaeRecord or None if not found
-        """
-        collection = self._load_collection(self.cvs_collection)
-        data = next(
-            (
-                item
-                for item in collection
-                if item["identifier"] == identifier
-                and item.get("job_posting_identifier") == job_posting_identifier
-            ),
-            None,
-        )
-        if data is None:
-            return None
-        return CurriculumVitaeRecord(**data)
-
-    def list_cvs(self, recursive: bool = False) -> list[dict[str, Any]]:
-        """
-        List CVs in the collection.
-
-        Args:
-            recursive: If True, include optimized CVs nested under job postings.
-                       If False (default), return only root CVs under cvs/.
+        List base CVs in the collection.
 
         Returns:
             List of collection metadata dicts
         """
         collection = self._load_collection(self.cvs_collection)
-        if recursive:
-            return collection
         return [
             item for item in collection if item.get("job_posting_identifier") is None
         ]
@@ -459,49 +403,6 @@ class FileSystemRepository:
 
         return True
 
-    def remove_cv_optimization(
-        self,
-        job_posting_identifier: str,
-        identifier: str,
-    ) -> bool:
-        """
-        Remove a saved cv optimization and delete its data directory.
-
-        Args:
-            job_posting_identifier: Identifier of the parent job posting
-            identifier: Identifier of the optimization
-
-        Returns:
-            True if removed, False if not found
-        """
-        record = self.get_cv_optimization_record(job_posting_identifier, identifier)
-        if record is None:
-            return False
-
-        opt_collection = self._load_collection(self.optimization_plans_collection)
-        opt_collection = [
-            item
-            for item in opt_collection
-            if not (
-                item["identifier"] == identifier
-                and item["job_posting_identifier"] == job_posting_identifier
-            )
-        ]
-        self._save_collection(self.optimization_plans_collection, opt_collection)
-
-        cvs_collection = self._load_collection(self.cvs_collection)
-        cvs_collection = [
-            item
-            for item in cvs_collection
-            if not (
-                item["identifier"] == identifier
-                and item.get("job_posting_identifier") == job_posting_identifier
-            )
-        ]
-        self._save_collection(self.cvs_collection, cvs_collection)
-
-        return self.purge_cv_optimization(job_posting_identifier, identifier)
-
     def rename_job_posting(
         self, identifier: str, new_identifier: str
     ) -> JobPostingRecord:
@@ -527,32 +428,14 @@ class FileSystemRepository:
         new_dir = self.data_dir / "job-postings" / new_identifier
         shutil.move(str(old_dir), str(new_dir))
 
-        opt_collection = self._load_collection(self.optimization_plans_collection)
-        updated_opts = []
-        for item in opt_collection:
-            if item.get("job_posting_identifier") == identifier:
-                item = dict(item)
-                item["job_posting_identifier"] = new_identifier
-                item["transformation_plan_filepath"] = item[
-                    "transformation_plan_filepath"
-                ].replace(
-                    f"job-postings/{identifier}/", f"job-postings/{new_identifier}/", 1
-                )
-            updated_opts.append(item)
-        self._save_collection(self.optimization_plans_collection, updated_opts)
-
-        cvs_collection = self._load_collection(self.cvs_collection)
-        updated_cvs = []
-        for item in cvs_collection:
-            if item.get("job_posting_identifier") == identifier:
-                item = dict(item)
-                item["job_posting_identifier"] = new_identifier
-                item["filepath"] = item["filepath"].replace(
-                    f"job-postings/{identifier}/", f"job-postings/{new_identifier}/", 1
-                )
-                item["updated_at"] = datetime.now().isoformat()
-            updated_cvs.append(item)
-        self._save_collection(self.cvs_collection, updated_cvs)
+        opt_collection = self._load_collection(self.optimized_cvs_collection)
+        updated_opts = [
+            dict(item, job_posting_identifier=new_identifier)
+            if item.get("job_posting_identifier") == identifier
+            else item
+            for item in opt_collection
+        ]
+        self._save_collection(self.optimized_cvs_collection, updated_opts)
 
         collection = self._load_collection(self.job_postings_collection)
         new_record_data = None
@@ -591,14 +474,14 @@ class FileSystemRepository:
         if self.get_cv_record(new_identifier) is not None:
             raise ValueError(f"CV already exists: {new_identifier}")
 
-        opt_collection = self._load_collection(self.optimization_plans_collection)
+        opt_collection = self._load_collection(self.optimized_cvs_collection)
         updated_opts = [
             dict(item, base_cv_identifier=new_identifier)
             if item.get("base_cv_identifier") == identifier
             else item
             for item in opt_collection
         ]
-        self._save_collection(self.optimization_plans_collection, updated_opts)
+        self._save_collection(self.optimized_cvs_collection, updated_opts)
 
         old_dir = self.data_dir / "cvs" / identifier
         new_dir = self.data_dir / "cvs" / new_identifier
@@ -619,335 +502,12 @@ class FileSystemRepository:
         assert new_record_data is not None
         return CurriculumVitaeRecord(**new_record_data)
 
-    def rename_cv_optimization(
-        self, job_posting_identifier: str, identifier: str, new_identifier: str
-    ) -> CvOptimizationRecord:
-        """
-        Rename a CV optimization, updating its directory and record.json.
-
-        Args:
-            job_posting_identifier: Identifier of the parent job posting
-            identifier: Current identifier
-            new_identifier: New identifier
-
-        Returns:
-            Updated CvOptimizationRecord
-
-        Raises:
-            ValueError: If not found or new identifier already exists
-        """
-        if self.get_cv_optimization_record(job_posting_identifier, identifier) is None:
-            raise ValueError(
-                f"CV optimization not found: job-postings/{job_posting_identifier}/cvs/{identifier}"
-            )
-        if (
-            self.get_cv_optimization_record(job_posting_identifier, new_identifier)
-            is not None
-        ):
-            raise ValueError(
-                f"CV optimization already exists: job-postings/{job_posting_identifier}/cvs/{new_identifier}"
-            )
-
-        old_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
-        new_dir = self._cv_optimization_dir(job_posting_identifier, new_identifier)
-        shutil.move(str(old_dir), str(new_dir))
-
-        new_transformation_plan_filepath = f"job-postings/{job_posting_identifier}/cvs/{new_identifier}/transformation-plan.json"
-        opt_collection = self._load_collection(self.optimization_plans_collection)
-        new_record_data = None
-        for i, item in enumerate(opt_collection):
-            if (
-                item["identifier"] == identifier
-                and item["job_posting_identifier"] == job_posting_identifier
-            ):
-                item = dict(item)
-                item["identifier"] = new_identifier
-                item["transformation_plan_filepath"] = new_transformation_plan_filepath
-                opt_collection[i] = item
-                new_record_data = item
-                break
-        self._save_collection(self.optimization_plans_collection, opt_collection)
-
-        new_cv_filepath = (
-            f"job-postings/{job_posting_identifier}/cvs/{new_identifier}/cv.json"
-        )
-        cvs_collection = self._load_collection(self.cvs_collection)
-        cvs_collection = [
-            dict(
-                item,
-                identifier=new_identifier,
-                filepath=new_cv_filepath,
-                updated_at=datetime.now().isoformat(),
-            )
-            if item["identifier"] == identifier
-            and item.get("job_posting_identifier") == job_posting_identifier
-            else item
-            for item in cvs_collection
-        ]
-        self._save_collection(self.cvs_collection, cvs_collection)
-
-        assert new_record_data is not None
-        return CvOptimizationRecord(**new_record_data)
-
-    def list_cv_data_files(self) -> list[dict[str, Any]]:
-        """
-        List the absolute file paths for all CVs, base and optimized.
-        """
-        collection = self._load_collection(self.cvs_collection)
-        results = []
-        for item in collection:
-            entry = {
-                "identifier": item["identifier"],
-                "filepath": str(self._resolve_path(item["filepath"])),
-            }
-            if item.get("job_posting_identifier"):
-                entry["job_posting_identifier"] = item["job_posting_identifier"]
-            results.append(entry)
-        return results
-
     def _cv_optimization_dir(
         self, job_posting_identifier: str, identifier: str
     ) -> Path:
-        """Get the directory path for an optimization."""
         return (
             self.data_dir / "job-postings" / job_posting_identifier / "cvs" / identifier
         )
-
-    def add_cv_optimization(
-        self,
-        job_posting_identifier: str,
-        identifier: str,
-        base_cv_identifier: str,
-    ) -> CvOptimizationRecord:
-        """
-        Persist CV optimization record.
-
-        The transformation plan and optimized CV files are assumed to already exist.
-
-        Args:
-            identifier: Unique identifier for this optimization
-            job_posting_identifier: Identifier of the parent job posting
-            base_cv_identifier: Identifier of the CV being optimized
-
-        Returns:
-            The persisted CvOptimizationRecord
-        """
-        optimization_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
-        optimization_dir.mkdir(parents=True, exist_ok=True)
-
-        transformation_plan_filepath = f"job-postings/{job_posting_identifier}/cvs/{identifier}/transformation-plan.json"
-
-        job_title, company = None, None
-        plan_absolute = self._resolve_path(transformation_plan_filepath)
-        if plan_absolute.exists():
-            with open(plan_absolute, "r") as f:
-                plan_data = json.load(f)
-            job_title = plan_data.get("job_title")
-            company = plan_data.get("company")
-
-        record = CvOptimizationRecord(
-            identifier=identifier,
-            job_posting_identifier=job_posting_identifier,
-            base_cv_identifier=base_cv_identifier,
-            transformation_plan_filepath=transformation_plan_filepath,
-            job_title=job_title,
-            company=company,
-            created_at=datetime.now(),
-        )
-
-        opt_collection = self._load_collection(self.optimization_plans_collection)
-        record_dict = record.model_dump(mode="json")
-        existing = next(
-            (
-                item
-                for item in opt_collection
-                if item["identifier"] == identifier
-                and item["job_posting_identifier"] == job_posting_identifier
-            ),
-            None,
-        )
-        if existing:
-            opt_collection = [
-                item
-                if not (
-                    item["identifier"] == identifier
-                    and item["job_posting_identifier"] == job_posting_identifier
-                )
-                else record_dict
-                for item in opt_collection
-            ]
-        else:
-            opt_collection.append(record_dict)
-        self._save_collection(self.optimization_plans_collection, opt_collection)
-
-        cv_filepath = f"job-postings/{job_posting_identifier}/cvs/{identifier}/cv.json"
-        cv_absolute = self._resolve_path(cv_filepath)
-        name, profession = "", ""
-        if cv_absolute.exists():
-            with open(cv_absolute, "r") as f:
-                cv_data = json.load(f)
-            name = cv_data.get("name", "")
-            profession = cv_data.get("profession", "")
-
-        cvs_collection = self._load_collection(self.cvs_collection)
-        now = datetime.now()
-        existing_cv = next(
-            (
-                item
-                for item in cvs_collection
-                if item["identifier"] == identifier
-                and item.get("job_posting_identifier") == job_posting_identifier
-            ),
-            None,
-        )
-        cv_record = CurriculumVitaeRecord(
-            identifier=identifier,
-            filepath=cv_filepath,
-            name=name,
-            profession=profession,
-            job_posting_identifier=job_posting_identifier,
-            created_at=datetime.fromisoformat(existing_cv["created_at"])
-            if existing_cv
-            else now,
-            updated_at=now,
-        )
-        cv_record_dict = cv_record.model_dump(mode="json")
-        if existing_cv:
-            cvs_collection = [
-                item
-                if not (
-                    item["identifier"] == identifier
-                    and item.get("job_posting_identifier") == job_posting_identifier
-                )
-                else cv_record_dict
-                for item in cvs_collection
-            ]
-        else:
-            cvs_collection.append(cv_record_dict)
-        self._save_collection(self.cvs_collection, cvs_collection)
-
-        return record
-
-    def list_cv_optimizations(
-        self,
-        job_posting_identifier: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
-        """
-        List optimizations, optionally filtered by job posting.
-
-        Args:
-            job_posting_identifier: If provided, list only for this job posting.
-                                   If None, list all optimizations across all job postings.
-
-        Returns:
-            List of optimization metadata dicts
-        """
-        collection = self._load_collection(self.optimization_plans_collection)
-        if job_posting_identifier is not None:
-            collection = [
-                item
-                for item in collection
-                if item.get("job_posting_identifier") == job_posting_identifier
-            ]
-        return collection
-
-    def get_cv_optimization_record(
-        self,
-        job_posting_identifier: str,
-        identifier: str,
-    ) -> Optional[CvOptimizationRecord]:
-        """
-        Load a CV optimization record from the collection.
-
-        Args:
-            job_posting_identifier: Identifier of the parent job posting
-            identifier: Identifier of the optimization
-
-        Returns:
-            CvOptimizationRecord or None if not found
-        """
-        collection = self._load_collection(self.optimization_plans_collection)
-        data = next(
-            (
-                item
-                for item in collection
-                if item["identifier"] == identifier
-                and item["job_posting_identifier"] == job_posting_identifier
-            ),
-            None,
-        )
-        if data is None:
-            return None
-        return CvOptimizationRecord(**data)
-
-    def get_cv_transformation_plan(
-        self,
-        job_posting_identifier: str,
-        optimization_identifier: str,
-    ) -> Optional[CvTransformationPlan]:
-        """
-        Load a transformation plan from the filesystem.
-
-        Args:
-            job_posting_identifier: Identifier of the parent job posting
-            optimization_identifier: Identifier of the cv_optimization
-
-        Returns:
-            CvTransformationPlan or None if not found
-        """
-        plan_path = (
-            self._cv_optimization_dir(job_posting_identifier, optimization_identifier)
-            / "transformation-plan.json"
-        )
-
-        if not plan_path.exists():
-            return None
-
-        with open(plan_path, "r") as f:
-            data = json.load(f)
-
-        return CvTransformationPlan(**data)
-
-    def get_optimized_cv(
-        self, job_posting_identifier: str, cv_optimization_identifier: str
-    ) -> Optional[CurriculumVitae]:
-        cv_path = (
-            self._cv_optimization_dir(
-                job_posting_identifier, cv_optimization_identifier
-            )
-            / "cv.json"
-        )
-
-        if not cv_path.exists():
-            return None
-
-        with open(cv_path, "r") as f:
-            data = json.load(f)
-
-        return CurriculumVitae(**data)
-
-    def purge_cv_optimization(
-        self,
-        job_posting_identifier: str,
-        identifier: str,
-    ) -> bool:
-        """
-        Delete a cv_optimization directory entirely.
-
-        Args:
-            job_posting_identifier: Identifier of the parent job posting
-            identifier: Identifier of the optimization
-
-        Returns:
-            True if deleted, False if not found
-        """
-        optimization_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
-
-        if not optimization_dir.exists():
-            return False
-
-        shutil.rmtree(optimization_dir)
-        return True
 
     # -------------------------------------------------------------------------
     # Generic object storage (URI-addressed, self-describing JSON)

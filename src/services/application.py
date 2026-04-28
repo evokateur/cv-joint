@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from config.settings import get_markdown_root_dir
 from config.settings import get_data_dir
+from models import CvTransformationPlan
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
@@ -292,7 +293,7 @@ class ApplicationService:
         Raises:
             ValueError: If CV optimization not found
         """
-        record = self.repository.get_cv_optimization_record(job_posting_identifier, identifier)
+        record = self.repository.get_optimized_cv_record(job_posting_identifier, identifier)
         if record is None:
             raise ValueError(
                 f"CV optimization not found: job-postings/{job_posting_identifier}/cvs/{identifier}"
@@ -315,8 +316,8 @@ class ApplicationService:
                 f"Optimization output missing after re-run: job-postings/{job_posting_identifier}/cvs/{identifier}"
             )
 
-        new_record = self.repository.add_cv_optimization(
-            job_posting_identifier, identifier, record.base_cv_identifier
+        new_record = self.repository.upsert_optimized_cv(
+            job_posting_identifier, identifier, record.base_cv_identifier, output.cv
         )
         self.markdown_exporter.export_cv_transformation_plan(new_record, plan)
         self.markdown_exporter.export_cv(new_record, output.cv)
@@ -366,10 +367,7 @@ class ApplicationService:
         Returns:
             True if removed, False if not found
         """
-        removed = self.repository.remove_cv_optimization(job_posting_identifier, identifier)
-        if removed:
-            self.markdown_writer.delete_cv_optimization(job_posting_identifier, identifier)
-        return removed
+        return self.repository.remove_optimized_cv(job_posting_identifier, identifier)
 
     def rename_job_posting(self, identifier: str, new_identifier: str):
         """
@@ -403,13 +401,9 @@ class ApplicationService:
         Raises:
             ValueError: If not found or new identifier already exists
         """
-        record = self.repository.rename_cv_optimization(
+        return self.repository.rename_optimized_cv(
             job_posting_identifier, identifier, new_identifier
         )
-        self.markdown_writer.move_cv_optimization(
-            job_posting_identifier, identifier, new_identifier
-        )
-        return record
 
     def regenerate_markdown(self, collection_name: Optional[str] = None) -> int:
         """
@@ -465,28 +459,21 @@ class ApplicationService:
     def _write_optimization_outputs(
         self, job_posting_identifier: str, identifier: str, output
     ):
-        """Write optimizer outputs to the optimization directory on disk."""
-        opt_dir = self.repository.get_cv_optimization_dir(job_posting_identifier, identifier)
+        """Write peripheral optimizer outputs to the optimization directory on disk."""
+        from pathlib import Path
+        opt_dir = (
+            self.repository.data_dir
+            / "job-postings" / job_posting_identifier / "cvs" / identifier
+        )
         opt_dir.mkdir(parents=True, exist_ok=True)
-        (opt_dir / "cv.json").write_text(output.cv.model_dump_json())
         for stem, artifact in output.artifacts.items():
             (opt_dir / f"{stem}.json").write_text(artifact.model_dump_json())
-
-    def get_cv_transformation_plan(
-        self, job_posting_identifier: str, optimization_identifier: str
-    ):
-        """
-        Retrieve the CV transformation plan for a CV optimization.
-        """
-        return self.repository.get_cv_transformation_plan(
-            job_posting_identifier, optimization_identifier
-        )
 
     def save_cv_optimization(
         self, job_posting_identifier: str, identifier: str, base_cv_identifier: str
     ):
         """
-        Save a CV optimization to the repository
+        Save a CV optimization to the repository.
 
         Args:
             job_posting_identifier: Identifier of the job posting
@@ -494,25 +481,23 @@ class ApplicationService:
             base_cv_identifier: Identifier of the base CV
 
         Returns:
-            CvOptimizationRecord
+            OptimizedCvRecord
         """
-
-        plan = self.repository.get_cv_transformation_plan(
-            job_posting_identifier, identifier
-        )
-
+        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        plan = self.repository.load_object(base_uri, CvTransformationPlan)
         cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
 
-        if plan is None or cv is None:
+        if cv is None:
             raise ValueError(
-                f"Cannot save CV optimization {identifier} for job posting {job_posting_identifier}  because the transformation plan or optimized CV is missing."
+                f"Cannot save CV optimization {identifier} for job posting {job_posting_identifier} — optimized CV is missing."
             )
 
-        record = self.repository.add_cv_optimization(
-            job_posting_identifier, identifier, base_cv_identifier
+        record = self.repository.upsert_optimized_cv(
+            job_posting_identifier, identifier, base_cv_identifier, cv
         )
 
-        self.markdown_exporter.export_cv_transformation_plan(record, plan)
+        if plan is not None:
+            self.markdown_exporter.export_cv_transformation_plan(record, plan)
         self.markdown_exporter.export_cv(record, cv)
 
         return record
@@ -524,7 +509,7 @@ class ApplicationService:
         Returns:
             list of optimization metadata dictionaries
         """
-        opts = self.repository.list_cv_optimizations()
+        opts = self.repository.list_optimized_cvs()
         active_job_ids = {
             item["identifier"] for item in self.repository.list_job_postings(archived=False)
         }
@@ -543,9 +528,8 @@ class ApplicationService:
         Returns:
             tuple of (plan_data, cv_data)
         """
-        plan = self.repository.get_cv_transformation_plan(
-            job_posting_identifier, identifier
-        )
+        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        plan = self.repository.load_object(base_uri, CvTransformationPlan)
         cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
 
         return (
@@ -557,27 +541,37 @@ class ApplicationService:
         self, job_posting_identifier: str, identifier: str
     ) -> bool:
         """
-        Delete an unsaved CV optimization from disk.
-
-        Args:
-            job_posting_identifier: Identifier of the job posting
-            identifier: Identifier of the optimization
+        Delete an unsaved CV optimization from disk without removing the collection record.
 
         Returns:
             True if deleted, False if not found
         """
-        return self.repository.purge_cv_optimization(job_posting_identifier, identifier)
+        return self.repository.purge_optimized_cv(job_posting_identifier, identifier)
 
     def get_cv_data_filepaths(self) -> list[dict[str, Any]]:
-        all_files = self.repository.list_cv_data_files()
         active_job_ids = {
             item["identifier"] for item in self.repository.list_job_postings(archived=False)
         }
-        return [
-            f for f in all_files
-            if f.get("job_posting_identifier") is None
-            or f.get("job_posting_identifier") in active_job_ids
-        ]
+        results = []
+        for item in self.repository.list_cvs():
+            results.append({
+                "identifier": item["identifier"],
+                "filepath": str(self.repository.data_dir / item["filepath"]),
+            })
+        for item in self.repository.list_optimized_cvs():
+            if item.get("job_posting_identifier") in active_job_ids:
+                jp_id = item["job_posting_identifier"]
+                id_ = item["identifier"]
+                filepath = str(
+                    self.repository.data_dir
+                    / "job-postings" / jp_id / "cvs" / id_ / "cv.json"
+                )
+                results.append({
+                    "identifier": id_,
+                    "job_posting_identifier": jp_id,
+                    "filepath": filepath,
+                })
+        return results
 
     def get_cv_template_names(self) -> list[str]:
         from pathlib import Path
