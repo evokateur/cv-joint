@@ -101,27 +101,34 @@ def migrate(data_dir: Path, dry_run: bool):
         plans_path.unlink()
         print(f"  deleted {plans_path}")
 
-    # Backfill _type fields in artifact JSON files
-    print("\nBackfilling _type fields in optimization artifact files...")
-    backfill_map = {
-        "cv.json": "CurriculumVitae",
-        "transformation-plan.json": "CvTransformationPlan",
+    # Backfill _type fields and rename artifact JSON files to match class-name convention.
+    # transformation-plan.json → cv-transformation-plan.json (CvTransformationPlan → kebab-case)
+    print("\nBackfilling _type fields and renaming artifact files...")
+    artifact_map = {
+        # old_filename: (new_filename, _type value)
+        "cv.json": ("cv.json", "CurriculumVitae"),
+        "transformation-plan.json": ("cv-transformation-plan.json", "CvTransformationPlan"),
     }
     for jp_dir in (data_dir / "job-postings").iterdir():
         cvs_dir = jp_dir / "cvs"
         if not cvs_dir.exists():
             continue
         for opt_dir in cvs_dir.iterdir():
-            for filename, type_name in backfill_map.items():
-                artifact = opt_dir / filename
+            for old_name, (new_name, type_name) in artifact_map.items():
+                artifact = opt_dir / old_name
                 if not artifact.exists():
                     continue
                 data = load_json(artifact)
-                if "_type" in data:
-                    continue  # already has _type
                 data["_type"] = type_name
-                print(f"  backfilling _type={type_name!r} in {artifact.relative_to(data_dir)}")
-                write_json(artifact, data, dry_run)
+                target = opt_dir / new_name
+                if old_name != new_name:
+                    print(f"  renaming {artifact.relative_to(data_dir)} → {new_name}")
+                else:
+                    print(f"  backfilling _type={type_name!r} in {artifact.relative_to(data_dir)}")
+                write_json(target, data, dry_run)
+                if old_name != new_name and not dry_run:
+                    artifact.unlink()
+                    print(f"  deleted old {artifact.relative_to(data_dir)}")
 
     print("\nMigration complete.")
 
