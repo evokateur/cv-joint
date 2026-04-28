@@ -91,7 +91,7 @@ class ApplicationService:
                     break
                 counter += 1
 
-        record = self.repository.add_job_posting(job_posting, identifier)
+        record = self.repository.upsert_job_posting(job_posting, identifier)
         self.markdown_exporter.export_job_posting(record, job_posting)
         return record
 
@@ -202,7 +202,7 @@ class ApplicationService:
                     break
                 counter += 1
 
-        record = self.repository.add_cv(cv, identifier)
+        record = self.repository.upsert_cv(cv, identifier)
         self.markdown_exporter.export_cv(record, cv)
         return record
 
@@ -252,7 +252,7 @@ class ApplicationService:
             raise ValueError(f"Job posting not found: {identifier}")
 
         job_posting = self.job_posting_analyzer.analyze(record.url, content_file)
-        new_record = self.repository.add_job_posting(job_posting, identifier)
+        new_record = self.repository.upsert_job_posting(job_posting, identifier)
         self.markdown_exporter.export_job_posting(new_record, job_posting)
         return new_record
 
@@ -274,7 +274,7 @@ class ApplicationService:
             raise ValueError(f"CV not found: {identifier}")
 
         cv = self.cv_analyzer.analyze(content_file)
-        new_record = self.repository.add_cv(cv, identifier)
+        new_record = self.repository.upsert_cv(cv, identifier)
         self.markdown_exporter.export_cv(new_record, cv)
         return new_record
 

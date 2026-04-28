@@ -78,7 +78,7 @@ class FileSystemRepository:
         """Resolve a relative path against data_dir."""
         return self.data_dir / relative_path
 
-    def add_job_posting(
+    def upsert_job_posting(
         self, job_posting: JobPosting, identifier: str
     ) -> JobPostingRecord:
         """
@@ -279,7 +279,7 @@ class FileSystemRepository:
 
         return True
 
-    def add_cv(self, cv: CurriculumVitae, identifier: str) -> CurriculumVitaeRecord:
+    def upsert_cv(self, cv: CurriculumVitae, identifier: str) -> CurriculumVitaeRecord:
         """
         Add a CV and update collection metadata.
 
