@@ -3,7 +3,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-from config.settings import get_markdown_root_dir
 from config.settings import get_data_dir
 from models import CvTransformationPlan
 from services.analyzers import JobPostingAnalyzer
@@ -12,7 +11,6 @@ from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter
 from .exporters import MarkdownExporter
 from repositories import FileSystemRepository
-from infrastructure import MarkdownWriter
 from renderers.latex import render_latex, latex_to_pdf
 
 
@@ -24,19 +22,14 @@ class ApplicationService:
     def __init__(
         self,
         repository: Optional[FileSystemRepository] = None,
-        markdown_writer: Optional[MarkdownWriter] = None,
     ):
         self.job_posting_analyzer = JobPostingAnalyzer()
         self.cv_analyzer = CvAnalyzer()
         self.cv_optimizer = CvOptimizer()
         self.repository = repository or FileSystemRepository(data_dir=get_data_dir())
         self.markdown_converter = MarkdownConverter()
-        markdown_writer = markdown_writer or MarkdownWriter(
-            root_dir=get_markdown_root_dir()
-        )
-        self.markdown_writer = markdown_writer
         self.markdown_exporter = MarkdownExporter(
-            self.repository, markdown_writer, self.markdown_converter
+            self.repository, self.markdown_converter
         )
 
     def create_job_posting(
@@ -333,10 +326,7 @@ class ApplicationService:
         Returns:
             True if removed, False if not found
         """
-        removed = self.repository.remove_job_posting(identifier)
-        if removed:
-            self.markdown_writer.delete_job_posting(identifier)
-        return removed
+        return self.repository.remove_job_posting(identifier)
 
     def remove_cv(self, identifier: str) -> bool:
         """
@@ -349,10 +339,7 @@ class ApplicationService:
             True if removed, False if not found
 
         """
-        removed = self.repository.remove_cv(identifier)
-        if removed:
-            self.markdown_writer.delete_cv(identifier)
-        return removed
+        return self.repository.remove_cv(identifier)
 
     def remove_cv_optimization(
         self, job_posting_identifier: str, identifier: str
@@ -376,9 +363,7 @@ class ApplicationService:
         Raises:
             ValueError: If not found or new identifier already exists
         """
-        record = self.repository.rename_job_posting(identifier, new_identifier)
-        self.markdown_writer.move_job_posting(identifier, new_identifier)
-        return record
+        return self.repository.rename_job_posting(identifier, new_identifier)
 
     def rename_cv(self, identifier: str, new_identifier: str):
         """
@@ -388,9 +373,7 @@ class ApplicationService:
         Raises:
             ValueError: If not found or new identifier already exists
         """
-        record = self.repository.rename_cv(identifier, new_identifier)
-        self.markdown_writer.move_cv(identifier, new_identifier)
-        return record
+        return self.repository.rename_cv(identifier, new_identifier)
 
     def rename_cv_optimization(
         self, job_posting_identifier: str, identifier: str, new_identifier: str
@@ -438,8 +421,10 @@ class ApplicationService:
             )
 
         identifier = f"{datetime.date.today()}"
+        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
 
         output = self.cv_optimizer.optimize(cv, job_posting)
+        self.repository.save_object(base_uri, output.cv)
         self._write_optimization_outputs(job_posting_identifier, identifier, output)
 
         plan = output.artifacts.get("transformation-plan")

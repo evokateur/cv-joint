@@ -9,7 +9,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from repositories import FileSystemRepository
-from infrastructure import MarkdownWriter
 from services import ApplicationService
 from models import JobPosting, CurriculumVitae, Contact, CvTransformationPlan
 
@@ -23,8 +22,7 @@ def temp_data_dir():
 @pytest.fixture
 def service(temp_data_dir):
     repository = FileSystemRepository(data_dir=temp_data_dir)
-    markdown_writer = MarkdownWriter(root_dir=temp_data_dir)
-    return ApplicationService(repository=repository, markdown_writer=markdown_writer)
+    return ApplicationService(repository=repository)
 
 
 @pytest.fixture
@@ -92,7 +90,7 @@ class TestSaveJobPostingMarkdown:
 class TestSaveCvMarkdown:
     def test_creates_markdown(self, service, sample_cv_data, temp_data_dir):
         service.save_cv(sample_cv_data, "test-cv")
-        md_path = Path(temp_data_dir) / "cvs" / "test-cv" / "cv.md"
+        md_path = Path(temp_data_dir) / "cvs" / "test-cv" / "curriculum-vitae.md"
         assert md_path.exists()
         content = md_path.read_text()
         assert "# Jane Doe" in content
@@ -106,7 +104,7 @@ class TestRegenerateMarkdown:
         service.save_cv(sample_cv_data, "cv-1")
 
         job_md = Path(temp_data_dir) / "job-postings" / "job-1" / "job-posting.md"
-        cv_md = Path(temp_data_dir) / "cvs" / "cv-1" / "cv.md"
+        cv_md = Path(temp_data_dir) / "cvs" / "cv-1" / "curriculum-vitae.md"
         job_md.unlink()
         cv_md.unlink()
 
@@ -122,7 +120,7 @@ class TestRegenerateMarkdown:
         service.save_cv(sample_cv_data, "cv-1")
 
         job_md = Path(temp_data_dir) / "job-postings" / "job-1" / "job-posting.md"
-        cv_md = Path(temp_data_dir) / "cvs" / "cv-1" / "cv.md"
+        cv_md = Path(temp_data_dir) / "cvs" / "cv-1" / "curriculum-vitae.md"
         job_md.unlink()
         cv_md.unlink()
 
@@ -144,8 +142,8 @@ class TestRegenerateMarkdown:
         service.repository.save_object(base_uri, plan)
 
         opt_dir = Path(temp_data_dir) / "job-postings" / "job-1" / "cvs" / "opt-1"
-        plan_md = opt_dir / "transformation-plan.md"
-        cv_md = opt_dir / "cv.md"
+        plan_md = opt_dir / "cv-transformation-plan.md"
+        cv_md = opt_dir / "curriculum-vitae.md"
 
         count = service.regenerate_markdown(collection_name="optimizations")
         assert count == 2
@@ -205,7 +203,7 @@ class TestRemoveCv:
 
     def test_deletes_markdown(self, service, sample_cv_data, temp_data_dir):
         service.save_cv(sample_cv_data, "jane-doe")
-        md_path = Path(temp_data_dir) / "cvs" / "jane-doe" / "cv.md"
+        md_path = Path(temp_data_dir) / "cvs" / "jane-doe" / "curriculum-vitae.md"
         assert md_path.exists()
         service.remove_cv("jane-doe")
         assert not md_path.exists()
@@ -257,7 +255,7 @@ class TestRegenerateCv:
 
     def test_regenerates_markdown(self, service, sample_cv_data, temp_data_dir):
         service.save_cv(sample_cv_data, "jane-doe")
-        md_path = Path(temp_data_dir) / "cvs" / "jane-doe" / "cv.md"
+        md_path = Path(temp_data_dir) / "cvs" / "jane-doe" / "curriculum-vitae.md"
         md_path.unlink()
         service.cv_analyzer = MagicMock()
         service.cv_analyzer.analyze.return_value = CurriculumVitae(**sample_cv_data)
@@ -306,8 +304,8 @@ class TestRegenerateCvOptimization:
 
     def test_regenerates_markdown(self, service_with_optimization, temp_data_dir):
         service_with_optimization.regenerate_cv_optimization("acme-swe", "opt-1")
-        cv_md = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "cv.md"
-        plan_md = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "transformation-plan.md"
+        cv_md = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "curriculum-vitae.md"
+        plan_md = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "cv-transformation-plan.md"
         assert cv_md.exists()
         assert plan_md.exists()
 
@@ -357,7 +355,7 @@ class TestRenameCv:
         service.save_cv(sample_cv_data, "old-id")
         service.rename_cv("old-id", "new-id")
         assert not (Path(temp_data_dir) / "cvs" / "old-id").exists()
-        assert (Path(temp_data_dir) / "cvs" / "new-id" / "cv.md").exists()
+        assert (Path(temp_data_dir) / "cvs" / "new-id" / "curriculum-vitae.md").exists()
 
     def test_repairs_optimization_references(
         self, service, sample_job_posting_data, sample_cv_data
@@ -374,7 +372,7 @@ class TestGetJobPostings:
     def test_forwards_archived_param(self):
         mock_repo = MagicMock()
         mock_repo.list_job_postings.return_value = []
-        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service = ApplicationService(repository=mock_repo)
         service.get_job_postings(archived=True)
         mock_repo.list_job_postings.assert_called_once_with(archived=True)
 
@@ -382,7 +380,7 @@ class TestGetJobPostings:
 class TestArchiveJobPosting:
     def test_delegates_to_repository(self):
         mock_repo = MagicMock()
-        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = MagicMock()
         service.archive_job_posting("acme-swe")
         mock_repo.archive_job_posting.assert_called_once_with("acme-swe")
@@ -390,7 +388,7 @@ class TestArchiveJobPosting:
     def test_regenerates_markdown(self):
         mock_repo = MagicMock()
         mock_exporter = MagicMock()
-        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = mock_exporter
         service.archive_job_posting("acme-swe")
         mock_exporter.export_job_posting.assert_called_once_with(
@@ -402,7 +400,7 @@ class TestArchiveJobPosting:
 class TestMarkApplied:
     def test_delegates_to_repository(self):
         mock_repo = MagicMock()
-        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = MagicMock()
         service.mark_applied("acme-swe", "my-cv")
         mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
@@ -410,7 +408,7 @@ class TestMarkApplied:
     def test_forwards_applied_at(self):
         from datetime import datetime
         mock_repo = MagicMock()
-        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = MagicMock()
         date = datetime(2025, 1, 15)
         service.mark_applied("acme-swe", "my-cv", applied_at=date)
@@ -419,7 +417,7 @@ class TestMarkApplied:
     def test_regenerates_markdown(self):
         mock_repo = MagicMock()
         mock_exporter = MagicMock()
-        service = ApplicationService(repository=mock_repo, markdown_writer=MagicMock())
+        service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = mock_exporter
         service.mark_applied("acme-swe", "my-cv")
         mock_exporter.export_job_posting.assert_called_once_with(
