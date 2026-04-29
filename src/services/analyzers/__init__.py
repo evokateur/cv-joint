@@ -1,5 +1,5 @@
 from .cv_analyzer import CvAnalyzer
 from .job_posting_analyzer import JobPostingAnalyzer
-from .cv_optimizer import CvOptimizer
+from .cv_optimizer import CvOptimizer, OptimizerOutput
 
-__all__ = ["CvAnalyzer", "JobPostingAnalyzer", "CvOptimizer"]
+__all__ = ["CvAnalyzer", "JobPostingAnalyzer", "CvOptimizer", "OptimizerOutput"]

@@ -5,6 +5,7 @@ from .schema import (
     CvOptimizationRecord,
     CurriculumVitaeRecord,
     CvTransformationPlan,
+    DOMAIN_OBJECT_REGISTRY,
     Education,
     Experience,
     AdditionalExperience,
@@ -12,6 +13,7 @@ from .schema import (
     JobPosting,
     JobPostingRecord,
     Language,
+    OptimizedCvRecord,
 )
 
 __all__ = [
@@ -21,6 +23,7 @@ __all__ = [
     "CvOptimizationRecord",
     "CurriculumVitaeRecord",
     "CvTransformationPlan",
+    "DOMAIN_OBJECT_REGISTRY",
     "Education",
     "Experience",
     "AdditionalExperience",
@@ -28,4 +31,5 @@ __all__ = [
     "JobPosting",
     "JobPostingRecord",
     "Language",
+    "OptimizedCvRecord",
 ]

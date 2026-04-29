@@ -1,111 +1,111 @@
 {{ frontmatter }}
-# {% if job.company and job.company | lower != 'not specified' %}{{ job.title }} at {{ job.company }}{% else %}{{ job.title }}{% endif %}
+# {% if obj.company and obj.company | lower != 'not specified' %}{{ obj.title }} at {{ obj.company }}{% else %}{{ obj.title }}{% endif %}
 
-{% if job.url -%}
-**Original Posting:** {{ job.url | linkify }}
-
-{% endif -%}
-{% if job.company and job.company | lower != 'not specified' -%}
-**Company:** {{ job.company }}
+{% if obj.url -%}
+**Original Posting:** {{ obj.url | linkify }}
 
 {% endif -%}
-{% if job.industry -%}
-**Industry:** {{ job.industry }}
+{% if obj.company and obj.company | lower != 'not specified' -%}
+**Company:** {{ obj.company }}
 
 {% endif -%}
-{% if job.experience_level -%}
-**Experience Level:** {{ job.experience_level }}
+{% if obj.industry -%}
+**Industry:** {{ obj.industry }}
 
 {% endif -%}
-{% if job.description %}
+{% if obj.experience_level -%}
+**Experience Level:** {{ obj.experience_level }}
+
+{% endif -%}
+{% if obj.description %}
 ## Description
 
-{{ job.description }}
+{{ obj.description }}
 
 {% endif %}
-{% if job.education or job.years_experience or job.hard_requirements %}
+{% if obj.education or obj.years_experience or obj.hard_requirements %}
 ## Requirements
 
-{% if job.education %}
+{% if obj.education %}
 **Education:**
 
-{% for item in job.education -%}
+{% for item in obj.education -%}
 - {{ item }}
 {% endfor %}
 {% endif %}
-{% if job.years_experience -%}
-**Years Experience:** {{ job.years_experience }}
+{% if obj.years_experience -%}
+**Years Experience:** {{ obj.years_experience }}
 
 {% endif %}
-{% if job.hard_requirements %}
+{% if obj.hard_requirements %}
 **Must Have:**
 
-{% for item in job.hard_requirements -%}
+{% for item in obj.hard_requirements -%}
 - {{ item }}
 {% endfor %}
 {% endif %}
 {% endif %}
-{% if job.technical_skills or job.soft_skills or job.preferred_skills %}
+{% if obj.technical_skills or obj.soft_skills or obj.preferred_skills %}
 ## Skills
 
-{% if job.technical_skills %}
+{% if obj.technical_skills %}
 **Technical:**
 
-{% for item in job.technical_skills -%}
+{% for item in obj.technical_skills -%}
 - {{ item }}
 {% endfor %}
 {% endif %}
-{% if job.soft_skills %}
+{% if obj.soft_skills %}
 **Soft:**
 
-{% for item in job.soft_skills -%}
+{% for item in obj.soft_skills -%}
 - {{ item }}
 {% endfor %}
 {% endif %}
-{% if job.preferred_skills %}
+{% if obj.preferred_skills %}
 **Preferred:**
 
-{% for item in job.preferred_skills -%}
+{% for item in obj.preferred_skills -%}
 - {{ item }}
 {% endfor %}
 {% endif %}
 {% endif %}
-{% if job.responsibilities %}
+{% if obj.responsibilities %}
 ## Responsibilities
 
-{% for item in job.responsibilities -%}
+{% for item in obj.responsibilities -%}
 - {{ item }}
 {% endfor %}
 {% endif %}
-{% if job.deliverables %}
+{% if obj.deliverables %}
 ## Deliverables
 
-{% for item in job.deliverables -%}
+{% for item in obj.deliverables -%}
 - {{ item }}
 {% endfor %}
 {% endif %}
-{% if job.keywords or job.tools_and_tech %}
+{% if obj.keywords or obj.tools_and_tech %}
 ## ATS Optimization
 
-{% if job.keywords %}
+{% if obj.keywords %}
 **Keywords:**
 
-{% for item in job.keywords -%}
+{% for item in obj.keywords -%}
 - {{ item }}
 {% endfor %}
 {% endif %}
-{% if job.tools_and_tech %}
+{% if obj.tools_and_tech %}
 **Tools and Technologies:**
 
-{% for item in job.tools_and_tech -%}
+{% for item in obj.tools_and_tech -%}
 - {{ item }}
 {% endfor %}
 {% endif %}
 {% endif %}
-{% if job.application_instructions %}
+{% if obj.application_instructions %}
 ## Application Instructions
 
-{% for item in job.application_instructions -%}
+{% for item in obj.application_instructions -%}
 - {{ item }}
 {% endfor %}
 {% endif %}

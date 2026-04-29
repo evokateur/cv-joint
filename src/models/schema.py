@@ -169,6 +169,9 @@ class CvTransformationPlan(BaseModel):
     )
 
 
+DOMAIN_OBJECT_REGISTRY: dict[str, type["BaseModel"]] = {}
+
+
 class JobPostingRecord(BaseModel):
     """
     Job posting persistence record.
@@ -207,6 +210,29 @@ class CurriculumVitaeRecord(BaseModel):
     updated_at: datetime = Field(description="When this record was last updated")
 
 
+class OptimizedCvRecord(BaseModel):
+    """
+    Optimized CV persistence record.
+
+    Tracks identity and key fields for listing display. Artifact paths are
+    not stored — they are derivable from the URI convention.
+    """
+
+    identifier: str = Field(description="Unique identifier of the optimization")
+    job_posting_identifier: str = Field(
+        description="Identifier of the job posting this CV was optimized for"
+    )
+    base_cv_identifier: str = Field(
+        description="Identifier of the CV this optimization transforms"
+    )
+    name: str = Field(description="Person's name (for listing display)")
+    profession: str = Field(description="Profession (for listing display)")
+    job_title: Optional[str] = Field(default=None, description="Job title (for listing display)")
+    company: Optional[str] = Field(default=None, description="Company (for listing display)")
+    created_at: datetime = Field(description="When this optimization was created")
+    updated_at: datetime = Field(description="When this optimization was last updated")
+
+
 class CvOptimizationRecord(BaseModel):
     """
     CV optimization persistence record.
@@ -227,3 +253,10 @@ class CvOptimizationRecord(BaseModel):
     job_title: Optional[str] = Field(default=None, description="Job title (for listing display)")
     company: Optional[str] = Field(default=None, description="Company (for listing display)")
     created_at: datetime = Field(description="When this CV optimization was created")
+
+
+DOMAIN_OBJECT_REGISTRY.update({
+    "CurriculumVitae": CurriculumVitae,
+    "CvTransformationPlan": CvTransformationPlan,
+    "JobPosting": JobPosting,
+})

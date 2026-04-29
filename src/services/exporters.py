@@ -1,49 +1,55 @@
+import re
 from typing import Optional
+
+from pydantic import BaseModel
 
 from models import (
     JobPosting,
     JobPostingRecord,
-    CvOptimizationRecord,
     CvTransformationPlan,
     CurriculumVitae,
     CurriculumVitaeRecord,
+    OptimizedCvRecord,
 )
-from infrastructure import MarkdownWriter
 from .converters import MarkdownConverter
 
 
-class MarkdownExporter:
-    """Delegates markdown conversion and writes results to the filesystem."""
+def _to_kebab_case(name: str) -> str:
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1-\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1-\2", s1).lower()
 
-    def __init__(
-        self, repository, markdown_writer: MarkdownWriter, converter: MarkdownConverter
-    ):
+
+class MarkdownExporter:
+    """Converts domain objects to markdown and writes them via the repository."""
+
+    def __init__(self, repository, converter: MarkdownConverter):
         self.repository = repository
-        self.markdown_writer = markdown_writer
         self.converter = converter
 
+    def _save(self, base_uri: str, obj: BaseModel, record: Optional[BaseModel] = None):
+        markdown = self.converter.convert(obj, record)
+        if markdown is None:
+            return
+        uri = f"{base_uri}/{_to_kebab_case(type(obj).__name__)}.md"
+        self.repository.save_document(uri, markdown)
+
     def export_job_posting(self, record: JobPostingRecord, job_posting: JobPosting):
-        markdown = self.converter.convert_job_posting(job_posting, record)
-        self.markdown_writer.write_job_posting(record.identifier, markdown)
+        self._save(f"job-postings/{record.identifier}", job_posting, record)
 
     def export_cv(
-        self, record: CurriculumVitaeRecord | CvOptimizationRecord, cv: CurriculumVitae
+        self, record: CurriculumVitaeRecord | OptimizedCvRecord, cv: CurriculumVitae
     ):
-        markdown = self.converter.convert_cv(cv, record)
         if isinstance(record, CurriculumVitaeRecord):
-            self.markdown_writer.write_cv(record.identifier, markdown)
-        elif isinstance(record, CvOptimizationRecord):
-            self.markdown_writer.write_optimized_cv(
-                record.job_posting_identifier, record.identifier, markdown
-            )
+            base_uri = f"cvs/{record.identifier}"
+        else:
+            base_uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
+        self._save(base_uri, cv, record)
 
     def export_cv_transformation_plan(
-        self, record: CvOptimizationRecord, plan: CvTransformationPlan
+        self, record: OptimizedCvRecord, plan: CvTransformationPlan
     ):
-        markdown = self.converter.convert_transformation_plan(plan, record)
-        self.markdown_writer.write_cv_transformation_plan(
-            record.job_posting_identifier, record.identifier, markdown
-        )
+        base_uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
+        self._save(base_uri, plan, record)
 
     def export(self, collection_name: Optional[str] = None) -> int:
         """Bulk export (regeneration). Iterates repository, exports each object."""
@@ -64,18 +70,18 @@ class MarkdownExporter:
                 self.export_cv(record, cv)
                 count += 1
         if collection_name is None or collection_name == "optimizations":
-            for item in self.repository.list_cv_optimizations():
-                record = CvOptimizationRecord(**item)
+            for item in self.repository.list_optimized_cvs():
+                record = OptimizedCvRecord(**item)
+                base_uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
                 cv = self.repository.get_optimized_cv(
-                    record.job_posting_identifier, record.identifier
-                )
-                plan = self.repository.get_cv_transformation_plan(
                     record.job_posting_identifier, record.identifier
                 )
                 if cv:
                     self.export_cv(record, cv)
                     count += 1
-                if plan:
-                    self.export_cv_transformation_plan(record, plan)
+                for obj in self.repository.load_all_objects(base_uri).values():
+                    if isinstance(obj, CurriculumVitae):
+                        continue  # already exported via export_cv
+                    self._save(base_uri, obj, record)
                     count += 1
         return count
