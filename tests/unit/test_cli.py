@@ -40,7 +40,7 @@ class TestListCommand:
         with patch("services.application.ApplicationService", return_value=mock_service):
             with patch("sys.argv", ["cv-joint", "list", "job-postings"]):
                 main()
-        mock_service.get_job_postings.assert_called_once_with(archived=False)
+        mock_service.get_job_postings.assert_called_once_with(archived=False, query=None)
         assert "acme-swe" in capsys.readouterr().out
 
     def test_archived_flag_shows_only_archived(self, capsys):
