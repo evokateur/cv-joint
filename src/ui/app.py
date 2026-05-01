@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import gradio as gr
@@ -6,6 +7,8 @@ from models import JobPosting, CurriculumVitae, CvTransformationPlan
 from services import ApplicationService
 from services import KnowledgeChatService
 from config.settings import get_chat_config, is_mcp_configured
+
+_UPLOADS_DIR = Path(__file__).parent.parent.parent / "uploads"
 
 
 def create_app():
@@ -110,7 +113,11 @@ def create_app():
                             gr.update(value="", visible=False),
                         )
 
-                    content_path = content_file.name if content_file else None
+                    content_path = None
+                    if content_file:
+                        _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+                        content_path = str(_UPLOADS_DIR / Path(content_file).name)
+                        shutil.copy2(content_file, content_path)
                     job_data, identifier = service.create_job_posting(url, content_path)
                     job_posting = JobPosting(**job_data)
                     job_md = service.to_markdown(job_posting)
@@ -250,9 +257,7 @@ def create_app():
                     jobs = service.get_job_postings(query=query or None)
                     job_list_data = [
                         [
-                            j.get("created_at", "")[:10]
-                            if j.get("created_at")
-                            else "",
+                            j.get("created_at", "")[:10] if j.get("created_at") else "",
                             j.get("company", ""),
                             j.get("title", ""),
                             j.get("url", ""),
@@ -365,9 +370,7 @@ def create_app():
                 )
 
                 job_search.change(fn=load_jobs, inputs=[job_search], outputs=[job_list])
-                refresh_jobs_btn.click(
-                    fn=lambda: load_jobs(""), outputs=[job_list]
-                )
+                refresh_jobs_btn.click(fn=lambda: load_jobs(""), outputs=[job_list])
 
                 # Load jobs on startup
                 app.load(fn=load_jobs, outputs=[job_list])
@@ -431,7 +434,12 @@ def create_app():
 
                 # Event handlers for CV tab
                 def analyze_cv(file, path):
-                    file_path = file.name if file else path
+                    if file:
+                        _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+                        file_path = str(_UPLOADS_DIR / Path(file).name)
+                        shutil.copy2(file, file_path)
+                    else:
+                        file_path = path
                     if not file_path:
                         return (
                             "",

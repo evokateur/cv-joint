@@ -13,6 +13,8 @@
 !/output/cv.tex
 !/output/cv.pdf
 
+/uploads/*
+
 # Swap files
 *.swp
 
