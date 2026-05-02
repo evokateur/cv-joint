@@ -39,7 +39,8 @@ def render_latex(
         obj = None
         obj_data = data
 
-    env = get_tex_env()
+    templates_dir = str(Path(__file__).parents[3] / "templates")
+    env = get_tex_env(templates_dir)
     template = env.get_template(template_name)
     rendered_tex = template.render(obj_data)
 

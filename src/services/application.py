@@ -544,7 +544,7 @@ class ApplicationService:
                 id_ = item["identifier"]
                 filepath = str(
                     self.repository.data_dir
-                    / "job-postings" / jp_id / "cvs" / id_ / "cv.json"
+                    / "job-postings" / jp_id / "cvs" / id_ / "curriculum-vitae.json"
                 )
                 results.append({
                     "identifier": id_,

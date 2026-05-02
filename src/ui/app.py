@@ -1100,8 +1100,12 @@ def create_app():
 
                 def load_cv_data_choices():
                     files = service.get_cv_data_filepaths()
+                    def cv_label(f):
+                        if "job_posting_identifier" in f:
+                            return f"job-postings/{f['job_posting_identifier']}/cvs/{f['identifier']}"
+                        return f"cvs/{f['identifier']}"
                     return gr.Dropdown(
-                        choices=[(f["identifier"], f["filepath"]) for f in files]
+                        choices=[(cv_label(f), f["filepath"]) for f in files]
                     )
 
                 def load_cv_template_choices():
