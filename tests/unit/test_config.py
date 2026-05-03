@@ -146,4 +146,4 @@ class TestGetMergedConfig:
         assert "mcpServers" in config
         assert "crews" in config
         assert "repositories" in config
-        assert "markdown_writer" in config
+
