@@ -21,6 +21,7 @@ class JobPostingAnalysisCrew:
         self.llm = LLM(
             model=config.job_analyst_model,
             temperature=float(config.job_analyst_temperature),
+            max_tokens=config.job_analyst_max_tokens,
         )
 
     @agent

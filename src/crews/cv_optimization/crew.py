@@ -22,10 +22,12 @@ class CvOptimizationCrew:
             "cv_strategist": LLM(
                 model=config.cv_strategist_model,
                 temperature=float(config.cv_strategist_temperature),
+                max_tokens=config.cv_strategist_max_tokens,
             ),
             "cv_rewriter": LLM(
                 model=config.cv_rewriter_model,
                 temperature=float(config.cv_rewriter_temperature),
+                max_tokens=config.cv_rewriter_max_tokens,
             ),
         }
 

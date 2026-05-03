@@ -17,6 +17,7 @@ class AgentSettings(BaseModel):
 
     model: str = Field(min_length=1, description="LLM model name")
     temperature: float = Field(ge=0.0, le=2.0, description="LLM temperature (0.0-2.0)")
+    max_tokens: Optional[int] = Field(default=4096, description="Maximum tokens for LLM response")
 
 
 class ChatSettings(BaseModel):

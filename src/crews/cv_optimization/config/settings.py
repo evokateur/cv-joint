@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 from pydantic import BaseModel
 from config.settings import AgentSettings, BaseConfig
 
@@ -26,8 +27,16 @@ class Config(BaseConfig):
         return str(self._get_agent_setting("cv_strategist", "temperature"))
 
     @property
+    def cv_strategist_max_tokens(self) -> Optional[int]:
+        return self._get_agent_setting("cv_strategist", "max_tokens")
+
+    @property
     def cv_rewriter_temperature(self) -> str:
         return str(self._get_agent_setting("cv_rewriter", "temperature"))
+
+    @property
+    def cv_rewriter_max_tokens(self) -> Optional[int]:
+        return self._get_agent_setting("cv_rewriter", "max_tokens")
 
 
 def get_config() -> Config:

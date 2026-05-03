@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 from pydantic import BaseModel
 from config.settings import AgentSettings, BaseConfig
 
@@ -20,6 +21,10 @@ class Config(BaseConfig):
     @property
     def job_analyst_temperature(self) -> str:
         return str(self._get_agent_setting("job_analyst", "temperature"))
+
+    @property
+    def job_analyst_max_tokens(self) -> Optional[int]:
+        return self._get_agent_setting("job_analyst", "max_tokens")
 
 
 def get_config() -> Config:

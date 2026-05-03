@@ -19,6 +19,7 @@ class CvAnalysisCrew:
         self.llm = LLM(
             model=config.cv_analyst_model,
             temperature=float(config.cv_analyst_temperature),
+            max_tokens=config.cv_analyst_max_tokens,
         )
 
     @agent
