@@ -8,6 +8,8 @@ import asyncio
 from crewai.tools import BaseTool
 from infrastructure import McpManager
 
+_loop = asyncio.new_event_loop()
+
 
 class KnowledgeSearchTool(BaseTool):
     """
@@ -24,7 +26,7 @@ class KnowledgeSearchTool(BaseTool):
 
     def _run(self, query: str) -> str:
         """Search the knowledge base for relevant experience."""
-        return asyncio.run(self._async_search(query))
+        return _loop.run_until_complete(self._async_search(query))
 
     async def _async_search(self, query: str) -> str:
         """Async implementation of the search."""
