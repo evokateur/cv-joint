@@ -180,30 +180,18 @@ def create_app():
                     if is_saved:
                         return (
                             "ℹ Job posting is already saved",
-                            "",
                             None,
-                            None,
-                            gr.update(open=False),
                             True,
                             gr.update(visible=False),
-                            "",
-                            None,
-                            gr.update(interactive=False, variant="primary"),
                             gr.update(),
                         )
 
                     if not job_data or not identifier:
                         return (
                             "⚠ Please analyze a job posting first and provide an identifier",
-                            "",
                             None,
-                            None,
-                            gr.update(open=False),
                             False,
                             gr.update(visible=True),
-                            None,
-                            job_data,
-                            gr.update(variant="secondary"),
                             gr.update(),
                         )
 
@@ -214,7 +202,7 @@ def create_app():
                             [
                                 j.get("created_at", "")[:10]
                                 if j.get("created_at")
-                                else "",  # Just the date part
+                                else "",
                                 j.get("company", ""),
                                 j.get("title", ""),
                                 j.get("url", ""),
@@ -224,15 +212,9 @@ def create_app():
                         ]
                         return (
                             f"✓ Job posting saved: {metadata.identifier}",
-                            "",
                             job_list_data,
-                            None,
-                            gr.update(open=False),
                             True,
                             gr.update(visible=False),
-                            "",
-                            None,
-                            gr.update(interactive=False, variant="primary"),
                             gr.update(
                                 value=f"job-postings/{metadata.identifier}",
                                 visible=True,
@@ -241,15 +223,9 @@ def create_app():
                     except Exception as e:
                         return (
                             f"✗ Error saving job posting: {str(e)}",
-                            "",
                             None,
-                            None,
-                            gr.update(open=False),
                             False,
                             gr.update(visible=True),
-                            None,
-                            job_data,
-                            gr.update(variant="secondary"),
                             gr.update(),
                         )
 
@@ -327,15 +303,9 @@ def create_app():
                     inputs=[job_result_json, job_identifier, job_is_saved],
                     outputs=[
                         save_job_status,
-                        job_url,
                         job_list,
-                        job_content_file,
-                        job_content_accordion,
                         job_is_saved,
                         job_save_controls,
-                        job_result_md,
-                        job_result_json,
-                        analyze_job_btn,
                         job_uri,
                     ],
                 )
@@ -516,12 +486,6 @@ def create_app():
                             None,
                             True,
                             gr.update(visible=False),
-                            "",
-                            None,
-                            None,
-                            "",
-                            gr.update(interactive=False, variant="primary"),
-                            gr.update(open=False),
                             gr.update(),
                         )
 
@@ -531,12 +495,6 @@ def create_app():
                             None,
                             False,
                             gr.update(visible=True),
-                            None,
-                            cv_data,
-                            None,
-                            None,
-                            gr.update(variant="secondary"),
-                            gr.update(),
                             gr.update(),
                         )
 
@@ -559,12 +517,6 @@ def create_app():
                             cv_list_data,
                             True,
                             gr.update(visible=False),
-                            "",
-                            None,
-                            None,
-                            "",
-                            gr.update(interactive=False, variant="primary"),
-                            gr.update(open=False),
                             gr.update(value=f"cvs/{metadata.identifier}", visible=True),
                         )
                     except Exception as e:
@@ -573,12 +525,6 @@ def create_app():
                             None,
                             False,
                             gr.update(visible=True),
-                            None,
-                            cv_data,
-                            None,
-                            None,
-                            gr.update(variant="secondary"),
-                            gr.update(),
                             gr.update(),
                         )
 
@@ -670,12 +616,6 @@ def create_app():
                         cv_list,
                         cv_is_saved,
                         cv_save_controls,
-                        cv_result_md,
-                        cv_result_json,
-                        cv_file,
-                        cv_path,
-                        analyze_cv_btn,
-                        cv_source_accordion,
                         cv_uri,
                     ],
                 )
