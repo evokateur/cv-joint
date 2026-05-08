@@ -137,7 +137,7 @@ class ApplicationService:
                 r for r in results
                 if any(
                     q in (r.get(f) or "").lower()
-                    for f in ("company", "title", "experience_level", "url")
+                    for f in ("company", "title", "experience_level", "url", "created_at")
                 )
             ]
         return results
