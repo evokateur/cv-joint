@@ -243,10 +243,21 @@ def create_app():
                     ]
                     return job_list_data
 
+                def on_url_change(url):
+                    if not is_valid_url(url):
+                        return gr.update(interactive=False), ""
+                    existing = service.find_job_posting_by_url(url)
+                    if existing:
+                        return (
+                            gr.update(interactive=False),
+                            f"⚠ Already analyzed as: {existing.identifier}",
+                        )
+                    return gr.update(interactive=True), ""
+
                 job_url.change(
-                    fn=lambda url: gr.update(interactive=is_valid_url(url)),
+                    fn=on_url_change,
                     inputs=[job_url],
-                    outputs=[analyze_job_btn],
+                    outputs=[analyze_job_btn, save_job_status],
                 )
 
                 # Analyze job posting - clear previous results first, then run analysis

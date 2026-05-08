@@ -157,6 +157,19 @@ class FileSystemRepository:
 
         return JobPosting(**data)
 
+    def get_job_posting_record_by_url(self, url: str) -> Optional[JobPostingRecord]:
+        """
+        Find a job posting record by URL.
+
+        Returns:
+            JobPostingRecord or None if not found
+        """
+        collection = self._load_collection(self.job_postings_collection)
+        data = next((item for item in collection if item.get("url") == url), None)
+        if data is None:
+            return None
+        return JobPostingRecord(**data)
+
     def get_job_posting_record(self, identifier: str) -> Optional[JobPostingRecord]:
         """
         Load a job posting record from the collection index.

@@ -148,6 +148,16 @@ class TestJobPostingOperations:
     def test_get_job_posting_record_not_found(self, repository):
         assert repository.get_job_posting_record("nonexistent") is None
 
+    def test_get_job_posting_record_by_url(self, repository, sample_job_posting):
+        repository.upsert_job_posting(sample_job_posting, "test-job")
+        record = repository.get_job_posting_record_by_url("https://example.com/job/123")
+
+        assert record is not None
+        assert record.identifier == "test-job"
+
+    def test_get_job_posting_record_by_url_not_found(self, repository):
+        assert repository.get_job_posting_record_by_url("https://example.com/nope") is None
+
     def test_list_job_postings_excludes_archived_by_default(
         self, repository, sample_job_posting
     ):

@@ -47,6 +47,12 @@ class ApplicationService:
         Returns:
             tuple of (job_posting_data, suggested_identifier)
         """
+        existing = self.repository.get_job_posting_record_by_url(url)
+        if existing:
+            raise ValueError(
+                f"Job posting already analyzed: {existing.identifier}"
+            )
+
         job_posting = self.job_posting_analyzer.analyze(url, content_file)
         identifier = self._generate_job_identifier(
             job_posting.company, job_posting.title
@@ -102,6 +108,10 @@ class ApplicationService:
         if company.lower() == "not specified":
             return slugify(title)
         return f"{slugify(company)}-{slugify(title)}"
+
+    def find_job_posting_by_url(self, url: str):
+        """Find a job posting record by URL, or None if not found."""
+        return self.repository.get_job_posting_record_by_url(url)
 
     def get_job_posting(self, identifier: str):
         """Retrieve a job posting by identifier."""
