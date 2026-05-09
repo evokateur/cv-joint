@@ -1053,8 +1053,8 @@ def create_app():
                     files = service.get_cv_data_filepaths()
                     def cv_label(f):
                         if "job_posting_identifier" in f:
-                            return f"job-postings/{f['job_posting_identifier']}/cvs/{f['identifier']}"
-                        return f"cvs/{f['identifier']}"
+                            return f"{f['job_posting_identifier']}/{f['identifier']}"
+                        return f['identifier']
                     return gr.Dropdown(
                         choices=[(cv_label(f), f["filepath"]) for f in files]
                     )

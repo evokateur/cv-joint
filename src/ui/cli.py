@@ -7,6 +7,23 @@ import sys
 import yaml
 
 
+def _normalise_cv_identifier(value: str) -> str:
+    """Normalise a CV reference to its full identifier form.
+
+    Accepts plain identifiers, composite identifiers, or URIs:
+      - "my-cv"                              → "my-cv"
+      - "acme-swe/my-cv"                     → "acme-swe/my-cv"
+      - "cvs/my-cv"                          → "my-cv"
+      - "job-postings/acme-swe/cvs/my-cv"   → "acme-swe/my-cv"
+    """
+    parts = value.strip("/").split("/")
+    if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
+        return f"{parts[1]}/{parts[3]}"
+    if parts[0] == "cvs" and len(parts) == 2:
+        return parts[1]
+    return value
+
+
 def main():
     """Launch the Gradio UI or run a management command."""
     import argparse
@@ -220,8 +237,9 @@ def main():
 
         if parts[0] == "job-postings" and len(parts) == 2:
             applied_at = datetime.strptime(args.date, "%Y-%m-%d") if args.date else None
-            service.mark_applied(parts[1], args.cv_identifier, applied_at=applied_at)
-            print(f"Marked {uri} as applied with {args.cv_identifier}")
+            cv_identifier = _normalise_cv_identifier(args.cv_identifier)
+            service.mark_applied(parts[1], cv_identifier, applied_at=applied_at)
+            print(f"Marked {uri} as applied with {cv_identifier}")
         else:
             print(f"Error: unrecognised URI '{uri}'", file=sys.stderr)
             print("Expected: job-postings/{id}", file=sys.stderr)

@@ -89,6 +89,30 @@ class TestApplyCommand:
                 main()
         assert "acme-swe" in capsys.readouterr().out
 
+    def test_full_composite_cv_identifier(self):
+        with patch("services.application.ApplicationService") as MockService:
+            mock_service = MockService.return_value
+            with patch("sys.argv", ["cv-joint", "apply", "job-postings/acme-swe", "acme-swe/my-cv"]):
+                main()
+        mock_service.mark_applied.assert_called_once_with("acme-swe", "acme-swe/my-cv", applied_at=None)
+
+    def test_normalises_base_cv_uri(self):
+        with patch("services.application.ApplicationService") as MockService:
+            mock_service = MockService.return_value
+            with patch("sys.argv", ["cv-joint", "apply", "job-postings/acme-swe", "cvs/my-cv"]):
+                main()
+        mock_service.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
+
+    def test_normalises_optimized_cv_uri(self):
+        with patch("services.application.ApplicationService") as MockService:
+            mock_service = MockService.return_value
+            with patch(
+                "sys.argv",
+                ["cv-joint", "apply", "job-postings/acme-swe", "job-postings/acme-swe/cvs/my-cv"],
+            ):
+                main()
+        mock_service.mark_applied.assert_called_once_with("acme-swe", "acme-swe/my-cv", applied_at=None)
+
     def test_unrecognised_uri_exits(self):
         with patch("services.application.ApplicationService"):
             with patch("sys.argv", ["cv-joint", "apply", "cvs/my-cv", "my-cv"]):
