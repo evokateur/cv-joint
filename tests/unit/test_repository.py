@@ -189,12 +189,22 @@ class TestJobPostingOperations:
         assert record.is_archived is True
         assert repository.get_job_posting_record("test-job").is_archived is True
 
-    def test_mark_applied_sets_fields(self, repository, sample_job_posting):
+    def test_archive_job_posting_updates_updated_at(self, repository, sample_job_posting):
+        from datetime import datetime
         repository.upsert_job_posting(sample_job_posting, "test-job")
+        before = datetime.now()
+        record = repository.archive_job_posting("test-job")
+        assert record.updated_at >= before
+
+    def test_mark_applied_sets_fields(self, repository, sample_job_posting):
+        from datetime import datetime
+        repository.upsert_job_posting(sample_job_posting, "test-job")
+        before = datetime.now()
         record = repository.mark_applied("test-job", "my-cv")
 
         assert record.applied_with == "my-cv"
         assert record.applied_at is not None
+        assert record.updated_at >= before
         reloaded = repository.get_job_posting_record("test-job")
         assert reloaded.applied_with == "my-cv"
         assert reloaded.applied_at is not None

@@ -220,6 +220,7 @@ class FileSystemRepository:
             raise ValueError(f"Job posting not found: {identifier}")
 
         record_data["is_archived"] = True
+        record_data["updated_at"] = datetime.now().isoformat()
         self._save_collection(self.job_postings_collection, collection)
         return JobPostingRecord(**record_data)
 
@@ -244,6 +245,7 @@ class FileSystemRepository:
 
         record_data["applied_with"] = cv_identifier
         record_data["applied_at"] = (applied_at or datetime.now()).isoformat()
+        record_data["updated_at"] = datetime.now().isoformat()
         self._save_collection(self.job_postings_collection, collection)
         return JobPostingRecord(**record_data)
 
