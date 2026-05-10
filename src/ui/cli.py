@@ -209,8 +209,7 @@ def main():
             else:
                 jobs = service.get_job_postings(archived=False, query=args.query)
             for j in jobs:
-                date = (j.get("created_at") or "")[:10]
-                print(f"{date}  {j.get('company', ''):<25} {j.get('title', ''):<30} {j.get('identifier', '')}")
+                print(f"job-postings/{j.get('identifier', '')}")
         return
 
     if args.command == "archive":

@@ -41,7 +41,7 @@ class TestListCommand:
             with patch("sys.argv", ["cv-joint", "list", "job-postings"]):
                 main()
         mock_service.get_job_postings.assert_called_once_with(archived=False, query=None)
-        assert "acme-swe" in capsys.readouterr().out
+        assert "job-postings/acme-swe" in capsys.readouterr().out
 
     def test_archived_flag_shows_only_archived(self, capsys):
         mock_service = MagicMock()
@@ -53,8 +53,8 @@ class TestListCommand:
             with patch("sys.argv", ["cv-joint", "list", "job-postings", "--archived"]):
                 main()
         out = capsys.readouterr().out
-        assert "old-job" in out
-        assert "active-job" not in out
+        assert "job-postings/old-job" in out
+        assert "job-postings/active-job" not in out
 
     def test_unknown_collection_exits(self):
         with patch("sys.argv", ["cv-joint", "list", "cvs"]):
