@@ -1,4 +1,4 @@
-.PHONY: install uninstall test test-all clean cv upwork-cv cover-letter
+.PHONY: install reinstall uninstall test test-all clean cv upwork-cv cover-letter
 
 OPEN =
 ifeq ($(shell uname), Darwin)
@@ -9,6 +9,9 @@ endif
 
 install:
 	uv tool install --editable .
+
+reinstall:
+	uv tool install --editable --reinstall .
 
 uninstall:
 	uv tool uninstall cv-joint
