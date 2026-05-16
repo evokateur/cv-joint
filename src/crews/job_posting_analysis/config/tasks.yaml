@@ -51,7 +51,8 @@ job_analysis_task:
     - Expand acronyms if possible (e.g., "CI/CD" -> "Continuous Integration / Continuous Deployment").
     - Filter out vague corporate jargon ("fast-paced environment", "great culture").
 
-    Output must be a valid JobPosting object.
+    Output MUST be a valid JobPosting object. Use "Not specified" for string values that are not specified.
+
   expected_output: >
     A validated JobPosting object with all fields populated where possible,
     ensuring consistency and ATS-awareness.
