@@ -1,4 +1,8 @@
+import os
 import shutil
+import subprocess
+import threading
+import time
 from pathlib import Path
 
 import gradio as gr
@@ -1051,10 +1055,12 @@ def create_app():
 
                 def load_cv_data_choices():
                     files = service.get_cv_data_filepaths()
+
                     def cv_label(f):
                         if "job_posting_identifier" in f:
                             return f"{f['job_posting_identifier']}/{f['identifier']}"
-                        return f['identifier']
+                        return f["identifier"]
+
                     return gr.Dropdown(
                         choices=[(cv_label(f), f["filepath"]) for f in files]
                     )
@@ -1243,4 +1249,18 @@ def create_app():
 def launch(inbrowser=False):
     """Launch the Gradio application."""
     app = create_app()
+    launch_command = os.environ.get("GRADIO_LAUNCHED_COMMAND")
+    shutdown_command = os.environ.get("GRADIO_FINISHED_COMMAND")
+
+    if launch_command and not inbrowser:
+
+        def _run_after_ready():
+            time.sleep(1)
+            subprocess.run(launch_command, shell=True)
+
+        threading.Thread(target=_run_after_ready, daemon=True).start()
+
     app.launch(inbrowser=inbrowser)
+
+    if shutdown_command and not inbrowser:
+        subprocess.run(shutdown_command, shell=True)
