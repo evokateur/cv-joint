@@ -570,8 +570,17 @@ class ApplicationService:
         templates_dir = project_root / "templates"
         return [str(p.name) for p in templates_dir.glob("*cv*.tex")]
 
-    def to_markdown(self, domain_object) -> str:
-        return self.markdown_converter.convert(domain_object)
+    def to_markdown(self, domain_object, record=None) -> str:
+        return self.markdown_converter.convert(domain_object, record) or ""
+
+    def get_job_posting_record(self, identifier: str):
+        return self.repository.get_job_posting_record(identifier)
+
+    def get_cv_record(self, identifier: str):
+        return self.repository.get_cv_record(identifier)
+
+    def get_optimized_cv_record(self, job_posting_identifier: str, identifier: str):
+        return self.repository.get_optimized_cv_record(job_posting_identifier, identifier)
 
     def generate_pdf_file(self, data_path: str, template_name: str, stem: str = "output") -> str:
         tmp_dir = tempfile.mkdtemp()
