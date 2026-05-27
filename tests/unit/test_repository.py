@@ -259,7 +259,7 @@ class TestCvOperations:
 
     def test_cv_stored_in_correct_location(self, repository, sample_cv, temp_data_dir):
         repository.upsert_cv(sample_cv, "location-test")
-        expected_path = Path(temp_data_dir) / "cvs" / "location-test" / "cv.json"
+        expected_path = Path(temp_data_dir) / "cvs" / "location-test" / "curriculum-vitae.json"
         assert expected_path.exists()
 
     def test_get_cv_record(self, repository, sample_cv):

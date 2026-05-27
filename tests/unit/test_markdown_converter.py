@@ -64,7 +64,7 @@ class TestConvertJobPosting:
     def sample_record(self):
         return JobPostingRecord(
             identifier="acme-software-engineer",
-            filepath="job-postings/acme-software-engineer/job-posting.json",
+            path="job-postings/acme-software-engineer",
             url="https://example.com/job/123",
             company="Acme Corp",
             title="Software Engineer",
@@ -143,7 +143,7 @@ class TestConvertCv:
     def sample_record(self):
         return CurriculumVitaeRecord(
             identifier="jane-doe",
-            filepath="cvs/jane-doe/cv.json",
+            path="cvs/jane-doe",
             name="Jane Doe",
             profession="Software Engineer",
             created_at=datetime(2024, 1, 1),
@@ -295,7 +295,7 @@ class TestGenericConvert:
     def test_includes_frontmatter_when_record_provided(self, converter, sample_job_posting):
         record = JobPostingRecord(
             identifier="acme-swe",
-            filepath="job-postings/acme-swe/job-posting.json",
+            path="job-postings/acme-swe",
             url="https://example.com/job/123",
             company="Acme Corp",
             title="Software Engineer",

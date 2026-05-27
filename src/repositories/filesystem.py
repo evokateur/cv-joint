@@ -63,15 +63,9 @@ class FileSystemRepository:
         with open(collection_file, "w") as f:
             json.dump(collection, f, indent=2)
 
-    FILE_NAMES = {
-        "job-postings": "job-posting.json",
-        "cvs": "cv.json",
-    }
-
-    def _generate_relative_path(self, collection_name: str, identifier: str) -> str:
-        """Generate default relative file path for a domain object."""
-        filename = self.FILE_NAMES.get(collection_name, f"{collection_name}.json")
-        return f"{collection_name}/{identifier}/{filename}"
+    def _generate_directory(self, collection_name: str, identifier: str) -> str:
+        """Generate directory path for a domain object relative to data dir."""
+        return f"{collection_name}/{identifier}"
 
     def _resolve_path(self, relative_path: str) -> Path:
         """Resolve a relative path against data_dir."""
@@ -90,9 +84,9 @@ class FileSystemRepository:
         Returns:
             The persisted JobPostingRecord
         """
-        file_path = self._generate_relative_path("job-postings", identifier)
+        directory = self._generate_directory("job-postings", identifier)
 
-        absolute_path = self._resolve_path(file_path)
+        absolute_path = self._resolve_path(directory) / "job-posting.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(absolute_path, "w") as f:
@@ -108,7 +102,7 @@ class FileSystemRepository:
 
         record = JobPostingRecord(
             identifier=identifier,
-            filepath=file_path,
+            path=directory,
             url=job_posting.url,
             company=job_posting.company,
             title=job_posting.title,
@@ -119,7 +113,7 @@ class FileSystemRepository:
             updated_at=now,
         )
 
-        record_dict = record.model_dump(mode="json")
+        record_dict = record.model_dump(mode="json", exclude_none=True)
 
         if existing:
             collection = [
@@ -151,7 +145,7 @@ class FileSystemRepository:
         if not metadata:
             return None
 
-        absolute_path = self._resolve_path(metadata["filepath"])
+        absolute_path = self._resolve_path(metadata["path"]) / "job-posting.json"
         with open(absolute_path, "r") as f:
             data = json.load(f)
 
@@ -295,9 +289,9 @@ class FileSystemRepository:
         Returns:
             The persisted CurriculumVitaeRecord
         """
-        file_path = self._generate_relative_path("cvs", identifier)
+        directory = self._generate_directory("cvs", identifier)
 
-        absolute_path = self._resolve_path(file_path)
+        absolute_path = self._resolve_path(directory) / "curriculum-vitae.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(absolute_path, "w") as f:
@@ -313,7 +307,7 @@ class FileSystemRepository:
 
         record = CurriculumVitaeRecord(
             identifier=identifier,
-            filepath=file_path,
+            path=directory,
             name=cv.name,
             profession=cv.profession,
             created_at=datetime.fromisoformat(existing["created_at"])
@@ -322,7 +316,7 @@ class FileSystemRepository:
             updated_at=now,
         )
 
-        record_dict = record.model_dump(mode="json")
+        record_dict = record.model_dump(mode="json", exclude_none=True)
 
         if existing:
             collection = [
@@ -354,7 +348,7 @@ class FileSystemRepository:
         if not metadata:
             return None
 
-        absolute_path = self._resolve_path(metadata["filepath"])
+        absolute_path = self._resolve_path(metadata["path"]) / "curriculum-vitae.json"
         with open(absolute_path, "r") as f:
             data = json.load(f)
 
@@ -458,9 +452,7 @@ class FileSystemRepository:
             if item["identifier"] == identifier:
                 item = dict(item)
                 item["identifier"] = new_identifier
-                item["filepath"] = self._generate_relative_path(
-                    "job-postings", new_identifier
-                )
+                item["path"] = self._generate_directory("job-postings", new_identifier)
                 item["updated_at"] = datetime.now().isoformat()
                 collection[i] = item
                 new_record_data = item
@@ -508,7 +500,7 @@ class FileSystemRepository:
             if item["identifier"] == identifier:
                 item = dict(item)
                 item["identifier"] = new_identifier
-                item["filepath"] = self._generate_relative_path("cvs", new_identifier)
+                item["path"] = self._generate_directory("cvs", new_identifier)
                 item["updated_at"] = datetime.now().isoformat()
                 collection[i] = item
                 new_record_data = item

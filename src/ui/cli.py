@@ -43,7 +43,7 @@ def main():
         "collection",
         nargs="?",
         metavar="COLLECTION",
-        help="Collection to regenerate (job-postings|cvs|optimizations); omit for all",
+        help="Collection to regenerate (job-postings|cvs|curriculum-vitae|optimizations); omit for all",
     )
 
     remove_cmd = subparsers.add_parser("remove", help="Remove an object by URI and exit")

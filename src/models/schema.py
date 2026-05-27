@@ -180,7 +180,7 @@ class JobPostingRecord(BaseModel):
     """
 
     identifier: str = Field(description="Unique identifier of the job posting")
-    filepath: str = Field(description="Path to job-posting.json relative to data dir")
+    path: str = Field(description="Directory path relative to data dir")
     url: str = Field(description="Original job posting URL")
     company: str = Field(description="Company name (for listing display)")
     title: str = Field(description="Job title (for listing display)")
@@ -200,7 +200,7 @@ class CurriculumVitaeRecord(BaseModel):
     """
 
     identifier: str = Field(description="Unique identifier of the CV")
-    filepath: str = Field(description="Path to cv.json relative to data dir")
+    path: str = Field(description="Directory path relative to data dir")
     name: str = Field(description="Person's name (for listing display)")
     profession: str = Field(description="Profession (for listing display)")
     job_posting_identifier: Optional[str] = Field(
