@@ -113,7 +113,7 @@ class FileSystemRepository:
             updated_at=now,
         )
 
-        record_dict = record.model_dump(mode="json")
+        record_dict = record.model_dump(mode="json", exclude_none=True)
 
         if existing:
             collection = [
@@ -316,7 +316,7 @@ class FileSystemRepository:
             updated_at=now,
         )
 
-        record_dict = record.model_dump(mode="json")
+        record_dict = record.model_dump(mode="json", exclude_none=True)
 
         if existing:
             collection = [
