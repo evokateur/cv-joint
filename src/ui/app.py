@@ -373,7 +373,7 @@ def create_app():
                         )
                         cv_path = gr.Textbox(
                             label="Or File Path",
-                            placeholder="/path/to/cv.json",
+                            placeholder="/path/to/curriculum-vitae.json",
                         )
                     analyze_cv_btn = gr.Button(
                         "Analyze CV", variant="primary", interactive=False

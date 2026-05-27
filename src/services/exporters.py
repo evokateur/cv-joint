@@ -53,8 +53,10 @@ class MarkdownExporter:
 
     def export(self, collection_name: Optional[str] = None) -> int:
         """Bulk export (regeneration). Iterates repository, exports each object."""
-        if collection_name and collection_name not in ("job-postings", "cvs", "optimizations"):
+        if collection_name and collection_name not in ("job-postings", "cvs", "curriculum-vitae", "optimizations"):
             raise ValueError(f"Unknown collection: {collection_name}")
+        if collection_name == "curriculum-vitae":
+            collection_name = "cvs"
 
         count = 0
         if collection_name is None or collection_name == "job-postings":

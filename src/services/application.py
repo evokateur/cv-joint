@@ -546,7 +546,7 @@ class ApplicationService:
         for item in self.repository.list_cvs():
             results.append({
                 "identifier": item["identifier"],
-                "filepath": str(self.repository.data_dir / item["filepath"]),
+                "filepath": str(self.repository.data_dir / item["path"] / "curriculum-vitae.json"),
             })
         for item in self.repository.list_optimized_cvs():
             if item.get("job_posting_identifier") in active_job_ids:
