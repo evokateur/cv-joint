@@ -61,7 +61,7 @@ class TestListCommand:
         assert "job-postings/active-job" not in result.output
 
     def test_unknown_collection_exits(self, runner):
-        result = runner.invoke(main, ["list", "cvs"])
+        result = runner.invoke(main, ["list", "dogs"])
         assert result.exit_code != 0
 
 

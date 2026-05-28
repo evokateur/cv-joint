@@ -141,7 +141,7 @@ def rename(uri, new_id):
 
 
 @main.command("list")
-@click.argument("collection", type=click.Choice(["job-postings"]))
+@click.argument("collection", type=click.Choice(["job-postings", "cvs", "curriculum-vitae"]))
 @click.option("--archived", is_flag=True, help="Show only archived entries")
 @click.option("-q", "--query", metavar="QUERY", help="Filter by company, title, experience level, or URL")
 def list_objects(collection, archived, query):
@@ -156,6 +156,9 @@ def list_objects(collection, archived, query):
             jobs = service.get_job_postings(archived=False, query=query)
         for j in jobs:
             click.echo(f"job-postings/{j.get('identifier', '')}")
+    elif collection in ("cvs", "curriculum-vitae"):
+        for cv in service.get_cvs():
+            click.echo(f"cvs/{cv.get('identifier', '')}")
 
 
 @main.command("archive")
