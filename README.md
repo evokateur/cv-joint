@@ -131,12 +131,6 @@ data/
     └── cv.json
 ```
 
-To dump all merged (tilde expanded) configuration:
-
-```sh
-cv-joint show-config
-```
-
 ## Testing
 
 ```sh
@@ -146,7 +140,28 @@ uv run pytest tests/ --tb=short # or: make test
 ## Usage
 
 ```sh
+# UI
 cv-joint           # serve at http://localhost:7860
 cv-joint open      # serve and open in browser
-cv-joint --help    # show additional functionality
+
+# Job postings
+cv-joint list job-postings
+cv-joint list job-postings --archived
+cv-joint list job-postings -q acme
+cv-joint archive job-postings/{id}
+cv-joint apply job-postings/{id} {cv-id}
+cv-joint apply job-postings/{id} {cv-id} --date 2026-05-27
+cv-joint regenerate job-postings/{id}
+
+# CVs
+cv-joint list cvs
+cv-joint list cvs -q wesley
+cv-joint regenerate cvs/{id} path/to/file
+
+# General
+cv-joint remove job-postings/{id}
+cv-joint remove job-postings/{id}/cvs/{id}
+cv-joint rename job-postings/{id} {new-id}
+cv-joint regenerate-markdown
+cv-joint show-config
 ```
