@@ -117,18 +117,24 @@ repositories:
 Data directory structure:
 
 ```
-data/
+{data_dir}/
 ├── collections/
 │   ├── job-postings.json
-│   └── cvs.json
+│   ├── cvs.json
+│   └── optimized-cvs.json
 ├── job-postings/{identifier}/
 │   ├── job-posting.json
+│   ├── job-posting.md
+│   ├── content.md                    # fetched source, when available
 │   └── cvs/{identifier}/
-│       ├── record.json
-│       ├── transformation-plan.json
-│       └── cv.json
+│       ├── curriculum-vitae.json
+│       ├── curriculum-vitae.md
+│       ├── cv-transformation-plan.json
+│       ├── cv-transformation-plan.md
+│       └── cover-letter.md
 └── cvs/{identifier}/
-    └── cv.json
+    ├── curriculum-vitae.json
+    └── curriculum-vitae.md
 ```
 
 ## Testing
