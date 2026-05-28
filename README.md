@@ -84,7 +84,7 @@ Configuration override hierarchy:
 
 Strings beginning with `~/` will undergo tilde expansion.
 
-Example user settings, unnecessary defaults except where noted:
+Example user settings (`~/.cv-joint/settings.yaml`):
 
 ```yaml
 chat:
@@ -107,11 +107,21 @@ crews:
   cv_analysis:
     agents:
       cv_analyst:
-        model: "gpt-4o-mini"
+        model: gpt-4o
+  job_posting_analysis:
+    agents:
+      job_analyst:
+        model: gpt-4o
+  cv_optimization:
+    agents:
+      cv_strategist:
+        model: claude-sonnet-4-20250514
+      cv_rewriter:
+        model: claude-sonnet-4-20250514
 
 repositories:
   filesystem:
-    data_dir: "./data"
+    data_dir: "~/vaults/frobozz/areas/job-search/cv-joint"
 ```
 
 Data directory structure:
@@ -125,13 +135,12 @@ Data directory structure:
 ├── job-postings/{identifier}/
 │   ├── job-posting.json
 │   ├── job-posting.md
-│   ├── content.md                    # fetched source, when available
-│   └── cvs/{identifier}/
+│   ├── arbitrary-content.md # added by user     
+│   └── cvs/{identifier}/ # optimized for job posting
 │       ├── curriculum-vitae.json
 │       ├── curriculum-vitae.md
 │       ├── cv-transformation-plan.json
-│       ├── cv-transformation-plan.md
-│       └── cover-letter.md
+│       └── cv-transformation-plan.md
 └── cvs/{identifier}/
     ├── curriculum-vitae.json
     └── curriculum-vitae.md
@@ -143,7 +152,7 @@ Data directory structure:
 uv run pytest tests/ --tb=short # or: make test
 ```
 
-## Usage
+## CLI Usage
 
 ```sh
 # UI
@@ -169,5 +178,6 @@ cv-joint remove job-postings/{id}
 cv-joint remove job-postings/{id}/cvs/{id}
 cv-joint rename job-postings/{id} {new-id}
 cv-joint regenerate-markdown
+cv-joint regenerate-markdown [job-postings|cvs]
 cv-joint show-config
 ```
