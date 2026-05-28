@@ -226,14 +226,21 @@ class ApplicationService:
         """Retrieve a CV by identifier."""
         return self.repository.get_cv(identifier)
 
-    def get_cvs(self) -> list[dict[str, Any]]:
+    def get_cvs(self, query: str | None = None) -> list[dict[str, Any]]:
         """
         Retrieve all saved CVs.
 
         Returns:
             list of CV metadata dictionaries
         """
-        return self.repository.list_cvs()
+        results = self.repository.list_cvs()
+        if query:
+            q = query.lower()
+            results = [
+                r for r in results
+                if any(q in (r.get(f) or "").lower() for f in ("name", "identifier"))
+            ]
+        return results
 
     def regenerate_job_posting(self, identifier: str, content_file: Optional[str] = None):
         """

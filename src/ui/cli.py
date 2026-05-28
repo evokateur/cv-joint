@@ -157,7 +157,7 @@ def list_objects(collection, archived, query):
         for j in jobs:
             click.echo(f"job-postings/{j.get('identifier', '')}")
     elif collection in ("cvs", "curriculum-vitae"):
-        for cv in service.get_cvs():
+        for cv in service.get_cvs(query=query):
             click.echo(f"cvs/{cv.get('identifier', '')}")
 
 
