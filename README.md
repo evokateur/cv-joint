@@ -1,20 +1,24 @@
-# CV Joint
+# <img width="50" height="50" alt="CV-Joint" src="https://github.com/user-attachments/assets/482eb95d-2a4e-4fca-9444-e8a5995952e3" /> CV Joint
 
-Track job postings, create targeted CVs, render them with LaTeX, achieve constant velocity.
+Track job postings, create targeted CVs, render them with LaTeX, achieve constant velocity. 
 
 ## Features
 
-- Create structured data from Job Posting URLs
-- Create structured CV data from text CV files
+- Uses agentic analysis to
+  - Create structured data from Job Posting URLs or text files
+  - Create structured CV data from text CV files
+  - Query a RAG knowledge base to optimize CV data for a job posting
+- Generates Markdown versions of domain objects, suitable for Obsidian
 - RAG knowledge base equipped chat
-- Optimize CV data for job postings (in progress)
-- Create PDFs from CV data with LaTeX (in progress)
+- Generates LaTeX PDFs from CV data
 
 ## Implementation
 
-- Analysis and structured output with CrewAI
+- Agentic analysis with CrewAI
 
-- Pydantic for defining domain objects and structured outputs
+- Pydantic for domain objects and structured outputs
+
+- Click CLI
 
 - Gradio tabbed UI
 
@@ -35,19 +39,23 @@ Simplified project structure:
 │   ├── renderers
 │   │   └── latex # LaTeX PDF rendering
 │   ├── config
-│   ├── converters
-│   │   └── markdown.py
 │   ├── crews
 │   │   ├── cv_analysis
 │   │   ├── cv_optimization
-│   │   └── job_posting_analysis
+│   │   ├── job_posting_analysis
+│   │   └── tools
 │   ├── infrastructure
 │   ├── models
+│   ├── renderers
+│   │   └── latex
 │   ├── repositories
 │   │   └── filesystem.py
 │   ├── services
 │   │   └── analyzers # crew facades
 │   │   └── application.py
+│   │   └── converters.py
+│   │   └── exporter.py
+│   │   └── knowledge_chat.py
 │   └── ui
 │   │   └── app.py # Gradio
 │   │   └── cli.py
@@ -59,19 +67,23 @@ Simplified project structure:
 ## Installation
 
 ```sh
-uv tool install --editable . # --editable: reflect code changes when run
+make install
 ```
+runs `uv tool install --editable .`
 
-If `cv-joint` is not found after installation:
+## Configuration
 
 ```sh
-uv tool update-shell
+cp sample.env .env
 ```
 
-Set environment variables:
-
+Set environment variables in `.env`:
 ```sh
-cp sample.env .env # edit .env and add API keys
+ANTHROPIC_API_KEY=
+DEEPSEEK_API_KEY=
+GOOGLE_API_KEY=
+OPENAI_API_KEY=
+SERPER_API_KEY=
 ```
 
 Configure the `rag-knowledge` MCP server for RAG functions (see below).
@@ -84,7 +96,7 @@ Configuration override hierarchy:
 
 Strings beginning with `~/` will undergo tilde expansion.
 
-Example user settings, unnecessary defaults except where noted:
+Example user settings (`~/.cv-joint/settings.yaml`):
 
 ```yaml
 chat:
@@ -107,47 +119,92 @@ crews:
   cv_analysis:
     agents:
       cv_analyst:
-        model: "gpt-4o-mini"
+        model: gpt-4o
+  job_posting_analysis:
+    agents:
+      job_analyst:
+        model: gpt-4o
+  cv_optimization:
+    agents:
+      cv_strategist:
+        model: claude-sonnet-4-20250514
+      cv_rewriter:
+        model: claude-sonnet-4-20250514
 
 repositories:
   filesystem:
-    data_dir: "./data"
+    data_dir: "~/vaults/frobozz/areas/job-search/cv-joint"
 ```
 
 Data directory structure:
 
 ```
-data/
+{data_dir}/
 ├── collections/
 │   ├── job-postings.json
-│   └── cvs.json
+│   ├── cvs.json
+│   └── optimized-cvs.json
 ├── job-postings/{identifier}/
 │   ├── job-posting.json
-│   └── cvs/{identifier}/
-│       ├── record.json
-│       ├── transformation-plan.json
-│       └── cv.json
+│   ├── job-posting.md  
+│   └── cvs/{identifier}/ # optimized for job posting
+│       ├── curriculum-vitae.json
+│       ├── curriculum-vitae.md
+│       ├── cv-transformation-plan.json
+│       └── cv-transformation-plan.md
 └── cvs/{identifier}/
-    └── cv.json
-```
-
-To dump all merged (tilde expanded) configuration:
-
-```sh
-cv-joint show-config
+    ├── curriculum-vitae.json
+    └── curriculum-vitae.md
 ```
 
 ## Testing
 
 ```sh
-uv run pytest tests/ --tb=short # or: make test
+make test
 ```
+runs `uv run pytest tests/ --tb=short`
 
-## Usage
+## Gradio Usage
 
 ```sh
+cv-joint
+```
+
+Launches Gradio, runs `GRADIO_LAUNCHED_COMMAND`, `GRADIO_FINISHED_COMMAND` after Ctl-C
+
+(I have it run a wrapper app pointing at `http://localhost:7860`, then close it)
+
+```sh
+cv-joint open
+```
+Launches Gradio then opens the default browser at `http://localhost:7860`
+
+## CLI Usage
+
+```sh
+# UI
 cv-joint           # serve at http://localhost:7860
-cv-joint launch    # same
 cv-joint open      # serve and open in browser
-cv-joint --help    # show additional functionality
+
+# Job postings
+cv-joint list job-postings
+cv-joint list job-postings --archived
+cv-joint list job-postings -q acme
+cv-joint archive job-postings/{id}
+cv-joint apply job-postings/{id} {cv-id}
+cv-joint apply job-postings/{id} {cv-id} --date 2026-05-27
+cv-joint regenerate job-postings/{id}
+
+# CVs
+cv-joint list cvs
+cv-joint list cvs -q wesley
+cv-joint regenerate cvs/{id} path/to/file
+
+# General
+cv-joint remove job-postings/{id}
+cv-joint remove job-postings/{id}/cvs/{id}
+cv-joint rename job-postings/{id} {new-id}
+cv-joint regenerate-markdown
+cv-joint regenerate-markdown [job-postings|cvs]
+cv-joint show-config
 ```

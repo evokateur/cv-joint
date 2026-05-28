@@ -2,119 +2,114 @@
 Unit tests for CLI commands.
 """
 
-import pytest
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+from click.testing import CliRunner
 
 from ui.cli import main
 
 
+@pytest.fixture
+def runner():
+    return CliRunner()
+
+
 class TestArchiveCommand:
-    def test_calls_service(self):
+    def test_calls_service(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            with patch("sys.argv", ["cv-joint", "archive", "job-postings/acme-swe"]):
-                main()
+            result = runner.invoke(main, ["archive", "job-postings/acme-swe"])
+        assert result.exit_code == 0
         mock_service.archive_job_posting.assert_called_once_with("acme-swe")
 
-    def test_prints_confirmation(self, capsys):
+    def test_prints_confirmation(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             MockService.return_value = MagicMock()
-            with patch("sys.argv", ["cv-joint", "archive", "job-postings/acme-swe"]):
-                main()
-        assert "acme-swe" in capsys.readouterr().out
+            result = runner.invoke(main, ["archive", "job-postings/acme-swe"])
+        assert "acme-swe" in result.output
 
-    def test_unrecognised_uri_exits(self):
+    def test_unrecognised_uri_exits(self, runner):
         with patch("services.application.ApplicationService"):
-            with patch("sys.argv", ["cv-joint", "archive", "cvs/my-cv"]):
-                with pytest.raises(SystemExit):
-                    main()
+            result = runner.invoke(main, ["archive", "cvs/my-cv"])
+        assert result.exit_code != 0
 
 
 class TestListCommand:
-    def test_lists_active_job_postings(self, capsys):
+    def test_lists_active_job_postings(self, runner):
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = [
             {"identifier": "acme-swe", "company": "Acme", "title": "SWE", "created_at": "2025-01-15T00:00:00"},
         ]
         with patch("services.application.ApplicationService", return_value=mock_service):
-            with patch("sys.argv", ["cv-joint", "list", "job-postings"]):
-                main()
+            result = runner.invoke(main, ["list", "job-postings"])
+        assert result.exit_code == 0
         mock_service.get_job_postings.assert_called_once_with(archived=False, query=None)
-        assert "job-postings/acme-swe" in capsys.readouterr().out
+        assert "job-postings/acme-swe" in result.output
 
-    def test_archived_flag_shows_only_archived(self, capsys):
+    def test_archived_flag_shows_only_archived(self, runner):
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = [
             {"identifier": "old-job", "company": "Gone", "title": "Dev", "created_at": "2025-01-15T00:00:00", "is_archived": True},
             {"identifier": "active-job", "company": "Here", "title": "Dev", "created_at": "2025-02-01T00:00:00", "is_archived": False},
         ]
         with patch("services.application.ApplicationService", return_value=mock_service):
-            with patch("sys.argv", ["cv-joint", "list", "job-postings", "--archived"]):
-                main()
-        out = capsys.readouterr().out
-        assert "job-postings/old-job" in out
-        assert "job-postings/active-job" not in out
+            result = runner.invoke(main, ["list", "job-postings", "--archived"])
+        assert result.exit_code == 0
+        assert "job-postings/old-job" in result.output
+        assert "job-postings/active-job" not in result.output
 
-    def test_unknown_collection_exits(self):
-        with patch("sys.argv", ["cv-joint", "list", "cvs"]):
-            with pytest.raises(SystemExit):
-                main()
+    def test_unknown_collection_exits(self, runner):
+        result = runner.invoke(main, ["list", "dogs"])
+        assert result.exit_code != 0
 
 
 class TestApplyCommand:
-    def test_calls_service(self):
+    def test_calls_service(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            with patch("sys.argv", ["cv-joint", "apply", "job-postings/acme-swe", "my-cv"]):
-                main()
+            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "my-cv"])
+        assert result.exit_code == 0
         mock_service.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
 
-    def test_with_date(self):
+    def test_with_date(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            with patch(
-                "sys.argv",
-                ["cv-joint", "apply", "job-postings/acme-swe", "my-cv", "--date", "2025-01-15"],
-            ):
-                main()
+            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "my-cv", "--date", "2025-01-15"])
+        assert result.exit_code == 0
         mock_service.mark_applied.assert_called_once_with(
             "acme-swe", "my-cv", applied_at=datetime(2025, 1, 15)
         )
 
-    def test_prints_confirmation(self, capsys):
+    def test_prints_confirmation(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             MockService.return_value = MagicMock()
-            with patch("sys.argv", ["cv-joint", "apply", "job-postings/acme-swe", "my-cv"]):
-                main()
-        assert "acme-swe" in capsys.readouterr().out
+            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "my-cv"])
+        assert "acme-swe" in result.output
 
-    def test_full_composite_cv_identifier(self):
+    def test_full_composite_cv_identifier(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            with patch("sys.argv", ["cv-joint", "apply", "job-postings/acme-swe", "acme-swe/my-cv"]):
-                main()
+            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "acme-swe/my-cv"])
+        assert result.exit_code == 0
         mock_service.mark_applied.assert_called_once_with("acme-swe", "acme-swe/my-cv", applied_at=None)
 
-    def test_normalises_base_cv_uri(self):
+    def test_normalises_base_cv_uri(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            with patch("sys.argv", ["cv-joint", "apply", "job-postings/acme-swe", "cvs/my-cv"]):
-                main()
+            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "cvs/my-cv"])
+        assert result.exit_code == 0
         mock_service.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
 
-    def test_normalises_optimized_cv_uri(self):
+    def test_normalises_optimized_cv_uri(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            with patch(
-                "sys.argv",
-                ["cv-joint", "apply", "job-postings/acme-swe", "job-postings/acme-swe/cvs/my-cv"],
-            ):
-                main()
+            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "job-postings/acme-swe/cvs/my-cv"])
+        assert result.exit_code == 0
         mock_service.mark_applied.assert_called_once_with("acme-swe", "acme-swe/my-cv", applied_at=None)
 
-    def test_unrecognised_uri_exits(self):
+    def test_unrecognised_uri_exits(self, runner):
         with patch("services.application.ApplicationService"):
-            with patch("sys.argv", ["cv-joint", "apply", "cvs/my-cv", "my-cv"]):
-                with pytest.raises(SystemExit):
-                    main()
+            result = runner.invoke(main, ["apply", "cvs/my-cv", "my-cv"])
+        assert result.exit_code != 0
