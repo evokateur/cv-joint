@@ -5,6 +5,8 @@ agents:
   cv_strategist:
     model: "gpt-4o"
     temperature: 0.7
+    max_tokens: 4096
   cv_rewriter:
     model: "gpt-4o"
     temperature: 0.7
+    max_tokens: 4096
