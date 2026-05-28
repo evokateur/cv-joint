@@ -147,7 +147,6 @@ uv run pytest tests/ --tb=short # or: make test
 
 ```sh
 cv-joint           # serve at http://localhost:7860
-cv-joint launch    # same
 cv-joint open      # serve and open in browser
 cv-joint --help    # show additional functionality
 ```
