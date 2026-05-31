@@ -405,9 +405,9 @@ class ApplicationService:
             job_posting_identifier, identifier, new_identifier
         )
 
-    def regenerate_markdown(self, collection_name: Optional[str] = None) -> int:
+    def export_markdown(self, collection_name: Optional[str] = None) -> int:
         """
-        Regenerate all markdown files from stored domain objects.
+        Re-export all markdown files from stored domain objects.
 
         This overwrites any existing markdown files, including manual edits.
         """
