@@ -101,13 +101,13 @@ def reanalyze(uri, content_file):
 
     try:
         if parsed["collection"] == "job-postings":
-            service.regenerate_job_posting(parsed["identifier"], content_file)
+            service.reanalyze_job_posting(parsed["identifier"], content_file)
         elif parsed["collection"] == "cvs":
             if not content_file:
                 raise click.UsageError("reanalyze cvs/{id} requires CONTENT_FILE")
-            service.regenerate_cv(parsed["identifier"], content_file)
+            service.reanalyze_cv(parsed["identifier"], content_file)
         else:
-            service.regenerate_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"])
+            service.reanalyze_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"])
     except click.UsageError:
         raise
     except ValueError as e:

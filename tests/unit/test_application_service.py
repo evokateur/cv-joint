@@ -163,7 +163,7 @@ class TestExportMarkdown:
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
         cv = CurriculumVitae(**sample_cv_data)
         base_uri = "job-postings/job-1/cvs/opt-1"
-        service.repository.upsert_optimized_cv("job-1", "opt-1", "cv-1", cv)
+        service.repository.add_optimized_cv("job-1", "opt-1", "cv-1", cv)
         service.repository.save_object(base_uri, plan)
 
         opt_dir = Path(temp_data_dir) / "job-postings" / "job-1" / "cvs" / "opt-1"
@@ -180,7 +180,7 @@ class TestExportMarkdown:
     ):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.save_cv(sample_cv_data, "jane-doe")
-        service.repository.upsert_optimized_cv(
+        service.repository.add_optimized_cv(
             "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
         )
 
@@ -237,56 +237,56 @@ class TestRemoveCv:
 class TestRegenerateJobPosting:
     def test_raises_when_not_found(self, service):
         with pytest.raises(ValueError, match="Job posting not found"):
-            service.regenerate_job_posting("nonexistent")
+            service.reanalyze_job_posting("nonexistent")
 
-    def test_overwrites_record(self, service, sample_job_posting_data):
+    def test_creates_new_record_with_suffix(self, service, sample_job_posting_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         updated = JobPosting(**{**sample_job_posting_data, "title": "Senior Engineer"})
         service.job_posting_analyzer = MagicMock()
         service.job_posting_analyzer.analyze.return_value = updated
 
-        service.regenerate_job_posting("acme-swe")
+        new_record = service.reanalyze_job_posting("acme-swe")
 
-        retrieved = service.get_job_posting("acme-swe")
-        assert retrieved.title == "Senior Engineer"
+        assert new_record.identifier == "acme-swe-2"
+        assert service.get_job_posting("acme-swe").title == sample_job_posting_data["title"]
+        assert service.get_job_posting("acme-swe-2").title == "Senior Engineer"
 
     def test_regenerates_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
-        md_path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
-        md_path.unlink()
         service.job_posting_analyzer = MagicMock()
         service.job_posting_analyzer.analyze.return_value = JobPosting(**sample_job_posting_data)
 
-        service.regenerate_job_posting("acme-swe")
+        service.reanalyze_job_posting("acme-swe")
 
+        md_path = Path(temp_data_dir) / "job-postings" / "acme-swe-2" / "job-posting.md"
         assert md_path.exists()
 
 
 class TestRegenerateCv:
     def test_raises_when_not_found(self, service):
         with pytest.raises(ValueError, match="CV not found"):
-            service.regenerate_cv("nonexistent", "/some/file.yaml")
+            service.reanalyze_cv("nonexistent", "/some/file.yaml")
 
-    def test_overwrites_record(self, service, sample_cv_data):
+    def test_creates_new_record_with_suffix(self, service, sample_cv_data):
         service.save_cv(sample_cv_data, "jane-doe")
         updated = CurriculumVitae(**{**sample_cv_data, "profession": "Senior Engineer"})
         service.cv_analyzer = MagicMock()
         service.cv_analyzer.analyze.return_value = updated
 
-        service.regenerate_cv("jane-doe", "/some/file.yaml")
+        new_record = service.reanalyze_cv("jane-doe", "/some/file.yaml")
 
-        retrieved = service.get_cv("jane-doe")
-        assert retrieved.profession == "Senior Engineer"
+        assert new_record.identifier == "jane-doe-2"
+        assert service.get_cv("jane-doe").profession == sample_cv_data["profession"]
+        assert service.get_cv("jane-doe-2").profession == "Senior Engineer"
 
     def test_regenerates_markdown(self, service, sample_cv_data, temp_data_dir):
         service.save_cv(sample_cv_data, "jane-doe")
-        md_path = Path(temp_data_dir) / "cvs" / "jane-doe" / "curriculum-vitae.md"
-        md_path.unlink()
         service.cv_analyzer = MagicMock()
         service.cv_analyzer.analyze.return_value = CurriculumVitae(**sample_cv_data)
 
-        service.regenerate_cv("jane-doe", "/some/file.yaml")
+        service.reanalyze_cv("jane-doe", "/some/file.yaml")
 
+        md_path = Path(temp_data_dir) / "cvs" / "jane-doe-2" / "curriculum-vitae.md"
         assert md_path.exists()
 
 
@@ -307,7 +307,7 @@ class TestRegenerateCvOptimization:
         )
         cv = CurriculumVitae(**sample_cv_data)
 
-        service.repository.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
 
         service.cv_optimizer = MagicMock()
         service.cv_optimizer.optimize.return_value = OptimizerOutput(
@@ -319,18 +319,18 @@ class TestRegenerateCvOptimization:
     def test_raises_when_not_found(self, service, sample_job_posting_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         with pytest.raises(ValueError, match="CV optimization not found"):
-            service.regenerate_cv_optimization("acme-swe", "nonexistent")
+            service.reanalyze_cv_optimization("acme-swe", "nonexistent")
 
-    def test_overwrites_record(self, service_with_optimization):
-        service_with_optimization.regenerate_cv_optimization("acme-swe", "opt-1")
-        record = service_with_optimization.repository.get_optimized_cv_record("acme-swe", "opt-1")
-        assert record is not None
-        assert record.base_cv_identifier == "jane-doe"
+    def test_creates_new_record_with_suffix(self, service_with_optimization):
+        new_record = service_with_optimization.reanalyze_cv_optimization("acme-swe", "opt-1")
+        assert new_record.identifier == "opt-1-2"
+        assert service_with_optimization.repository.get_optimized_cv_record("acme-swe", "opt-1") is not None
+        assert new_record.base_cv_identifier == "jane-doe"
 
     def test_regenerates_markdown(self, service_with_optimization, temp_data_dir):
-        service_with_optimization.regenerate_cv_optimization("acme-swe", "opt-1")
-        cv_md = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "curriculum-vitae.md"
-        plan_md = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "cv-transformation-plan.md"
+        service_with_optimization.reanalyze_cv_optimization("acme-swe", "opt-1")
+        cv_md = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1-2" / "curriculum-vitae.md"
+        plan_md = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1-2" / "cv-transformation-plan.md"
         assert cv_md.exists()
         assert plan_md.exists()
 
@@ -387,7 +387,7 @@ class TestRenameCv:
     ):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.save_cv(sample_cv_data, "old-cv")
-        service.repository.upsert_optimized_cv("acme-swe", "opt-1", "old-cv", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "old-cv", CurriculumVitae(**sample_cv_data))
         service.rename_cv("old-cv", "new-cv")
         record = service.repository.get_optimized_cv_record("acme-swe", "opt-1")
         assert record.base_cv_identifier == "new-cv"
@@ -461,7 +461,7 @@ class TestGetCvOptimizationsNew:
     ):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.save_cv(sample_cv_data, "jane-doe")
-        service.repository.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
         service.archive_job_posting("acme-swe")
         opts = service.get_cv_optimizations()
         assert all(o.get("job_posting_identifier") != "acme-swe" for o in opts)
@@ -471,7 +471,7 @@ class TestGetCvOptimizationsNew:
     ):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.save_cv(sample_cv_data, "jane-doe")
-        service.repository.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
         opts = service.get_cv_optimizations()
         assert any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
 
@@ -479,7 +479,7 @@ class TestGetCvOptimizationsNew:
 class TestRemoveCvOptimizationNew:
     def test_returns_true_when_found(self, service, sample_job_posting_data, sample_cv_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.repository.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
         assert service.remove_cv_optimization("acme-swe", "opt-1") is True
 
     def test_returns_false_when_not_found(self, service, sample_job_posting_data):
@@ -488,7 +488,7 @@ class TestRemoveCvOptimizationNew:
 
     def test_removes_from_repository(self, service, sample_job_posting_data, sample_cv_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.repository.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
         service.remove_cv_optimization("acme-swe", "opt-1")
         assert service.repository.get_optimized_cv_record("acme-swe", "opt-1") is None
 
@@ -498,7 +498,7 @@ class TestRenameCvOptimizationNew:
         self, service, sample_job_posting_data, sample_cv_data
     ):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.repository.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
         service.rename_cv_optimization("acme-swe", "opt-1", "new-id")
         assert service.repository.get_optimized_cv_record("acme-swe", "opt-1") is None
         assert service.repository.get_optimized_cv_record("acme-swe", "new-id") is not None
@@ -510,7 +510,7 @@ class TestPurgeCvOptimization:
     ):
         from pathlib import Path
         service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.repository.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
         service.purge_cv_optimization("acme-swe", "opt-1")
         opt_dir = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1"
         assert not opt_dir.exists()

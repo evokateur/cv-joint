@@ -91,7 +91,7 @@ class ApplicationService:
                     break
                 counter += 1
 
-        record = self.repository.upsert_job_posting(job_posting, identifier)
+        record = self.repository.add_job_posting(job_posting, identifier)
         self.markdown_exporter.export_job_posting(record, job_posting)
         return record
 
@@ -206,7 +206,7 @@ class ApplicationService:
                     break
                 counter += 1
 
-        record = self.repository.upsert_cv(cv, identifier)
+        record = self.repository.add_cv(cv, identifier)
         self.markdown_exporter.export_cv(record, cv)
         return record
 
@@ -242,14 +242,13 @@ class ApplicationService:
             ]
         return results
 
-    def regenerate_job_posting(self, identifier: str, content_file: Optional[str] = None):
+    def reanalyze_job_posting(self, identifier: str, content_file: Optional[str] = None):
         """
-        Re-analyze a job posting from its stored URL and overwrite the existing record.
-
-        CV optimizations nested under this job posting are preserved.
+        Re-analyze a job posting from its stored URL and save as a new record with a
+        suffix (e.g. acme-swe-2), preserving the original.
 
         Args:
-            identifier: Identifier of the job posting to regenerate
+            identifier: Identifier of the job posting to re-analyze
             content_file: Optional local file path to use instead of fetching the URL
 
         Returns:
@@ -263,16 +262,24 @@ class ApplicationService:
             raise ValueError(f"Job posting not found: {identifier}")
 
         job_posting = self.job_posting_analyzer.analyze(record.url, content_file)
-        new_record = self.repository.upsert_job_posting(job_posting, identifier)
+
+        counter = 2
+        new_identifier = f"{identifier}-{counter}"
+        while self.repository.get_job_posting_record(new_identifier) is not None:
+            counter += 1
+            new_identifier = f"{identifier}-{counter}"
+
+        new_record = self.repository.add_job_posting(job_posting, new_identifier)
         self.markdown_exporter.export_job_posting(new_record, job_posting)
         return new_record
 
-    def regenerate_cv(self, identifier: str, content_file: str):
+    def reanalyze_cv(self, identifier: str, content_file: str):
         """
-        Re-analyze a CV from a source file and overwrite the existing record.
+        Re-analyze a CV from a source file and save as a new record with a suffix
+        (e.g. jane-doe-2), preserving the original.
 
         Args:
-            identifier: Identifier of the CV to regenerate
+            identifier: Identifier of the CV to re-analyze
             content_file: Path to CV file (JSON, YAML, or plain text)
 
         Returns:
@@ -285,11 +292,18 @@ class ApplicationService:
             raise ValueError(f"CV not found: {identifier}")
 
         cv = self.cv_analyzer.analyze(content_file)
-        new_record = self.repository.upsert_cv(cv, identifier)
+
+        counter = 2
+        new_identifier = f"{identifier}-{counter}"
+        while self.repository.get_cv_record(new_identifier) is not None:
+            counter += 1
+            new_identifier = f"{identifier}-{counter}"
+
+        new_record = self.repository.add_cv(cv, new_identifier)
         self.markdown_exporter.export_cv(new_record, cv)
         return new_record
 
-    def regenerate_cv_optimization(self, job_posting_identifier: str, identifier: str):
+    def reanalyze_cv_optimization(self, job_posting_identifier: str, identifier: str):
         """
         Re-run a CV optimization using its stored inputs and overwrite the existing record.
 
@@ -318,16 +332,23 @@ class ApplicationService:
             )
 
         output = self.cv_optimizer.optimize(cv, job_posting)
-        self._write_optimization_outputs(job_posting_identifier, identifier, output)
+
+        counter = 2
+        new_identifier = f"{identifier}-{counter}"
+        while self.repository.get_optimized_cv_record(job_posting_identifier, new_identifier) is not None:
+            counter += 1
+            new_identifier = f"{identifier}-{counter}"
+
+        self._write_optimization_outputs(job_posting_identifier, new_identifier, output)
 
         plan = output.artifacts.get("transformation-plan")
         if plan is None:
             raise ValueError(
-                f"Optimization output missing after re-run: job-postings/{job_posting_identifier}/cvs/{identifier}"
+                f"Optimization output missing after re-run: job-postings/{job_posting_identifier}/cvs/{new_identifier}"
             )
 
-        new_record = self.repository.upsert_optimized_cv(
-            job_posting_identifier, identifier, record.base_cv_identifier, output.cv
+        new_record = self.repository.add_optimized_cv(
+            job_posting_identifier, new_identifier, record.base_cv_identifier, output.cv
         )
         self.markdown_exporter.export_cv_transformation_plan(new_record, plan)
         self.markdown_exporter.export_cv(new_record, output.cv)
@@ -489,7 +510,7 @@ class ApplicationService:
                 f"Cannot save CV optimization {identifier} for job posting {job_posting_identifier} — optimized CV is missing."
             )
 
-        record = self.repository.upsert_optimized_cv(
+        record = self.repository.add_optimized_cv(
             job_posting_identifier, identifier, base_cv_identifier, cv
         )
 

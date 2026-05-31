@@ -86,7 +86,7 @@ class FileSystemRepository:
         """Resolve a relative path against data_dir."""
         return self.data_dir / relative_path
 
-    def upsert_job_posting(
+    def add_job_posting(
         self, job_posting: JobPosting, identifier: str
     ) -> JobPostingRecord:
         """
@@ -105,8 +105,10 @@ class FileSystemRepository:
             (item for item in collection if item["identifier"] == identifier), None
         )
 
-        directory = existing["path"] if existing else f"job-postings/{identifier}"
+        if existing is not None:
+            raise ValueError(f"Job posting already exists: {identifier}")
 
+        directory = f"job-postings/{identifier}"
         absolute_path = self._resolve_path(directory) / "job-posting.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -114,7 +116,6 @@ class FileSystemRepository:
             json.dump(job_posting.model_dump(mode="json"), f, indent=2)
 
         now = datetime.now()
-
         record = JobPostingRecord(
             identifier=identifier,
             path=directory,
@@ -122,22 +123,11 @@ class FileSystemRepository:
             company=job_posting.company,
             title=job_posting.title,
             experience_level=job_posting.experience_level,
-            created_at=datetime.fromisoformat(existing["created_at"])
-            if existing
-            else now,
+            created_at=now,
             updated_at=now,
         )
 
-        record_dict = record.model_dump(mode="json", exclude_none=True)
-
-        if existing:
-            collection = [
-                item if item["identifier"] != identifier else record_dict
-                for item in collection
-            ]
-        else:
-            collection.append(record_dict)
-
+        collection.append(record.model_dump(mode="json", exclude_none=True))
         self._save_collection(self.job_postings_collection, collection)
 
         return record
@@ -310,7 +300,7 @@ class FileSystemRepository:
 
         return True
 
-    def upsert_cv(self, cv: CurriculumVitae, identifier: str) -> CurriculumVitaeRecord:
+    def add_cv(self, cv: CurriculumVitae, identifier: str) -> CurriculumVitaeRecord:
         """
         Add a CV and update collection metadata.
 
@@ -327,8 +317,10 @@ class FileSystemRepository:
             (item for item in collection if item["identifier"] == identifier), None
         )
 
-        directory = existing["path"] if existing else f"cvs/{identifier}"
+        if existing is not None:
+            raise ValueError(f"CV already exists: {identifier}")
 
+        directory = f"cvs/{identifier}"
         absolute_path = self._resolve_path(directory) / "curriculum-vitae.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -336,28 +328,16 @@ class FileSystemRepository:
             json.dump(cv.model_dump(mode="json"), f, indent=2)
 
         now = datetime.now()
-
         record = CurriculumVitaeRecord(
             identifier=identifier,
             path=directory,
             name=cv.name,
             profession=cv.profession,
-            created_at=datetime.fromisoformat(existing["created_at"])
-            if existing
-            else now,
+            created_at=now,
             updated_at=now,
         )
 
-        record_dict = record.model_dump(mode="json", exclude_none=True)
-
-        if existing:
-            collection = [
-                item if item["identifier"] != identifier else record_dict
-                for item in collection
-            ]
-        else:
-            collection.append(record_dict)
-
+        collection.append(record.model_dump(mode="json", exclude_none=True))
         self._save_collection(self.cvs_collection, collection)
 
         return record
@@ -657,21 +637,27 @@ class FileSystemRepository:
     # Optimized CVs collection
     # -------------------------------------------------------------------------
 
-    def upsert_optimized_cv(
+    def add_optimized_cv(
         self,
         job_posting_identifier: str,
         identifier: str,
         base_cv_identifier: str,
         cv: CurriculumVitae,
     ) -> OptimizedCvRecord:
-        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
-        self.save_object(base_uri, cv)
+        """
+        Add an optimized CV and update collection metadata.
 
-        job_posting_record = self.get_job_posting_record(job_posting_identifier)
-        job_title = job_posting_record.title if job_posting_record else None
-        company = job_posting_record.company if job_posting_record else None
+        Args:
+            job_posting_identifier: Identifier of the parent job posting
+            identifier: Unique identifier for this optimization
+            base_cv_identifier: Identifier of the base CV
+            cv: The optimized CurriculumVitae
 
+        Returns:
+            The persisted OptimizedCvRecord
+        """
         collection = self._load_collection(self.optimized_cvs_collection)
+
         existing = next(
             (
                 item for item in collection
@@ -680,6 +666,17 @@ class FileSystemRepository:
             ),
             None,
         )
+
+        if existing is not None:
+            raise ValueError(f"Optimized CV already exists: job-postings/{job_posting_identifier}/cvs/{identifier}")
+
+        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        self.save_object(base_uri, cv)
+
+        job_posting_record = self.get_job_posting_record(job_posting_identifier)
+        job_title = job_posting_record.title if job_posting_record else None
+        company = job_posting_record.company if job_posting_record else None
+
         now = datetime.now()
         record = OptimizedCvRecord(
             identifier=identifier,
@@ -689,20 +686,10 @@ class FileSystemRepository:
             profession=cv.profession,
             job_title=job_title,
             company=company,
-            created_at=datetime.fromisoformat(existing["created_at"]) if existing else now,
+            created_at=now,
             updated_at=now,
         )
-        record_dict = record.model_dump(mode="json")
-        if existing:
-            collection = [
-                record_dict if (
-                    item["identifier"] == identifier
-                    and item["job_posting_identifier"] == job_posting_identifier
-                ) else item
-                for item in collection
-            ]
-        else:
-            collection.append(record_dict)
+        collection.append(record.model_dump(mode="json"))
         self._save_collection(self.optimized_cvs_collection, collection)
         return record
 

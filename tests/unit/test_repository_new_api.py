@@ -1,7 +1,7 @@
 """
 Tests for new repository API introduced in step 2:
 save_object, load_object, load_all_objects, save_document, load_document,
-document_exists, upsert_optimized_cv, get_optimized_cv_record, get_optimized_cv,
+document_exists, add_optimized_cv, get_optimized_cv_record, get_optimized_cv,
 list_optimized_cvs, remove_optimized_cv, rename_optimized_cv, purge_optimized_cv.
 """
 
@@ -73,7 +73,7 @@ def sample_plan():
 
 @pytest.fixture
 def repository_with_job_posting(repository, sample_job_posting):
-    repository.upsert_job_posting(sample_job_posting, "acme-swe")
+    repository.add_job_posting(sample_job_posting, "acme-swe")
     return repository
 
 
@@ -177,14 +177,14 @@ class TestUpsertOptimizedCv:
     def test_saves_curriculum_vitae_json_in_optimization_directory(
         self, repository_with_job_posting, sample_cv, temp_data_dir
     ):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
         cv_path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1" / "curriculum-vitae.json"
         assert cv_path.exists()
 
     def test_writes_record_to_collection(
         self, repository_with_job_posting, sample_cv, temp_data_dir
     ):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
         collection_path = Path(temp_data_dir) / "collections" / "optimized-cvs.json"
         assert collection_path.exists()
         data = json.loads(collection_path.read_text())
@@ -193,7 +193,7 @@ class TestUpsertOptimizedCv:
     def test_extracts_name_and_profession_from_cv(
         self, repository_with_job_posting, sample_cv
     ):
-        record = repository_with_job_posting.upsert_optimized_cv(
+        record = repository_with_job_posting.add_optimized_cv(
             "acme-swe", "opt-1", "jane-doe", sample_cv
         )
         assert record.name == "Jane Doe"
@@ -202,7 +202,7 @@ class TestUpsertOptimizedCv:
     def test_looks_up_job_title_and_company_from_job_posting(
         self, repository_with_job_posting, sample_cv
     ):
-        record = repository_with_job_posting.upsert_optimized_cv(
+        record = repository_with_job_posting.add_optimized_cv(
             "acme-swe", "opt-1", "jane-doe", sample_cv
         )
         assert record.job_title == "Software Engineer"
@@ -211,7 +211,7 @@ class TestUpsertOptimizedCv:
     def test_returns_optimized_cv_record(
         self, repository_with_job_posting, sample_cv
     ):
-        record = repository_with_job_posting.upsert_optimized_cv(
+        record = repository_with_job_posting.add_optimized_cv(
             "acme-swe", "opt-1", "jane-doe", sample_cv
         )
         assert isinstance(record, OptimizedCvRecord)
@@ -222,7 +222,7 @@ class TestUpsertOptimizedCv:
 
 class TestGetOptimizedCvRecord:
     def test_returns_record(self, repository_with_job_posting, sample_cv):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
         record = repository_with_job_posting.get_optimized_cv_record("acme-swe", "opt-1")
         assert record is not None
         assert isinstance(record, OptimizedCvRecord)
@@ -234,7 +234,7 @@ class TestGetOptimizedCvRecord:
 
 class TestGetOptimizedCv:
     def test_returns_curriculum_vitae(self, repository_with_job_posting, sample_cv):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
         cv = repository_with_job_posting.get_optimized_cv("acme-swe", "opt-1")
         assert isinstance(cv, CurriculumVitae)
         assert cv.name == "Jane Doe"
@@ -245,16 +245,16 @@ class TestGetOptimizedCv:
 
 class TestListOptimizedCvs:
     def test_returns_all_records(self, repository_with_job_posting, sample_cv):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-2", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-2", "jane-doe", sample_cv)
         results = repository_with_job_posting.list_optimized_cvs()
         assert len(results) == 2
 
     def test_filters_by_job_posting_identifier(self, repository, sample_job_posting, sample_cv):
-        repository.upsert_job_posting(sample_job_posting, "acme-swe")
-        repository.upsert_job_posting(sample_job_posting, "other-job")
-        repository.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
-        repository.upsert_optimized_cv("other-job", "opt-2", "jane-doe", sample_cv)
+        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_job_posting(sample_job_posting, "other-job")
+        repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository.add_optimized_cv("other-job", "opt-2", "jane-doe", sample_cv)
         results = repository.list_optimized_cvs("acme-swe")
         assert len(results) == 1
         assert results[0]["identifier"] == "opt-1"
@@ -267,7 +267,7 @@ class TestRemoveOptimizedCv:
     def test_removes_from_collection_and_deletes_directory(
         self, repository_with_job_posting, sample_cv, temp_data_dir
     ):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
         result = repository_with_job_posting.remove_optimized_cv("acme-swe", "opt-1")
         assert result is True
         assert repository_with_job_posting.get_optimized_cv_record("acme-swe", "opt-1") is None
@@ -282,13 +282,13 @@ class TestRenameOptimizedCv:
     def test_renames_directory(
         self, repository_with_job_posting, sample_cv, temp_data_dir
     ):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "old-id", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "old-id", "jane-doe", sample_cv)
         repository_with_job_posting.rename_optimized_cv("acme-swe", "old-id", "new-id")
         assert not (Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "old-id").exists()
         assert (Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "new-id").exists()
 
     def test_updates_collection(self, repository_with_job_posting, sample_cv):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "old-id", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "old-id", "jane-doe", sample_cv)
         repository_with_job_posting.rename_optimized_cv("acme-swe", "old-id", "new-id")
         assert repository_with_job_posting.get_optimized_cv_record("acme-swe", "old-id") is None
         record = repository_with_job_posting.get_optimized_cv_record("acme-swe", "new-id")
@@ -300,8 +300,8 @@ class TestRenameOptimizedCv:
             repository_with_job_posting.rename_optimized_cv("acme-swe", "nonexistent", "new-id")
 
     def test_raises_on_collision(self, repository_with_job_posting, sample_cv):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-2", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-2", "jane-doe", sample_cv)
         with pytest.raises(ValueError, match="already exists"):
             repository_with_job_posting.rename_optimized_cv("acme-swe", "opt-1", "opt-2")
 
@@ -310,7 +310,7 @@ class TestPurgeOptimizedCv:
     def test_deletes_directory(
         self, repository_with_job_posting, sample_cv, temp_data_dir
     ):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
         result = repository_with_job_posting.purge_optimized_cv("acme-swe", "opt-1")
         assert result is True
         opt_dir = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1"
@@ -319,7 +319,7 @@ class TestPurgeOptimizedCv:
     def test_does_not_remove_collection_entry(
         self, repository_with_job_posting, sample_cv
     ):
-        repository_with_job_posting.upsert_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
         repository_with_job_posting.purge_optimized_cv("acme-swe", "opt-1")
         assert repository_with_job_posting.get_optimized_cv_record("acme-swe", "opt-1") is not None
 
