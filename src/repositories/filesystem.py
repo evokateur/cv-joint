@@ -84,19 +84,19 @@ class FileSystemRepository:
         Returns:
             The persisted JobPostingRecord
         """
-        directory = self._generate_directory("job-postings", identifier)
+        collection = self._load_collection(self.job_postings_collection)
+
+        existing = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+
+        directory = existing["path"] if existing else self._generate_directory("job-postings", identifier)
 
         absolute_path = self._resolve_path(directory) / "job-posting.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(absolute_path, "w") as f:
             json.dump(job_posting.model_dump(mode="json"), f, indent=2)
-
-        collection = self._load_collection(self.job_postings_collection)
-
-        existing = next(
-            (item for item in collection if item["identifier"] == identifier), None
-        )
 
         now = datetime.now()
 
@@ -256,13 +256,12 @@ class FileSystemRepository:
             True if removed, False if not found
         """
         collection = self._load_collection(self.job_postings_collection)
-        original_length = len(collection)
+        removed = next((item for item in collection if item["identifier"] == identifier), None)
 
-        collection = [item for item in collection if item["identifier"] != identifier]
-
-        if len(collection) == original_length:
+        if removed is None:
             return False
 
+        collection = [item for item in collection if item["identifier"] != identifier]
         self._save_collection(self.job_postings_collection, collection)
 
         opt_collection = self._load_collection(self.optimized_cvs_collection)
@@ -272,7 +271,7 @@ class FileSystemRepository:
         ]
         self._save_collection(self.optimized_cvs_collection, opt_collection)
 
-        job_posting_dir = self.data_dir / "job-postings" / identifier
+        job_posting_dir = self._resolve_path(removed["path"])
         if job_posting_dir.exists():
             shutil.rmtree(job_posting_dir)
 
@@ -289,19 +288,19 @@ class FileSystemRepository:
         Returns:
             The persisted CurriculumVitaeRecord
         """
-        directory = self._generate_directory("cvs", identifier)
+        collection = self._load_collection(self.cvs_collection)
+
+        existing = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+
+        directory = existing["path"] if existing else self._generate_directory("cvs", identifier)
 
         absolute_path = self._resolve_path(directory) / "curriculum-vitae.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(absolute_path, "w") as f:
             json.dump(cv.model_dump(mode="json"), f, indent=2)
-
-        collection = self._load_collection(self.cvs_collection)
-
-        existing = next(
-            (item for item in collection if item["identifier"] == identifier), None
-        )
 
         now = datetime.now()
 
@@ -397,16 +396,15 @@ class FileSystemRepository:
             True if removed, False if not found
         """
         collection = self._load_collection(self.cvs_collection)
-        original_length = len(collection)
+        removed = next((item for item in collection if item["identifier"] == identifier), None)
 
-        collection = [item for item in collection if item["identifier"] != identifier]
-
-        if len(collection) == original_length:
+        if removed is None:
             return False
 
+        collection = [item for item in collection if item["identifier"] != identifier]
         self._save_collection(self.cvs_collection, collection)
 
-        cv_dir = self.data_dir / "cvs" / identifier
+        cv_dir = self._resolve_path(removed["path"])
         if cv_dir.exists():
             shutil.rmtree(cv_dir)
 
