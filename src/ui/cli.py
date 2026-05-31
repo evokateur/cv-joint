@@ -101,20 +101,23 @@ def reanalyze(uri, content_file):
 
     try:
         if parsed["collection"] == "job-postings":
-            service.reanalyze_job_posting(parsed["identifier"], content_file)
+            record = service.reanalyze_job_posting(parsed["identifier"], content_file)
+            new_uri = f"job-postings/{record.identifier}"
         elif parsed["collection"] == "cvs":
             if not content_file:
                 raise click.UsageError("reanalyze cvs/{id} requires CONTENT_FILE")
-            service.reanalyze_cv(parsed["identifier"], content_file)
+            record = service.reanalyze_cv(parsed["identifier"], content_file)
+            new_uri = f"cvs/{record.identifier}"
         else:
-            service.reanalyze_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"])
+            record = service.reanalyze_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"])
+            new_uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
     except click.UsageError:
         raise
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
-    click.echo(f"Reanalyzed {uri}")
+    click.echo(f"Reanalyzed as {new_uri}")
 
 
 @main.command("rename")
