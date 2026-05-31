@@ -121,8 +121,8 @@ class TestSaveCvMarkdown:
         assert "# Jane Doe" in content
 
 
-class TestRegenerateMarkdown:
-    def test_regenerate_all(
+class TestExportMarkdown:
+    def test_export_all(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
     ):
         service.save_job_posting(sample_job_posting_data, "job-1")
@@ -133,12 +133,12 @@ class TestRegenerateMarkdown:
         job_md.unlink()
         cv_md.unlink()
 
-        count = service.regenerate_markdown()
+        count = service.export_markdown()
         assert count == 2
         assert job_md.exists()
         assert cv_md.exists()
 
-    def test_regenerate_by_collection(
+    def test_export_by_collection(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
     ):
         service.save_job_posting(sample_job_posting_data, "job-1")
@@ -149,12 +149,12 @@ class TestRegenerateMarkdown:
         job_md.unlink()
         cv_md.unlink()
 
-        count = service.regenerate_markdown(collection_name="job-postings")
+        count = service.export_markdown(collection_name="job-postings")
         assert count == 1
         assert job_md.exists()
         assert not cv_md.exists()
 
-    def test_regenerate_optimizations(
+    def test_export_optimizations(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
     ):
         service.save_job_posting(sample_job_posting_data, "job-1")
@@ -170,12 +170,12 @@ class TestRegenerateMarkdown:
         plan_md = opt_dir / "cv-transformation-plan.md"
         cv_md = opt_dir / "curriculum-vitae.md"
 
-        count = service.regenerate_markdown(collection_name="optimizations")
+        count = service.export_markdown(collection_name="optimizations")
         assert count == 2
         assert plan_md.exists()
         assert cv_md.exists()
 
-    def test_regenerate_cvs_excludes_optimized(
+    def test_export_cvs_excludes_optimized(
         self, service, sample_job_posting_data, sample_cv_data
     ):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
@@ -184,12 +184,12 @@ class TestRegenerateMarkdown:
             "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
         )
 
-        count = service.regenerate_markdown(collection_name="cvs")
+        count = service.export_markdown(collection_name="cvs")
         assert count == 1
 
     def test_unknown_collection_raises(self, service):
         with pytest.raises(ValueError, match="Unknown collection: invalid"):
-            service.regenerate_markdown(collection_name="invalid")
+            service.export_markdown(collection_name="invalid")
 
 
 class TestRemoveJobPosting:

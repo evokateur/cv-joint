@@ -193,18 +193,18 @@ cv-joint list job-postings -q acme
 cv-joint archive job-postings/{id}
 cv-joint apply job-postings/{id} {cv-id}
 cv-joint apply job-postings/{id} {cv-id} --date 2026-05-27
-cv-joint regenerate job-postings/{id}
+cv-joint reanalyze job-postings/{id}
 
 # CVs
 cv-joint list cvs
 cv-joint list cvs -q wesley
-cv-joint regenerate cvs/{id} path/to/file
+cv-joint reanalyze cvs/{id} path/to/file
 
 # General
 cv-joint remove job-postings/{id}
 cv-joint remove job-postings/{id}/cvs/{id}
 cv-joint rename job-postings/{id} {new-id}
-cv-joint regenerate-markdown
-cv-joint regenerate-markdown [job-postings|cvs]
+cv-joint export-markdown
+cv-joint export-markdown [job-postings|cvs]
 cv-joint show-config
 ```
