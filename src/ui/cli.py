@@ -38,17 +38,17 @@ def show_config():
     yaml.dump(config, sys.stdout, default_flow_style=False, sort_keys=False)
 
 
-@main.command("regenerate-markdown")
+@main.command("export-markdown")
 @click.argument("collection", required=False)
-def regenerate_markdown(collection):
-    """Regenerate markdown files from stored data and exit."""
+def export_markdown(collection):
+    """Re-export markdown files from stored data and exit."""
     from services.application import ApplicationService
     service = ApplicationService()
     try:
-        count = service.regenerate_markdown(collection)
+        count = service.export_markdown(collection)
     except ValueError as e:
         raise click.UsageError(str(e))
-    click.echo(f"Regenerated {count} markdown file(s)")
+    click.echo(f"Re-exported {count} markdown file(s)")
 
 
 @main.command("remove")
@@ -78,10 +78,10 @@ def remove(uri):
         sys.exit(1)
 
 
-@main.command("regenerate")
+@main.command("reanalyze")
 @click.argument("uri")
 @click.argument("content_file", required=False)
-def regenerate(uri, content_file):
+def reanalyze(uri, content_file):
     """Re-analyze an object by URI and overwrite the existing record."""
     from services.application import ApplicationService
     service = ApplicationService()
@@ -92,7 +92,7 @@ def regenerate(uri, content_file):
             service.regenerate_job_posting(parts[1], content_file)
         elif parts[0] == "cvs" and len(parts) == 2:
             if not content_file:
-                raise click.UsageError("regenerate cvs/{id} requires CONTENT_FILE")
+                raise click.UsageError("reanalyze cvs/{id} requires CONTENT_FILE")
             service.regenerate_cv(parts[1], content_file)
         elif parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
             service.regenerate_cv_optimization(parts[1], parts[3])
@@ -107,7 +107,7 @@ def regenerate(uri, content_file):
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
-    click.echo(f"Regenerated {uri}")
+    click.echo(f"Reanalyzed {uri}")
 
 
 @main.command("rename")
