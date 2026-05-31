@@ -7,6 +7,7 @@ from pathlib import Path
 
 import gradio as gr
 import validators
+from ui.components import front_matter_to_code_block
 from models import JobPosting, CurriculumVitae, CvTransformationPlan
 from services import ApplicationService
 from services import KnowledgeChatService
@@ -166,7 +167,9 @@ def create_app():
                         )
 
                     job_data = job_posting.model_dump()
-                    job_md = service.to_markdown(job_posting)
+                    job_md = front_matter_to_code_block(service.get_display_markdown(
+                        f"job-postings/{identifier}/job-posting.md", job_posting
+                    ))
                     is_saved = True
 
                     return (
@@ -479,7 +482,9 @@ def create_app():
                         )
 
                     cv_data = cv.model_dump()
-                    cv_md = service.to_markdown(cv)
+                    cv_md = front_matter_to_code_block(service.get_display_markdown(
+                        f"cvs/{identifier}/curriculum-vitae.md", cv
+                    ))
                     is_saved = True
 
                     return (
@@ -798,8 +803,13 @@ def create_app():
                     plan = CvTransformationPlan(**plan_data) if plan_data else None
                     cv = CurriculumVitae(**cv_data) if cv_data else None
 
-                    plan_md = service.to_markdown(plan) if plan else ""
-                    cv_md = service.to_markdown(cv) if cv else ""
+                    opt_base = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+                    plan_md = front_matter_to_code_block(service.get_display_markdown(
+                        f"{opt_base}/cv-transformation-plan.md", plan
+                    )) if plan else ""
+                    cv_md = front_matter_to_code_block(service.get_display_markdown(
+                        f"{opt_base}/curriculum-vitae.md", cv
+                    )) if cv else ""
 
                     return (
                         plan_data,

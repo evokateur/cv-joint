@@ -8,7 +8,7 @@ from models import CvTransformationPlan
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
-from .converters import MarkdownConverter
+from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
 from repositories import FileSystemRepository
 from renderers.latex import render_latex, latex_to_pdf
@@ -592,6 +592,11 @@ class ApplicationService:
 
     def to_markdown(self, domain_object) -> str:
         return self.markdown_converter.convert(domain_object) or ""
+
+    def get_display_markdown(self, uri: str, obj) -> str:
+        base_uri = uri.rsplit("/", 1)[0]
+        record = self.repository.resolve_record(base_uri)
+        return insert_json_as_frontmatter(record.model_dump(mode="json"), self.to_markdown(obj))
 
     def get_job_posting_record(self, identifier: str):
         return self.repository.get_job_posting_record(identifier)
