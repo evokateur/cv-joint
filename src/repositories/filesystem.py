@@ -24,6 +24,25 @@ def _to_kebab_case(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1-\2", s1).lower()
 
 
+def parse_uri(uri: str) -> dict[str, str]:
+    parts = uri.strip("/").split("/")
+    if parts[0] == "job-postings" and len(parts) == 2:
+        return {"collection": "job-postings", "identifier": parts[1]}
+    if parts[0] == "cvs" and len(parts) == 2:
+        return {"collection": "cvs", "identifier": parts[1]}
+    if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
+        return {"collection": "optimized-cvs", "job_posting_identifier": parts[1], "identifier": parts[3]}
+    raise ValueError(f"Unrecognised URI: {uri}")
+
+
+def _job_posting_canonical_path(record: JobPostingRecord) -> str:
+    return f"job-postings/{record.identifier}"
+
+
+def _cv_canonical_path(record: CurriculumVitaeRecord) -> str:
+    return f"cvs/{record.identifier}"
+
+
 class FileSystemRepository:
     """
     Repository that stores domain objects in the filesystem with metadata records.
@@ -63,10 +82,6 @@ class FileSystemRepository:
         with open(collection_file, "w") as f:
             json.dump(collection, f, indent=2)
 
-    def _generate_directory(self, collection_name: str, identifier: str) -> str:
-        """Generate directory path for a domain object relative to data dir."""
-        return f"{collection_name}/{identifier}"
-
     def _resolve_path(self, relative_path: str) -> Path:
         """Resolve a relative path against data_dir."""
         return self.data_dir / relative_path
@@ -90,7 +105,7 @@ class FileSystemRepository:
             (item for item in collection if item["identifier"] == identifier), None
         )
 
-        directory = existing["path"] if existing else self._generate_directory("job-postings", identifier)
+        directory = existing["path"] if existing else f"job-postings/{identifier}"
 
         absolute_path = self._resolve_path(directory) / "job-posting.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
@@ -215,6 +230,15 @@ class FileSystemRepository:
 
         record_data["is_archived"] = True
         record_data["updated_at"] = datetime.now().isoformat()
+
+        record = JobPostingRecord(**record_data)
+        target_path = _job_posting_canonical_path(record)
+        if target_path != record.path:
+            new_abs = self._resolve_path(target_path)
+            new_abs.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(self._resolve_path(record.path)), str(new_abs))
+            record_data["path"] = target_path
+
         self._save_collection(self.job_postings_collection, collection)
         return JobPostingRecord(**record_data)
 
@@ -240,6 +264,15 @@ class FileSystemRepository:
         record_data["applied_with"] = cv_identifier
         record_data["applied_at"] = (applied_at or datetime.now()).isoformat()
         record_data["updated_at"] = datetime.now().isoformat()
+
+        record = JobPostingRecord(**record_data)
+        target_path = _job_posting_canonical_path(record)
+        if target_path != record.path:
+            new_abs = self._resolve_path(target_path)
+            new_abs.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(self._resolve_path(record.path)), str(new_abs))
+            record_data["path"] = target_path
+
         self._save_collection(self.job_postings_collection, collection)
         return JobPostingRecord(**record_data)
 
@@ -294,7 +327,7 @@ class FileSystemRepository:
             (item for item in collection if item["identifier"] == identifier), None
         )
 
-        directory = existing["path"] if existing else self._generate_directory("cvs", identifier)
+        directory = existing["path"] if existing else f"cvs/{identifier}"
 
         absolute_path = self._resolve_path(directory) / "curriculum-vitae.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
@@ -426,13 +459,16 @@ class FileSystemRepository:
         Raises:
             ValueError: If not found or new identifier already exists
         """
-        if self.get_job_posting_record(identifier) is None:
+        old_record = self.get_job_posting_record(identifier)
+        if old_record is None:
             raise ValueError(f"Job posting not found: {identifier}")
         if self.get_job_posting_record(new_identifier) is not None:
             raise ValueError(f"Job posting already exists: {new_identifier}")
 
-        old_dir = self.data_dir / "job-postings" / identifier
-        new_dir = self.data_dir / "job-postings" / new_identifier
+        new_path = str(Path(old_record.path).parent / new_identifier)
+        old_dir = self._resolve_path(old_record.path)
+        new_dir = self._resolve_path(new_path)
+        new_dir.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(old_dir), str(new_dir))
 
         opt_collection = self._load_collection(self.optimized_cvs_collection)
@@ -450,7 +486,7 @@ class FileSystemRepository:
             if item["identifier"] == identifier:
                 item = dict(item)
                 item["identifier"] = new_identifier
-                item["path"] = self._generate_directory("job-postings", new_identifier)
+                item["path"] = new_path
                 item["updated_at"] = datetime.now().isoformat()
                 collection[i] = item
                 new_record_data = item
@@ -474,7 +510,8 @@ class FileSystemRepository:
         Raises:
             ValueError: If not found or new identifier already exists
         """
-        if self.get_cv_record(identifier) is None:
+        old_record = self.get_cv_record(identifier)
+        if old_record is None:
             raise ValueError(f"CV not found: {identifier}")
         if self.get_cv_record(new_identifier) is not None:
             raise ValueError(f"CV already exists: {new_identifier}")
@@ -488,8 +525,10 @@ class FileSystemRepository:
         ]
         self._save_collection(self.optimized_cvs_collection, updated_opts)
 
-        old_dir = self.data_dir / "cvs" / identifier
-        new_dir = self.data_dir / "cvs" / new_identifier
+        new_path = str(Path(old_record.path).parent / new_identifier)
+        old_dir = self._resolve_path(old_record.path)
+        new_dir = self._resolve_path(new_path)
+        new_dir.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(old_dir), str(new_dir))
 
         collection = self._load_collection(self.cvs_collection)
@@ -498,7 +537,7 @@ class FileSystemRepository:
             if item["identifier"] == identifier:
                 item = dict(item)
                 item["identifier"] = new_identifier
-                item["path"] = self._generate_directory("cvs", new_identifier)
+                item["path"] = new_path
                 item["updated_at"] = datetime.now().isoformat()
                 collection[i] = item
                 new_record_data = item
@@ -506,6 +545,52 @@ class FileSystemRepository:
         self._save_collection(self.cvs_collection, collection)
         assert new_record_data is not None
         return CurriculumVitaeRecord(**new_record_data)
+
+    def resolve_record(
+        self, uri: str
+    ) -> JobPostingRecord | CurriculumVitaeRecord | OptimizedCvRecord:
+        """Return the governing record for a URI. Raises ValueError if not found."""
+        parsed = parse_uri(uri)
+        collection = parsed["collection"]
+
+        if collection == "job-postings":
+            record = self.get_job_posting_record(parsed["identifier"])
+            if record is None:
+                raise ValueError(f"Not found: {uri}")
+            return record
+
+        if collection == "cvs":
+            record = self.get_cv_record(parsed["identifier"])
+            if record is None:
+                raise ValueError(f"Not found: {uri}")
+            return record
+
+        record = self.get_optimized_cv_record(
+            parsed["job_posting_identifier"], parsed["identifier"]
+        )
+        if record is None:
+            raise ValueError(f"Not found: {uri}")
+        return record
+
+    def canonical_path(self, uri: str) -> str:
+        """Return the canonical filesystem path for a URI based on current business rules."""
+        parsed = parse_uri(uri)
+        collection = parsed["collection"]
+
+        if collection == "job-postings":
+            record = self.get_job_posting_record(parsed["identifier"])
+            if record is None:
+                raise ValueError(f"Not found: {uri}")
+            return _job_posting_canonical_path(record)
+
+        if collection == "cvs":
+            record = self.get_cv_record(parsed["identifier"])
+            if record is None:
+                raise ValueError(f"Not found: {uri}")
+            return _cv_canonical_path(record)
+
+        parent_path = self.canonical_path(f"job-postings/{parsed['job_posting_identifier']}")
+        return f"{parent_path}/cvs/{parsed['identifier']}"
 
     def _cv_optimization_dir(
         self, job_posting_identifier: str, identifier: str
