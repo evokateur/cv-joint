@@ -1,4 +1,3 @@
-{{ frontmatter }}
 # {{ obj.name }}
 
 **{{ obj.contact.city }}, {{ obj.contact.state }}** | {{ obj.contact.email }} | {{ obj.contact.phone }}

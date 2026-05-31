@@ -410,16 +410,13 @@ class TestArchiveJobPosting:
         service.archive_job_posting("acme-swe")
         mock_repo.archive_job_posting.assert_called_once_with("acme-swe")
 
-    def test_regenerates_markdown(self):
+    def test_does_not_call_exporter(self):
         mock_repo = MagicMock()
         mock_exporter = MagicMock()
         service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = mock_exporter
         service.archive_job_posting("acme-swe")
-        mock_exporter.export_job_posting.assert_called_once_with(
-            mock_repo.archive_job_posting.return_value,
-            mock_repo.get_job_posting.return_value,
-        )
+        mock_exporter.export_job_posting.assert_not_called()
 
 
 class TestMarkApplied:
@@ -439,16 +436,13 @@ class TestMarkApplied:
         service.mark_applied("acme-swe", "my-cv", applied_at=date)
         mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=date)
 
-    def test_regenerates_markdown(self):
+    def test_does_not_call_exporter(self):
         mock_repo = MagicMock()
         mock_exporter = MagicMock()
         service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = mock_exporter
         service.mark_applied("acme-swe", "my-cv")
-        mock_exporter.export_job_posting.assert_called_once_with(
-            mock_repo.mark_applied.return_value,
-            mock_repo.get_job_posting.return_value,
-        )
+        mock_exporter.export_job_posting.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

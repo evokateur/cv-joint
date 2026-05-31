@@ -348,6 +348,7 @@ class TestOptimizedCvRecord:
 
         record = OptimizedCvRecord(
             identifier="opt-1",
+            path="job-postings/acme-swe/cvs/opt-1",
             job_posting_identifier="acme-swe",
             base_cv_identifier="jane-doe",
             name="Jane Doe",
@@ -369,6 +370,7 @@ class TestOptimizedCvRecord:
 
         record = OptimizedCvRecord(
             identifier="opt-1",
+            path="job-postings/acme-swe/cvs/opt-1",
             job_posting_identifier="acme-swe",
             base_cv_identifier="jane-doe",
             name="Jane Doe",

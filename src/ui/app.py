@@ -7,7 +7,6 @@ from pathlib import Path
 
 import gradio as gr
 import validators
-from ui.components import front_matter_to_code_block
 from models import JobPosting, CurriculumVitae, CvTransformationPlan
 from services import ApplicationService
 from services import KnowledgeChatService
@@ -166,9 +165,8 @@ def create_app():
                             gr.update(value="", visible=False),
                         )
 
-                    record = service.get_job_posting_record(identifier)
                     job_data = job_posting.model_dump()
-                    job_md = front_matter_to_code_block(service.to_markdown(job_posting, record))
+                    job_md = service.to_markdown(job_posting)
                     is_saved = True
 
                     return (
@@ -480,9 +478,8 @@ def create_app():
                             gr.update(value="", visible=False),
                         )
 
-                    record = service.get_cv_record(identifier)
                     cv_data = cv.model_dump()
-                    cv_md = front_matter_to_code_block(service.to_markdown(cv, record))
+                    cv_md = service.to_markdown(cv)
                     is_saved = True
 
                     return (
@@ -801,11 +798,8 @@ def create_app():
                     plan = CvTransformationPlan(**plan_data) if plan_data else None
                     cv = CurriculumVitae(**cv_data) if cv_data else None
 
-                    record = service.get_optimized_cv_record(
-                        job_posting_identifier, identifier
-                    )
-                    plan_md = front_matter_to_code_block(service.to_markdown(plan, record)) if plan else ""
-                    cv_md = front_matter_to_code_block(service.to_markdown(cv, record)) if cv else ""
+                    plan_md = service.to_markdown(plan) if plan else ""
+                    cv_md = service.to_markdown(cv) if cv else ""
 
                     return (
                         plan_data,

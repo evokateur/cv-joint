@@ -144,21 +144,13 @@ class ApplicationService:
 
     def archive_job_posting(self, identifier: str):
         """Mark a job posting as archived."""
-        record = self.repository.archive_job_posting(identifier)
-        job_posting = self.repository.get_job_posting(identifier)
-        assert job_posting is not None
-        self.markdown_exporter.export_job_posting(record, job_posting)
-        return record
+        return self.repository.archive_job_posting(identifier)
 
     def mark_applied(
         self, identifier: str, cv_identifier: str, applied_at: Optional[datetime] = None
     ):
         """Record that a job posting was applied to with a given CV."""
-        record = self.repository.mark_applied(identifier, cv_identifier, applied_at=applied_at)
-        job_posting = self.repository.get_job_posting(identifier)
-        assert job_posting is not None
-        self.markdown_exporter.export_job_posting(record, job_posting)
-        return record
+        return self.repository.mark_applied(identifier, cv_identifier, applied_at=applied_at)
 
     def create_cv(self, file_path: str) -> tuple[dict[str, Any], str]:
         """
@@ -598,8 +590,8 @@ class ApplicationService:
         templates_dir = project_root / "templates"
         return [str(p.name) for p in templates_dir.glob("*cv*.tex")]
 
-    def to_markdown(self, domain_object, record=None) -> str:
-        return self.markdown_converter.convert(domain_object, record) or ""
+    def to_markdown(self, domain_object) -> str:
+        return self.markdown_converter.convert(domain_object) or ""
 
     def get_job_posting_record(self, identifier: str):
         return self.repository.get_job_posting_record(identifier)

@@ -8,7 +8,6 @@ list_optimized_cvs, remove_optimized_cv, rename_optimized_cv, purge_optimized_cv
 import json
 import pytest
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 from repositories import FileSystemRepository
@@ -148,29 +147,87 @@ class TestLoadAllObjects:
 
 
 class TestSaveDocument:
-    def test_writes_text_to_uri_path(self, repository, temp_data_dir):
-        repository.save_document("job-postings/acme-swe/job-posting.md", "# Acme")
+    def test_prepends_frontmatter_for_owned_stem(self, repository_with_job_posting, temp_data_dir):
+        repository_with_job_posting.save_document("job-postings/acme-swe/job-posting.md", "# Acme\n")
         path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
-        assert path.read_text() == "# Acme"
+        content = path.read_text()
+        assert content.startswith("---\n")
+        assert "identifier: acme-swe" in content
+        assert "# Acme" in content
 
-    def test_creates_parent_directories(self, repository, temp_data_dir):
-        repository.save_document("job-postings/new-job/job-posting.md", "content")
-        assert (Path(temp_data_dir) / "job-postings" / "new-job").exists()
+    def test_no_frontmatter_for_unowned_stem(self, repository_with_job_posting, temp_data_dir):
+        repository_with_job_posting.save_document("job-postings/acme-swe/readme.md", "# Notes\n")
+        path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "readme.md"
+        assert path.read_text() == "# Notes\n"
+
+    def test_raises_for_unknown_uri(self, repository):
+        with pytest.raises(ValueError):
+            repository.save_document("job-postings/nonexistent/job-posting.md", "content")
+
+    def test_creates_directory_if_absent(self, repository_with_job_posting, temp_data_dir):
+        repository_with_job_posting.save_document("job-postings/acme-swe/job-posting.md", "content")
+        assert (Path(temp_data_dir) / "job-postings" / "acme-swe").exists()
 
 
 class TestLoadDocument:
-    def test_reads_text_from_uri_path(self, repository):
-        repository.save_document("job-postings/acme-swe/job-posting.md", "# Hello")
-        assert repository.load_document("job-postings/acme-swe/job-posting.md") == "# Hello"
+    def test_reads_text_from_uri_path(self, repository_with_job_posting):
+        repository_with_job_posting.save_document("job-postings/acme-swe/job-posting.md", "# Hello\n")
+        content = repository_with_job_posting.load_document("job-postings/acme-swe/job-posting.md")
+        assert "# Hello" in content
 
 
 class TestDocumentExists:
-    def test_returns_true_when_file_exists(self, repository):
-        repository.save_document("job-postings/acme-swe/job-posting.md", "content")
-        assert repository.document_exists("job-postings/acme-swe/job-posting.md") is True
+    def test_returns_true_when_file_exists(self, repository_with_job_posting):
+        repository_with_job_posting.save_document("job-postings/acme-swe/job-posting.md", "content")
+        assert repository_with_job_posting.document_exists("job-postings/acme-swe/job-posting.md") is True
 
-    def test_returns_false_when_file_absent(self, repository):
-        assert repository.document_exists("job-postings/acme-swe/job-posting.md") is False
+    def test_returns_false_when_file_absent(self, repository_with_job_posting):
+        assert repository_with_job_posting.document_exists("job-postings/acme-swe/job-posting.md") is False
+
+
+class TestPatchDocumentFrontmatter:
+    def test_merges_record_fields_into_frontmatter(
+        self, repository_with_job_posting, temp_data_dir
+    ):
+        repository_with_job_posting.save_document(
+            "job-postings/acme-swe/job-posting.md", "# Acme\n\nBody text.\n"
+        )
+        repository_with_job_posting.archive_job_posting("acme-swe")
+        path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
+        content = path.read_text()
+        assert content.startswith("---\n")
+        assert "is_archived: true" in content
+
+    def test_preserves_hand_added_frontmatter_keys(
+        self, repository_with_job_posting, temp_data_dir
+    ):
+        path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("---\ncustom_tag: keep-me\n---\n# Acme\n")
+        repository_with_job_posting.archive_job_posting("acme-swe")
+        content = path.read_text()
+        assert "custom_tag: keep-me" in content
+
+    def test_preserves_body_content(self, repository_with_job_posting, temp_data_dir):
+        repository_with_job_posting.save_document(
+            "job-postings/acme-swe/job-posting.md", "# Acme\n\nHand-edited paragraph.\n"
+        )
+        repository_with_job_posting.archive_job_posting("acme-swe")
+        path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
+        assert "Hand-edited paragraph." in path.read_text()
+
+    def test_skips_nonexistent_markdown_files(self, repository_with_job_posting):
+        # Should not raise even if no .md file exists yet
+        repository_with_job_posting.archive_job_posting("acme-swe")
+
+    def test_raises_on_missing_frontmatter_block(
+        self, repository_with_job_posting, temp_data_dir
+    ):
+        path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# No frontmatter here\n")
+        with pytest.raises(ValueError, match="No frontmatter block"):
+            repository_with_job_posting.archive_job_posting("acme-swe")
 
 
 class TestUpsertOptimizedCv:
