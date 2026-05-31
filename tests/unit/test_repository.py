@@ -3,10 +3,12 @@ Unit tests for filesystem repository.
 """
 
 import pytest
+import shutil
 import tempfile
 from pathlib import Path
 
 from repositories import FileSystemRepository
+from repositories.filesystem import parse_uri
 from models import JobPosting, CurriculumVitae
 
 
@@ -436,6 +438,108 @@ class TestRenameCvOptimizedCvs:
         assert repository.get_optimized_cv_record("acme-swe", "opt-2").base_cv_identifier == "other-cv"
 
 
+class TestUpsertPreservesCustomPath:
+    def _move_to_custom_path(self, repository, collection_file, identifier, old_rel, new_rel):
+        old_abs = repository.data_dir / old_rel
+        new_abs = repository.data_dir / new_rel
+        new_abs.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old_abs), str(new_abs))
+
+        collection = repository._load_collection(collection_file)
+        for item in collection:
+            if item["identifier"] == identifier:
+                item["path"] = new_rel
+                break
+        repository._save_collection(collection_file, collection)
+
+    def test_upsert_job_posting_preserves_custom_path(
+        self, repository, sample_job_posting, temp_data_dir
+    ):
+        repository.upsert_job_posting(sample_job_posting, "test-job")
+        self._move_to_custom_path(
+            repository,
+            repository.job_postings_collection,
+            "test-job",
+            "job-postings/test-job",
+            "archived/job-postings/test-job",
+        )
+
+        sample_job_posting.title = "Updated Title"
+        record = repository.upsert_job_posting(sample_job_posting, "test-job")
+
+        assert record.path == "archived/job-postings/test-job"
+        assert (Path(temp_data_dir) / "archived/job-postings/test-job/job-posting.json").exists()
+        assert not (Path(temp_data_dir) / "job-postings/test-job").exists()
+
+    def test_upsert_cv_preserves_custom_path(
+        self, repository, sample_cv, temp_data_dir
+    ):
+        repository.upsert_cv(sample_cv, "test-cv")
+        self._move_to_custom_path(
+            repository,
+            repository.cvs_collection,
+            "test-cv",
+            "cvs/test-cv",
+            "archived/cvs/test-cv",
+        )
+
+        sample_cv.profession = "Updated Profession"
+        record = repository.upsert_cv(sample_cv, "test-cv")
+
+        assert record.path == "archived/cvs/test-cv"
+        assert (Path(temp_data_dir) / "archived/cvs/test-cv/curriculum-vitae.json").exists()
+        assert not (Path(temp_data_dir) / "cvs/test-cv").exists()
+
+
+class TestRemoveUsesStoredPath:
+    def _move_to_custom_path(self, repository, collection_file, identifier, old_rel, new_rel):
+        old_abs = repository.data_dir / old_rel
+        new_abs = repository.data_dir / new_rel
+        new_abs.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old_abs), str(new_abs))
+
+        collection = repository._load_collection(collection_file)
+        for item in collection:
+            if item["identifier"] == identifier:
+                item["path"] = new_rel
+                break
+        repository._save_collection(collection_file, collection)
+
+    def test_remove_job_posting_deletes_custom_path(
+        self, repository, sample_job_posting, temp_data_dir
+    ):
+        repository.upsert_job_posting(sample_job_posting, "to-delete")
+        self._move_to_custom_path(
+            repository,
+            repository.job_postings_collection,
+            "to-delete",
+            "job-postings/to-delete",
+            "archived/job-postings/to-delete",
+        )
+
+        result = repository.remove_job_posting("to-delete")
+
+        assert result is True
+        assert not (Path(temp_data_dir) / "archived/job-postings/to-delete").exists()
+
+    def test_remove_cv_deletes_custom_path(
+        self, repository, sample_cv, temp_data_dir
+    ):
+        repository.upsert_cv(sample_cv, "to-delete")
+        self._move_to_custom_path(
+            repository,
+            repository.cvs_collection,
+            "to-delete",
+            "cvs/to-delete",
+            "archived/cvs/to-delete",
+        )
+
+        result = repository.remove_cv("to-delete")
+
+        assert result is True
+        assert not (Path(temp_data_dir) / "archived/cvs/to-delete").exists()
+
+
 class TestListCvsBaseOnly:
     def test_list_cvs_returns_only_base_cvs(
         self, repository, sample_job_posting, sample_cv
@@ -446,3 +550,119 @@ class TestListCvsBaseOnly:
         listings = repository.list_cvs()
         assert len(listings) == 1
         assert listings[0]["identifier"] == "jane-doe"
+
+
+class TestParseUri:
+    def test_job_posting_uri(self):
+        result = parse_uri("job-postings/acme-swe")
+        assert result == {"collection": "job-postings", "identifier": "acme-swe"}
+
+    def test_cv_uri(self):
+        result = parse_uri("cvs/jane-doe")
+        assert result == {"collection": "cvs", "identifier": "jane-doe"}
+
+    def test_optimized_cv_uri(self):
+        result = parse_uri("job-postings/acme-swe/cvs/jane-v2")
+        assert result == {
+            "collection": "optimized-cvs",
+            "job_posting_identifier": "acme-swe",
+            "identifier": "jane-v2",
+        }
+
+    def test_strips_leading_slash(self):
+        assert parse_uri("/job-postings/acme-swe") == parse_uri("job-postings/acme-swe")
+
+    def test_raises_for_unrecognised_uri(self):
+        with pytest.raises(ValueError, match="Unrecognised URI"):
+            parse_uri("unknown/foo/bar")
+
+
+class TestResolveRecord:
+    def test_resolves_job_posting(self, repository, sample_job_posting):
+        from models import JobPostingRecord
+        repository.upsert_job_posting(sample_job_posting, "acme-swe")
+        record = repository.resolve_record("job-postings/acme-swe")
+        assert isinstance(record, JobPostingRecord)
+        assert record.identifier == "acme-swe"
+
+    def test_resolves_cv(self, repository, sample_cv):
+        from models import CurriculumVitaeRecord
+        repository.upsert_cv(sample_cv, "jane-doe")
+        record = repository.resolve_record("cvs/jane-doe")
+        assert isinstance(record, CurriculumVitaeRecord)
+        assert record.identifier == "jane-doe"
+
+    def test_resolves_optimized_cv(self, repository, sample_job_posting, sample_cv):
+        from models import OptimizedCvRecord
+        repository.upsert_job_posting(sample_job_posting, "acme-swe")
+        repository.upsert_optimized_cv("acme-swe", "jane-v2", "jane-doe", sample_cv)
+        record = repository.resolve_record("job-postings/acme-swe/cvs/jane-v2")
+        assert isinstance(record, OptimizedCvRecord)
+        assert record.identifier == "jane-v2"
+
+    def test_raises_when_not_found(self, repository):
+        with pytest.raises(ValueError, match="Not found"):
+            repository.resolve_record("job-postings/nonexistent")
+
+
+class TestCanonicalPath:
+    def test_job_posting_default_path(self, repository, sample_job_posting):
+        repository.upsert_job_posting(sample_job_posting, "acme-swe")
+        assert repository.canonical_path("job-postings/acme-swe") == "job-postings/acme-swe"
+
+    def test_cv_default_path(self, repository, sample_cv):
+        repository.upsert_cv(sample_cv, "jane-doe")
+        assert repository.canonical_path("cvs/jane-doe") == "cvs/jane-doe"
+
+    def test_optimized_cv_follows_parent_path(self, repository, sample_job_posting, sample_cv):
+        repository.upsert_job_posting(sample_job_posting, "acme-swe")
+        repository.upsert_optimized_cv("acme-swe", "jane-v2", "jane-doe", sample_cv)
+        assert repository.canonical_path("job-postings/acme-swe/cvs/jane-v2") == "job-postings/acme-swe/cvs/jane-v2"
+
+    def test_raises_when_not_found(self, repository):
+        with pytest.raises(ValueError, match="Not found"):
+            repository.canonical_path("job-postings/nonexistent")
+
+
+class TestRenameUsesStoredPath:
+    def _move_to_custom_path(self, repository, collection_file, identifier, old_rel, new_rel):
+        old_abs = repository.data_dir / old_rel
+        new_abs = repository.data_dir / new_rel
+        new_abs.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old_abs), str(new_abs))
+        collection = repository._load_collection(collection_file)
+        for item in collection:
+            if item["identifier"] == identifier:
+                item["path"] = new_rel
+                break
+        repository._save_collection(collection_file, collection)
+
+    def test_rename_job_posting_uses_stored_path(
+        self, repository, sample_job_posting, temp_data_dir
+    ):
+        repository.upsert_job_posting(sample_job_posting, "old-id")
+        self._move_to_custom_path(
+            repository,
+            repository.job_postings_collection,
+            "old-id",
+            "job-postings/old-id",
+            "custom/old-id",
+        )
+        repository.rename_job_posting("old-id", "new-id")
+        assert not (Path(temp_data_dir) / "custom/old-id").exists()
+        assert (Path(temp_data_dir) / "custom/new-id").exists()
+
+    def test_rename_cv_uses_stored_path(
+        self, repository, sample_cv, temp_data_dir
+    ):
+        repository.upsert_cv(sample_cv, "old-id")
+        self._move_to_custom_path(
+            repository,
+            repository.cvs_collection,
+            "old-id",
+            "cvs/old-id",
+            "custom/old-id",
+        )
+        repository.rename_cv("old-id", "new-id")
+        assert not (Path(temp_data_dir) / "custom/old-id").exists()
+        assert (Path(temp_data_dir) / "custom/new-id").exists()

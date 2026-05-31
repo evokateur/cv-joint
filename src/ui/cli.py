@@ -4,13 +4,18 @@ from datetime import datetime
 import click
 import yaml
 
+from repositories.filesystem import parse_uri
+
 
 def _normalise_cv_identifier(value: str) -> str:
-    parts = value.strip("/").split("/")
-    if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
-        return f"{parts[1]}/{parts[3]}"
-    if parts[0] == "cvs" and len(parts) == 2:
-        return parts[1]
+    try:
+        parsed = parse_uri(value)
+    except ValueError:
+        return value
+    if parsed["collection"] == "optimized-cvs":
+        return f"{parsed['job_posting_identifier']}/{parsed['identifier']}"
+    if parsed["collection"] == "cvs":
+        return parsed["identifier"]
     return value
 
 
@@ -57,19 +62,20 @@ def remove(uri):
     """Remove an object by URI and exit."""
     from services.application import ApplicationService
     service = ApplicationService()
-    parts = uri.strip("/").split("/")
-
-    if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
-        removed = service.remove_cv_optimization(parts[1], parts[3])
-    elif parts[0] == "job-postings" and len(parts) == 2:
-        removed = service.remove_job_posting(parts[1])
-    elif parts[0] == "cvs" and len(parts) == 2:
-        removed = service.remove_cv(parts[1])
-    else:
+    try:
+        parsed = parse_uri(uri)
+    except ValueError:
         raise click.UsageError(
             f"unrecognised URI '{uri}'\n"
             "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
         )
+
+    if parsed["collection"] == "optimized-cvs":
+        removed = service.remove_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"])
+    elif parsed["collection"] == "job-postings":
+        removed = service.remove_job_posting(parsed["identifier"])
+    else:
+        removed = service.remove_cv(parsed["identifier"])
 
     if removed:
         click.echo(f"Removed {uri}")
@@ -85,22 +91,23 @@ def reanalyze(uri, content_file):
     """Re-analyze an object by URI and overwrite the existing record."""
     from services.application import ApplicationService
     service = ApplicationService()
-    parts = uri.strip("/").split("/")
+    try:
+        parsed = parse_uri(uri)
+    except ValueError:
+        raise click.UsageError(
+            f"unrecognised URI '{uri}'\n"
+            "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
+        )
 
     try:
-        if parts[0] == "job-postings" and len(parts) == 2:
-            service.regenerate_job_posting(parts[1], content_file)
-        elif parts[0] == "cvs" and len(parts) == 2:
+        if parsed["collection"] == "job-postings":
+            service.regenerate_job_posting(parsed["identifier"], content_file)
+        elif parsed["collection"] == "cvs":
             if not content_file:
                 raise click.UsageError("reanalyze cvs/{id} requires CONTENT_FILE")
-            service.regenerate_cv(parts[1], content_file)
-        elif parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
-            service.regenerate_cv_optimization(parts[1], parts[3])
+            service.regenerate_cv(parsed["identifier"], content_file)
         else:
-            raise click.UsageError(
-                f"unrecognised URI '{uri}'\n"
-                "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
-            )
+            service.regenerate_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"])
     except click.UsageError:
         raise
     except ValueError as e:
@@ -117,20 +124,21 @@ def rename(uri, new_id):
     """Rename an object by URI and exit."""
     from services.application import ApplicationService
     service = ApplicationService()
-    parts = uri.strip("/").split("/")
+    try:
+        parsed = parse_uri(uri)
+    except ValueError:
+        raise click.UsageError(
+            f"unrecognised URI '{uri}'\n"
+            "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
+        )
 
     try:
-        if parts[0] == "job-postings" and len(parts) == 2:
-            service.rename_job_posting(parts[1], new_id)
-        elif parts[0] == "cvs" and len(parts) == 2:
-            service.rename_cv(parts[1], new_id)
-        elif parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
-            service.rename_cv_optimization(parts[1], parts[3], new_id)
+        if parsed["collection"] == "job-postings":
+            service.rename_job_posting(parsed["identifier"], new_id)
+        elif parsed["collection"] == "cvs":
+            service.rename_cv(parsed["identifier"], new_id)
         else:
-            raise click.UsageError(
-                f"unrecognised URI '{uri}'\n"
-                "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
-            )
+            service.rename_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"], new_id)
     except click.UsageError:
         raise
     except ValueError as e:
@@ -167,15 +175,16 @@ def archive(uri):
     """Archive a job posting by URI and exit."""
     from services.application import ApplicationService
     service = ApplicationService()
-    parts = uri.strip("/").split("/")
+    try:
+        parsed = parse_uri(uri)
+    except ValueError:
+        raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
 
-    if parts[0] == "job-postings" and len(parts) == 2:
-        service.archive_job_posting(parts[1])
-        click.echo(f"Archived {uri}")
-    else:
-        raise click.UsageError(
-            f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}"
-        )
+    if parsed["collection"] != "job-postings":
+        raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
+
+    service.archive_job_posting(parsed["identifier"])
+    click.echo(f"Archived {uri}")
 
 
 @main.command("apply")
@@ -186,17 +195,18 @@ def apply(uri, cv_identifier, date):
     """Mark a job posting as applied to and exit."""
     from services.application import ApplicationService
     service = ApplicationService()
-    parts = uri.strip("/").split("/")
+    try:
+        parsed = parse_uri(uri)
+    except ValueError:
+        raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
 
-    if parts[0] == "job-postings" and len(parts) == 2:
-        applied_at = datetime.strptime(date, "%Y-%m-%d") if date else None
-        cv_identifier = _normalise_cv_identifier(cv_identifier)
-        service.mark_applied(parts[1], cv_identifier, applied_at=applied_at)
-        click.echo(f"Marked {uri} as applied with {cv_identifier}")
-    else:
-        raise click.UsageError(
-            f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}"
-        )
+    if parsed["collection"] != "job-postings":
+        raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
+
+    applied_at = datetime.strptime(date, "%Y-%m-%d") if date else None
+    cv_identifier = _normalise_cv_identifier(cv_identifier)
+    service.mark_applied(parsed["identifier"], cv_identifier, applied_at=applied_at)
+    click.echo(f"Marked {uri} as applied with {cv_identifier}")
 
 
 if __name__ == "__main__":
