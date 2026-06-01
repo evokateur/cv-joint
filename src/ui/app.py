@@ -36,7 +36,7 @@ def create_app():
 
         with gr.Tabs():
             # Tab 1: Job Postings
-            with gr.Tab("Job Postings"):
+            with gr.Tab("Job Postings") as job_postings_tab:
                 with gr.Group():
                     gr.Markdown("### Create New Job Posting")
                     job_url = gr.Textbox(
@@ -364,7 +364,7 @@ def create_app():
                 app.load(fn=load_jobs, outputs=[job_list])
 
             # Tab 2: Curriculum Vitae
-            with gr.Tab("Curriculum Vitae"):
+            with gr.Tab("Curriculum Vitae") as cv_tab:
                 with gr.Group():
                     gr.Markdown("### Import CV")
                     with gr.Accordion("CV Source", open=False) as cv_source_accordion:
@@ -1246,7 +1246,10 @@ def create_app():
                         outputs=[export_file],
                     )
 
-        # Refresh dropdowns when tabs become active
+        # Refresh lists and dropdowns when tabs become active
+        job_postings_tab.select(fn=load_jobs, outputs=[job_list])
+        cv_tab.select(fn=load_cvs, outputs=[cv_list])
+        optimizations_tab.select(fn=load_cv_optimizations, outputs=[optimization_list])
         optimizations_tab.select(fn=load_opt_job_choices, outputs=[opt_job_dropdown])
         optimizations_tab.select(fn=load_opt_cv_choices, outputs=[opt_cv_dropdown])
         pdf_tab.select(fn=load_cv_data_choices, outputs=[cv_data_selection])
