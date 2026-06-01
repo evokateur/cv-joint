@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, TypeVar
 
+import yaml
 from pydantic import BaseModel
 
 from models import (
@@ -17,6 +18,17 @@ from models import (
 )
 
 T = TypeVar("T", bound=BaseModel)
+
+RECORD_DOCUMENTS: dict[type, set[str]] = {
+    JobPostingRecord:      {"job-posting"},
+    CurriculumVitaeRecord: {"curriculum-vitae"},
+    OptimizedCvRecord:     {"curriculum-vitae", "cv-transformation-plan"},
+}
+
+
+def _render_frontmatter(record: BaseModel) -> str:
+    data = record.model_dump(mode="json")
+    return f"---\n{yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
 
 
 def _to_kebab_case(name: str) -> str:
@@ -230,7 +242,9 @@ class FileSystemRepository:
             record_data["path"] = target_path
 
         self._save_collection(self.job_postings_collection, collection)
-        return JobPostingRecord(**record_data)
+        result = JobPostingRecord(**record_data)
+        self._patch_document_frontmatter(result)
+        return result
 
     def mark_applied(
         self,
@@ -264,7 +278,9 @@ class FileSystemRepository:
             record_data["path"] = target_path
 
         self._save_collection(self.job_postings_collection, collection)
-        return JobPostingRecord(**record_data)
+        result = JobPostingRecord(**record_data)
+        self._patch_document_frontmatter(result)
+        return result
 
     def remove_job_posting(self, identifier: str) -> bool:
         """
@@ -623,9 +639,35 @@ class FileSystemRepository:
     # -------------------------------------------------------------------------
 
     def save_document(self, uri: str, content: str) -> None:
-        path = self._resolve_path(uri)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        base_uri, filename = uri.rsplit("/", 1)
+        directory = self._resolve_path(self.canonical_path(base_uri))
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / filename
+
+        if filename.endswith(".md"):
+            record = self.resolve_record(base_uri)
+            stem = filename[:-3]
+            if stem in RECORD_DOCUMENTS.get(type(record), set()):
+                content = _render_frontmatter(record) + content
+
         path.write_text(content)
+
+    def _patch_document_frontmatter(self, record: BaseModel) -> None:
+        for stem in RECORD_DOCUMENTS.get(type(record), set()):
+            path = self.data_dir / record.path / f"{stem}.md"  # type: ignore[union-attr]
+            if not path.exists():
+                continue
+            content = path.read_text()
+            if not content.startswith("---\n"):
+                raise ValueError(f"No frontmatter block in {path}")
+            end = content.find("\n---\n", 4)
+            if end == -1:
+                raise ValueError(f"Unclosed frontmatter block in {path}")
+            existing = yaml.safe_load(content[4:end]) or {}
+            body = content[end + 5:]
+            existing.update(record.model_dump(mode="json"))
+            new_fm = f"---\n{yaml.dump(existing, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
+            path.write_text(new_fm + body)
 
     def load_document(self, uri: str) -> str:
         return self._resolve_path(uri).read_text()
@@ -676,10 +718,12 @@ class FileSystemRepository:
         job_posting_record = self.get_job_posting_record(job_posting_identifier)
         job_title = job_posting_record.title if job_posting_record else None
         company = job_posting_record.company if job_posting_record else None
+        path = f"{job_posting_record.path}/cvs/{identifier}" if job_posting_record else f"job-postings/{job_posting_identifier}/cvs/{identifier}"
 
         now = datetime.now()
         record = OptimizedCvRecord(
             identifier=identifier,
+            path=path,
             job_posting_identifier=job_posting_identifier,
             base_cv_identifier=base_cv_identifier,
             name=cv.name,

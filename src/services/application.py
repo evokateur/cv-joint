@@ -1,17 +1,29 @@
+import re
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from config.settings import get_data_dir
 from models import CvTransformationPlan
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
-from .converters import MarkdownConverter
+from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
 from repositories import FileSystemRepository
 from renderers.latex import render_latex, latex_to_pdf
+
+
+def _next_identifier(identifier: str, exists: Callable[[str], Any]) -> str:
+    stripped = re.sub(r"-\d+$", "", identifier)
+    base = stripped if stripped != identifier and exists(stripped) else identifier
+    counter = 2
+    candidate = f"{base}-{counter}"
+    while exists(candidate):
+        counter += 1
+        candidate = f"{base}-{counter}"
+    return candidate
 
 
 class ApplicationService:
@@ -79,17 +91,8 @@ class ApplicationService:
 
         job_posting = JobPosting(**job_posting_data)
 
-        # Check for identifier collision
         if self.repository.get_job_posting(identifier):
-            # Find next available identifier by appending number
-            counter = 2
-            original_identifier = identifier
-            while True:
-                candidate_identifier = f"{original_identifier}-{counter}"
-                if not self.repository.get_job_posting(candidate_identifier):
-                    identifier = candidate_identifier
-                    break
-                counter += 1
+            identifier = _next_identifier(identifier, self.repository.get_job_posting)
 
         record = self.repository.add_job_posting(job_posting, identifier)
         self.markdown_exporter.export_job_posting(record, job_posting)
@@ -144,21 +147,13 @@ class ApplicationService:
 
     def archive_job_posting(self, identifier: str):
         """Mark a job posting as archived."""
-        record = self.repository.archive_job_posting(identifier)
-        job_posting = self.repository.get_job_posting(identifier)
-        assert job_posting is not None
-        self.markdown_exporter.export_job_posting(record, job_posting)
-        return record
+        return self.repository.archive_job_posting(identifier)
 
     def mark_applied(
         self, identifier: str, cv_identifier: str, applied_at: Optional[datetime] = None
     ):
         """Record that a job posting was applied to with a given CV."""
-        record = self.repository.mark_applied(identifier, cv_identifier, applied_at=applied_at)
-        job_posting = self.repository.get_job_posting(identifier)
-        assert job_posting is not None
-        self.markdown_exporter.export_job_posting(record, job_posting)
-        return record
+        return self.repository.mark_applied(identifier, cv_identifier, applied_at=applied_at)
 
     def create_cv(self, file_path: str) -> tuple[dict[str, Any], str]:
         """
@@ -194,17 +189,8 @@ class ApplicationService:
 
         cv = CurriculumVitae(**cv_data)
 
-        # Check for identifier collision
         if self.repository.get_cv(identifier):
-            # Find next available identifier by appending number
-            counter = 2
-            original_identifier = identifier
-            while True:
-                candidate_identifier = f"{original_identifier}-{counter}"
-                if not self.repository.get_cv(candidate_identifier):
-                    identifier = candidate_identifier
-                    break
-                counter += 1
+            identifier = _next_identifier(identifier, self.repository.get_cv)
 
         record = self.repository.add_cv(cv, identifier)
         self.markdown_exporter.export_cv(record, cv)
@@ -263,11 +249,7 @@ class ApplicationService:
 
         job_posting = self.job_posting_analyzer.analyze(record.url, content_file)
 
-        counter = 2
-        new_identifier = f"{identifier}-{counter}"
-        while self.repository.get_job_posting_record(new_identifier) is not None:
-            counter += 1
-            new_identifier = f"{identifier}-{counter}"
+        new_identifier = _next_identifier(identifier, self.repository.get_job_posting_record)
 
         new_record = self.repository.add_job_posting(job_posting, new_identifier)
         self.markdown_exporter.export_job_posting(new_record, job_posting)
@@ -293,11 +275,7 @@ class ApplicationService:
 
         cv = self.cv_analyzer.analyze(content_file)
 
-        counter = 2
-        new_identifier = f"{identifier}-{counter}"
-        while self.repository.get_cv_record(new_identifier) is not None:
-            counter += 1
-            new_identifier = f"{identifier}-{counter}"
+        new_identifier = _next_identifier(identifier, self.repository.get_cv_record)
 
         new_record = self.repository.add_cv(cv, new_identifier)
         self.markdown_exporter.export_cv(new_record, cv)
@@ -333,11 +311,10 @@ class ApplicationService:
 
         output = self.cv_optimizer.optimize(cv, job_posting)
 
-        counter = 2
-        new_identifier = f"{identifier}-{counter}"
-        while self.repository.get_optimized_cv_record(job_posting_identifier, new_identifier) is not None:
-            counter += 1
-            new_identifier = f"{identifier}-{counter}"
+        new_identifier = _next_identifier(
+            identifier,
+            lambda id: self.repository.get_optimized_cv_record(job_posting_identifier, id),
+        )
 
         self._write_optimization_outputs(job_posting_identifier, new_identifier, output)
 
@@ -598,8 +575,13 @@ class ApplicationService:
         templates_dir = project_root / "templates"
         return [str(p.name) for p in templates_dir.glob("*cv*.tex")]
 
-    def to_markdown(self, domain_object, record=None) -> str:
-        return self.markdown_converter.convert(domain_object, record) or ""
+    def to_markdown(self, domain_object) -> str:
+        return self.markdown_converter.convert(domain_object) or ""
+
+    def get_display_markdown(self, uri: str, obj) -> str:
+        base_uri = uri.rsplit("/", 1)[0]
+        record = self.repository.resolve_record(base_uri)
+        return insert_json_as_frontmatter(record.model_dump(mode="json"), self.to_markdown(obj))
 
     def get_job_posting_record(self, identifier: str):
         return self.repository.get_job_posting_record(identifier)

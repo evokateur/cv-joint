@@ -1,15 +1,11 @@
 import pytest
-from datetime import datetime
 
 from services.converters import MarkdownConverter, _linkify
 from models import (
     JobPosting,
-    JobPostingRecord,
     CurriculumVitae,
-    CurriculumVitaeRecord,
     Contact,
     CvTransformationPlan,
-    OptimizedCvRecord,
 )
 
 TEMPLATES_DIR = "templates/markdown"
@@ -60,19 +56,6 @@ class TestConvertJobPosting:
             technical_skills=["Python", "Testing"],
         )
 
-    @pytest.fixture
-    def sample_record(self):
-        return JobPostingRecord(
-            identifier="acme-software-engineer",
-            path="job-postings/acme-software-engineer",
-            url="https://example.com/job/123",
-            company="Acme Corp",
-            title="Software Engineer",
-            experience_level="Mid-level",
-            created_at=datetime(2024, 1, 1),
-            updated_at=datetime(2024, 1, 1),
-        )
-
     def test_title_includes_company(self, converter, sample_job_posting):
         result = converter.convert_job_posting(sample_job_posting)
         assert "# Software Engineer at Acme Corp" in result
@@ -100,15 +83,9 @@ class TestConvertJobPosting:
         assert "- Python" in result
         assert "- Testing" in result
 
-    def test_no_frontmatter_without_record(self, converter, sample_job_posting):
+    def test_no_frontmatter_in_output(self, converter, sample_job_posting):
         result = converter.convert_job_posting(sample_job_posting)
         assert not result.startswith("---")
-
-    def test_frontmatter_with_record(self, converter, sample_job_posting, sample_record):
-        result = converter.convert_job_posting(sample_job_posting, sample_record)
-        assert result.startswith("---\n")
-        assert "identifier: acme-software-engineer" in result
-        assert "company: Acme Corp" in result
 
     def test_convert_dispatches_job_posting(self, converter, sample_job_posting):
         result = converter.convert(sample_job_posting)
@@ -139,17 +116,6 @@ class TestConvertCv:
             languages=[],
         )
 
-    @pytest.fixture
-    def sample_record(self):
-        return CurriculumVitaeRecord(
-            identifier="jane-doe",
-            path="cvs/jane-doe",
-            name="Jane Doe",
-            profession="Software Engineer",
-            created_at=datetime(2024, 1, 1),
-            updated_at=datetime(2024, 1, 1),
-        )
-
     def test_title_is_name(self, converter, sample_cv):
         result = converter.convert_cv(sample_cv)
         assert "# Jane Doe" in result
@@ -168,15 +134,9 @@ class TestConvertCv:
         assert "Python" in result
         assert "Testing" in result
 
-    def test_no_frontmatter_without_record(self, converter, sample_cv):
+    def test_no_frontmatter_in_output(self, converter, sample_cv):
         result = converter.convert_cv(sample_cv)
         assert not result.startswith("---")
-
-    def test_frontmatter_with_record(self, converter, sample_cv, sample_record):
-        result = converter.convert_cv(sample_cv, sample_record)
-        assert result.startswith("---\n")
-        assert "identifier: jane-doe" in result
-        assert "profession: Software Engineer" in result
 
     def test_convert_dispatches_cv(self, converter, sample_cv):
         result = converter.convert(sample_cv)
@@ -195,20 +155,6 @@ class TestConvertTransformationPlan:
             profession_update="Staff Software Engineer",
         )
 
-    @pytest.fixture
-    def sample_record(self):
-        return OptimizedCvRecord(
-            identifier="globex-staff-engineer-opt",
-            job_posting_identifier="globex-staff-engineer",
-            base_cv_identifier="jane-doe",
-            name="Jane Doe",
-            profession="Software Engineer",
-            job_title="Staff Engineer",
-            company="Globex",
-            created_at=datetime(2024, 1, 1),
-            updated_at=datetime(2024, 1, 1),
-        )
-
     def test_title_includes_job_and_company(self, converter, sample_plan):
         result = converter.convert_transformation_plan(sample_plan)
         assert "# Transformation Plan: Staff Engineer at Globex" in result
@@ -222,15 +168,9 @@ class TestConvertTransformationPlan:
         result = converter.convert_transformation_plan(sample_plan)
         assert "- Rust" in result
 
-    def test_no_frontmatter_without_record(self, converter, sample_plan):
+    def test_no_frontmatter_in_output(self, converter, sample_plan):
         result = converter.convert_transformation_plan(sample_plan)
         assert not result.startswith("---")
-
-    def test_frontmatter_with_record(self, converter, sample_plan, sample_record):
-        result = converter.convert_transformation_plan(sample_plan, sample_record)
-        assert result.startswith("---\n")
-        assert "identifier: globex-staff-engineer-opt" in result
-        assert "job_posting_identifier: globex-staff-engineer" in result
 
     def test_convert_dispatches_plan(self, converter, sample_plan):
         result = converter.convert(sample_plan)
@@ -252,7 +192,6 @@ class TestGenericConvert:
 
     @pytest.fixture
     def sample_cv(self):
-        from models import Contact
         return CurriculumVitae(
             name="Jane Doe",
             profession="Software Engineer",
@@ -292,21 +231,6 @@ class TestGenericConvert:
             x: int = 1
         assert converter.convert(Unknown()) is None
 
-    def test_includes_frontmatter_when_record_provided(self, converter, sample_job_posting):
-        record = JobPostingRecord(
-            identifier="acme-swe",
-            path="job-postings/acme-swe",
-            url="https://example.com/job/123",
-            company="Acme Corp",
-            title="Software Engineer",
-            experience_level="Mid-level",
-            created_at=datetime(2024, 1, 1),
-            updated_at=datetime(2024, 1, 1),
-        )
-        result = converter.convert(sample_job_posting, record)
-        assert result.startswith("---\n")
-        assert "identifier: acme-swe" in result
-
-    def test_no_frontmatter_without_record(self, converter, sample_plan):
+    def test_no_frontmatter_in_output(self, converter, sample_plan):
         result = converter.convert(sample_plan)
         assert not result.startswith("---")

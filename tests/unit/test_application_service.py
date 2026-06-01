@@ -251,6 +251,16 @@ class TestRegenerateJobPosting:
         assert service.get_job_posting("acme-swe").title == sample_job_posting_data["title"]
         assert service.get_job_posting("acme-swe-2").title == "Senior Engineer"
 
+    def test_reanalyze_of_suffixed_identifier_increments_base(self, service, sample_job_posting_data):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.save_job_posting(sample_job_posting_data, "acme-swe-2")
+        service.job_posting_analyzer = MagicMock()
+        service.job_posting_analyzer.analyze.return_value = JobPosting(**sample_job_posting_data)
+
+        new_record = service.reanalyze_job_posting("acme-swe-2")
+
+        assert new_record.identifier == "acme-swe-3"
+
     def test_regenerates_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.job_posting_analyzer = MagicMock()
@@ -278,6 +288,16 @@ class TestRegenerateCv:
         assert new_record.identifier == "jane-doe-2"
         assert service.get_cv("jane-doe").profession == sample_cv_data["profession"]
         assert service.get_cv("jane-doe-2").profession == "Senior Engineer"
+
+    def test_reanalyze_of_suffixed_identifier_increments_base(self, service, sample_cv_data):
+        service.save_cv(sample_cv_data, "jane-doe")
+        service.save_cv(sample_cv_data, "jane-doe-2")
+        service.cv_analyzer = MagicMock()
+        service.cv_analyzer.analyze.return_value = CurriculumVitae(**sample_cv_data)
+
+        new_record = service.reanalyze_cv("jane-doe-2", "/some/file.yaml")
+
+        assert new_record.identifier == "jane-doe-3"
 
     def test_regenerates_markdown(self, service, sample_cv_data, temp_data_dir):
         service.save_cv(sample_cv_data, "jane-doe")
@@ -326,6 +346,11 @@ class TestRegenerateCvOptimization:
         assert new_record.identifier == "opt-1-2"
         assert service_with_optimization.repository.get_optimized_cv_record("acme-swe", "opt-1") is not None
         assert new_record.base_cv_identifier == "jane-doe"
+
+    def test_reanalyze_of_suffixed_identifier_increments_base(self, service_with_optimization):
+        service_with_optimization.reanalyze_cv_optimization("acme-swe", "opt-1")
+        new_record = service_with_optimization.reanalyze_cv_optimization("acme-swe", "opt-1-2")
+        assert new_record.identifier == "opt-1-3"
 
     def test_regenerates_markdown(self, service_with_optimization, temp_data_dir):
         service_with_optimization.reanalyze_cv_optimization("acme-swe", "opt-1")
@@ -410,16 +435,13 @@ class TestArchiveJobPosting:
         service.archive_job_posting("acme-swe")
         mock_repo.archive_job_posting.assert_called_once_with("acme-swe")
 
-    def test_regenerates_markdown(self):
+    def test_does_not_call_exporter(self):
         mock_repo = MagicMock()
         mock_exporter = MagicMock()
         service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = mock_exporter
         service.archive_job_posting("acme-swe")
-        mock_exporter.export_job_posting.assert_called_once_with(
-            mock_repo.archive_job_posting.return_value,
-            mock_repo.get_job_posting.return_value,
-        )
+        mock_exporter.export_job_posting.assert_not_called()
 
 
 class TestMarkApplied:
@@ -439,16 +461,13 @@ class TestMarkApplied:
         service.mark_applied("acme-swe", "my-cv", applied_at=date)
         mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=date)
 
-    def test_regenerates_markdown(self):
+    def test_does_not_call_exporter(self):
         mock_repo = MagicMock()
         mock_exporter = MagicMock()
         service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = mock_exporter
         service.mark_applied("acme-swe", "my-cv")
-        mock_exporter.export_job_posting.assert_called_once_with(
-            mock_repo.mark_applied.return_value,
-            mock_repo.get_job_posting.return_value,
-        )
+        mock_exporter.export_job_posting.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

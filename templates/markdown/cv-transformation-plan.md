@@ -1,4 +1,3 @@
-{{ frontmatter }}
 # Transformation Plan: {{ obj.job_title }} at {{ obj.company }}
 
 {% if obj.matching_skills or obj.missing_skills or obj.transferable_skills %}

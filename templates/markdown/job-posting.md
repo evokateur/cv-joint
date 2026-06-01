@@ -1,4 +1,3 @@
-{{ frontmatter }}
 # {% if obj.company and obj.company | lower != 'not specified' %}{{ obj.title }} at {{ obj.company }}{% else %}{{ obj.title }}{% endif %}
 
 {% if obj.url -%}

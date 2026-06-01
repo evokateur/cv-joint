@@ -8,6 +8,10 @@ from pydantic import BaseModel
 
 from models import CurriculumVitae, CvTransformationPlan, JobPosting
 
+
+def insert_json_as_frontmatter(data: dict, markdown: str) -> str:
+    return f"---\n{yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n{markdown}"
+
 URL_PATTERN = re.compile(r'https?://[^\s<>"{}|\\^`\[\]]+')
 
 _TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates" / "markdown"
@@ -27,11 +31,6 @@ def _linkify(text: str) -> str:
     return URL_PATTERN.sub(replace, text)
 
 
-def _render_frontmatter(record: BaseModel) -> str:
-    data = record.model_dump(mode="json")
-    return f"---\n{yaml.dump(data, default_flow_style=False, allow_unicode=True)}---\n"
-
-
 class MarkdownConverter:
     """Converts domain objects to markdown using Jinja2 templates."""
 
@@ -45,23 +44,20 @@ class MarkdownConverter:
         )
         self._env.filters["linkify"] = _linkify
 
-    def convert(self, obj: BaseModel, record: Optional[BaseModel] = None) -> Optional[str]:
+    def convert(self, obj: BaseModel) -> Optional[str]:
         """Convert a domain object to markdown. Returns None if no template exists."""
         template_name = _to_kebab_case(type(obj).__name__) + ".md"
         try:
             template = self._env.get_template(template_name)
         except TemplateNotFound:
             return None
-        frontmatter = _render_frontmatter(record) if record else ""
-        return template.render(frontmatter=frontmatter, obj=obj)
+        return template.render(obj=obj)
 
-    def convert_job_posting(self, job: JobPosting, record: Optional[BaseModel] = None) -> Optional[str]:
-        return self.convert(job, record)
+    def convert_job_posting(self, job: JobPosting) -> Optional[str]:
+        return self.convert(job)
 
-    def convert_cv(self, cv: CurriculumVitae, record: Optional[BaseModel] = None) -> Optional[str]:
-        return self.convert(cv, record)
+    def convert_cv(self, cv: CurriculumVitae) -> Optional[str]:
+        return self.convert(cv)
 
-    def convert_transformation_plan(
-        self, plan: CvTransformationPlan, record: Optional[BaseModel] = None
-    ) -> Optional[str]:
-        return self.convert(plan, record)
+    def convert_transformation_plan(self, plan: CvTransformationPlan) -> Optional[str]:
+        return self.convert(plan)

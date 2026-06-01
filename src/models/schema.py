@@ -214,11 +214,11 @@ class OptimizedCvRecord(BaseModel):
     """
     Optimized CV persistence record.
 
-    Tracks identity and key fields for listing display. Artifact paths are
-    not stored — they are derivable from the URI convention.
+    Tracks identity, path, and key fields for listing display.
     """
 
     identifier: str = Field(description="Unique identifier of the optimization")
+    path: str = Field(description="Directory path relative to data dir")
     job_posting_identifier: str = Field(
         description="Identifier of the job posting this CV was optimized for"
     )

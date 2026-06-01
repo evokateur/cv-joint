@@ -26,15 +26,15 @@ class MarkdownExporter:
         self.repository = repository
         self.converter = converter
 
-    def _save(self, base_uri: str, obj: BaseModel, record: Optional[BaseModel] = None):
-        markdown = self.converter.convert(obj, record)
+    def _save(self, base_uri: str, obj: BaseModel):
+        markdown = self.converter.convert(obj)
         if markdown is None:
             return
         uri = f"{base_uri}/{_to_kebab_case(type(obj).__name__)}.md"
         self.repository.save_document(uri, markdown)
 
     def export_job_posting(self, record: JobPostingRecord, job_posting: JobPosting):
-        self._save(f"job-postings/{record.identifier}", job_posting, record)
+        self._save(f"job-postings/{record.identifier}", job_posting)
 
     def export_cv(
         self, record: CurriculumVitaeRecord | OptimizedCvRecord, cv: CurriculumVitae
@@ -43,13 +43,13 @@ class MarkdownExporter:
             base_uri = f"cvs/{record.identifier}"
         else:
             base_uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
-        self._save(base_uri, cv, record)
+        self._save(base_uri, cv)
 
     def export_cv_transformation_plan(
         self, record: OptimizedCvRecord, plan: CvTransformationPlan
     ):
         base_uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
-        self._save(base_uri, plan, record)
+        self._save(base_uri, plan)
 
     def export(self, collection_name: Optional[str] = None) -> int:
         """Bulk export (regeneration). Iterates repository, exports each object."""
@@ -84,6 +84,6 @@ class MarkdownExporter:
                 for obj in self.repository.load_all_objects(base_uri).values():
                     if isinstance(obj, CurriculumVitae):
                         continue  # already exported via export_cv
-                    self._save(base_uri, obj, record)
+                    self._save(base_uri, obj)
                     count += 1
         return count
