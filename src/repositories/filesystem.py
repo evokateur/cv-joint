@@ -28,7 +28,7 @@ RECORD_DOCUMENTS: dict[type, set[str]] = {
 
 def _render_frontmatter(record: BaseModel) -> str:
     data = record.model_dump(mode="json")
-    return f"---\n{yaml.dump(data, default_flow_style=False, allow_unicode=True)}---\n"
+    return f"---\n{yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
 
 
 def _to_kebab_case(name: str) -> str:
@@ -665,8 +665,8 @@ class FileSystemRepository:
                 raise ValueError(f"Unclosed frontmatter block in {path}")
             existing = yaml.safe_load(content[4:end]) or {}
             body = content[end + 5:]
-            merged = {**existing, **record.model_dump(mode="json")}
-            new_fm = f"---\n{yaml.dump(merged, default_flow_style=False, allow_unicode=True)}---\n"
+            existing.update(record.model_dump(mode="json"))
+            new_fm = f"---\n{yaml.dump(existing, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
             path.write_text(new_fm + body)
 
     def load_document(self, uri: str) -> str:

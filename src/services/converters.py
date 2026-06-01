@@ -10,7 +10,7 @@ from models import CurriculumVitae, CvTransformationPlan, JobPosting
 
 
 def insert_json_as_frontmatter(data: dict, markdown: str) -> str:
-    return f"---\n{yaml.dump(data, default_flow_style=False, allow_unicode=True)}---\n{markdown}"
+    return f"---\n{yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n{markdown}"
 
 URL_PATTERN = re.compile(r'https?://[^\s<>"{}|\\^`\[\]]+')
 
