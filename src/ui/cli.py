@@ -40,7 +40,7 @@ def _complete_job_posting_uri(_ctx, _param, incomplete):
 
 def _complete_cv_identifier(ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
-    candidates = [f"cvs/{item['identifier']}" for item in _load_collection("cvs")]
+    candidates = []
     try:
         parsed = parse_uri(ctx.params.get("uri", ""))
         if parsed["collection"] == "job-postings":
@@ -52,6 +52,7 @@ def _complete_cv_identifier(ctx, _param, incomplete):
             ]
     except ValueError:
         pass
+    candidates += [f"cvs/{item['identifier']}" for item in _load_collection("cvs")]
     return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
 
 
