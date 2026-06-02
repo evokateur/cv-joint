@@ -1,10 +1,47 @@
+import json
+import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 import click
 import yaml
 
 from repositories.filesystem import parse_uri
+
+
+def _load_collection(name: str) -> list[dict]:
+    from config.settings import get_data_dir
+    path = Path(get_data_dir()).expanduser() / "collections" / f"{name}.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text())
+
+
+def _complete_uri(_ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    candidates = (
+        [f"job-postings/{item['identifier']}" for item in _load_collection("job-postings")]
+        + [f"cvs/{item['identifier']}" for item in _load_collection("cvs")]
+        + [
+            f"job-postings/{item['job_posting_identifier']}/cvs/{item['identifier']}"
+            for item in _load_collection("optimized-cvs")
+            if item.get("job_posting_identifier") and item.get("identifier")
+        ]
+    )
+    return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+
+
+def _complete_job_posting_uri(_ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    candidates = [f"job-postings/{item['identifier']}" for item in _load_collection("job-postings")]
+    return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+
+
+def _complete_cv_identifier(_ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    candidates = [item["identifier"] for item in _load_collection("cvs")]
+    return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
 
 
 def _normalise_cv_identifier(value: str) -> str:
@@ -57,7 +94,7 @@ def export_markdown(collection):
 
 
 @main.command("remove")
-@click.argument("uri")
+@click.argument("uri", shell_complete=_complete_uri)
 def remove(uri):
     """Remove an object by URI and exit."""
     from services.application import ApplicationService
@@ -85,7 +122,7 @@ def remove(uri):
 
 
 @main.command("reanalyze")
-@click.argument("uri")
+@click.argument("uri", shell_complete=_complete_uri)
 @click.argument("content_file", required=False)
 def reanalyze(uri, content_file):
     """Re-analyze an object by URI and overwrite the existing record."""
@@ -121,7 +158,7 @@ def reanalyze(uri, content_file):
 
 
 @main.command("rename")
-@click.argument("uri")
+@click.argument("uri", shell_complete=_complete_uri)
 @click.argument("new_id")
 def rename(uri, new_id):
     """Rename an object by URI and exit."""
@@ -173,7 +210,7 @@ def list_objects(collection, archived, query):
 
 
 @main.command("archive")
-@click.argument("uri")
+@click.argument("uri", shell_complete=_complete_job_posting_uri)
 def archive(uri):
     """Archive a job posting by URI and exit."""
     from services.application import ApplicationService
@@ -191,8 +228,8 @@ def archive(uri):
 
 
 @main.command("apply")
-@click.argument("uri")
-@click.argument("cv_identifier")
+@click.argument("uri", shell_complete=_complete_job_posting_uri)
+@click.argument("cv_identifier", shell_complete=_complete_cv_identifier)
 @click.option("--date", metavar="YYYY-MM-DD", help="Application date (defaults to today)")
 def apply(uri, cv_identifier, date):
     """Mark a job posting as applied to and exit."""
@@ -210,6 +247,24 @@ def apply(uri, cv_identifier, date):
     cv_identifier = _normalise_cv_identifier(cv_identifier)
     service.mark_applied(parsed["identifier"], cv_identifier, applied_at=applied_at)
     click.echo(f"Marked {uri} as applied with {cv_identifier}")
+
+
+@main.command("completion")
+@click.argument("shell", required=False, type=click.Choice(["bash", "zsh", "fish"]))
+def completion(shell):
+    """Print shell completion setup instructions."""
+    if shell is None:
+        shell = os.path.basename(os.environ.get("SHELL", ""))
+    if shell == "fish":
+        click.echo("_CV_JOINT_COMPLETE=fish_source cv-joint | source")
+    elif shell in ("bash", "zsh"):
+        click.echo(f'eval "$(_CV_JOINT_COMPLETE={shell}_source cv-joint)"')
+    else:
+        click.echo("Supported shells: bash, zsh, fish", err=True)
+        click.echo("Add to your shell config:", err=True)
+        click.echo('  eval "$(_CV_JOINT_COMPLETE=zsh_source cv-joint)"   # zsh', err=True)
+        click.echo('  eval "$(_CV_JOINT_COMPLETE=bash_source cv-joint)"  # bash', err=True)
+        click.echo("  _CV_JOINT_COMPLETE=fish_source cv-joint | source   # fish", err=True)
 
 
 if __name__ == "__main__":
