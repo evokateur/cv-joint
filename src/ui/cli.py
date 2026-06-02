@@ -252,19 +252,24 @@ def apply(uri, cv_identifier, date):
 @main.command("completion")
 @click.argument("shell", required=False, type=click.Choice(["bash", "zsh", "fish"]))
 def completion(shell):
-    """Print shell completion setup instructions."""
+    """Print the shell completion script.
+
+    \b
+    Add to your shell config:
+      source <(cv-joint completion)
+    """
     if shell is None:
         shell = os.path.basename(os.environ.get("SHELL", ""))
-    if shell == "fish":
-        click.echo("_CV_JOINT_COMPLETE=fish_source cv-joint | source")
-    elif shell in ("bash", "zsh"):
-        click.echo(f'eval "$(_CV_JOINT_COMPLETE={shell}_source cv-joint)"')
-    else:
-        click.echo("Supported shells: bash, zsh, fish", err=True)
-        click.echo("Add to your shell config:", err=True)
-        click.echo('  eval "$(_CV_JOINT_COMPLETE=zsh_source cv-joint)"   # zsh', err=True)
-        click.echo('  eval "$(_CV_JOINT_COMPLETE=bash_source cv-joint)"  # bash', err=True)
-        click.echo("  _CV_JOINT_COMPLETE=fish_source cv-joint | source   # fish", err=True)
+    if shell not in ("bash", "zsh", "fish"):
+        raise click.UsageError(f"Unknown shell {shell!r}. Supported: bash, zsh, fish")
+    import subprocess
+    result = subprocess.run(
+        ["cv-joint"],
+        env={**os.environ, "_CV_JOINT_COMPLETE": f"{shell}_source"},
+        capture_output=True,
+        text=True,
+    )
+    click.echo(result.stdout, nl=False)
 
 
 if __name__ == "__main__":
