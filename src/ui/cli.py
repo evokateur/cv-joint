@@ -38,16 +38,20 @@ def _complete_job_posting_uri(_ctx, _param, incomplete):
     return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
 
 
-def _complete_cv_identifier(_ctx, _param, incomplete):
+def _complete_cv_identifier(ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
-    candidates = (
-        [item["identifier"] for item in _load_collection("cvs")]
-        + [
-            f"job-postings/{item['job_posting_identifier']}/cvs/{item['identifier']}"
-            for item in _load_collection("optimized-cvs")
-            if item.get("job_posting_identifier") and item.get("identifier")
-        ]
-    )
+    candidates = [f"cvs/{item['identifier']}" for item in _load_collection("cvs")]
+    try:
+        parsed = parse_uri(ctx.params.get("uri", ""))
+        if parsed["collection"] == "job-postings":
+            jp_id = parsed["identifier"]
+            candidates += [
+                f"cvs/{item['identifier']}"
+                for item in _load_collection("optimized-cvs")
+                if item.get("job_posting_identifier") == jp_id and item.get("identifier")
+            ]
+    except ValueError:
+        pass
     return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
 
 
