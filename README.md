@@ -1,16 +1,15 @@
 # <img width="50" height="50" alt="CV-Joint" src="https://github.com/user-attachments/assets/482eb95d-2a4e-4fca-9444-e8a5995952e3" /> CV Joint
 
-Track job postings, create targeted CVs, render them with LaTeX, achieve constant velocity. 
+Track job postings, create targeted CVs, render them in LaTeX, achieve constant velocity.
 
 ## Features
 
 - Uses agentic analysis to
   - Create structured data from Job Posting URLs or text files
   - Create structured CV data from text CV files
-  - Query a RAG knowledge base to optimize CV data for a job posting
+  - Optimize CV data for a job posting with relevant experience using RAG
 - Generates Markdown versions of domain objects, suitable for Obsidian
-- RAG knowledge base equipped chat
-- Generates LaTeX PDFs from CV data
+- Renders CV data in LaTeX to generate PDFs
 
 ## Implementation
 
@@ -69,6 +68,7 @@ Simplified project structure:
 ```sh
 make install
 ```
+
 runs `uv tool install --editable .`
 
 ## Configuration
@@ -78,6 +78,7 @@ cp sample.env .env
 ```
 
 Set environment variables in `.env`:
+
 ```sh
 ANTHROPIC_API_KEY=
 DEEPSEEK_API_KEY=
@@ -162,6 +163,7 @@ Data directory structure:
 ```sh
 make test
 ```
+
 runs `uv run pytest tests/ --tb=short`
 
 ## Gradio Usage
@@ -177,6 +179,7 @@ Launches Gradio, runs `GRADIO_LAUNCHED_COMMAND`, `GRADIO_FINISHED_COMMAND` after
 ```sh
 cv-joint open
 ```
+
 Launches Gradio then opens the default browser at `http://localhost:7860`
 
 ## CLI Usage
