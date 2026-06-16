@@ -156,11 +156,6 @@ def get_data_dir() -> str:
     return get_config().data_dir
 
 
-def get_markdown_root_dir() -> str:
-    config_dir = Path(__file__).parent.parent / "infrastructure" / "config"
-    yaml_config = load_yaml_config(config_dir)
-    return yaml_config.get("markdown_writer", {}).get("root_dir")
-
 
 def get_chat_config() -> dict:
     """Get chat configuration from YAML, validated with Pydantic"""

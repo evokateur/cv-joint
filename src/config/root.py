@@ -58,9 +58,16 @@ def _load_default_tree() -> dict:
     return merged
 
 
+_MOUNTED_NAMESPACES = frozenset({"crews", "repositories"})
+
+
 def _apply_local_overrides(merged: dict) -> None:
     """Apply module-local settings.local.yaml files after user overrides."""
-    _merge_local_override(merged, CONFIG_DIR, [])
+    root_override = _read_yaml_file(CONFIG_DIR / "settings.local.yaml")
+    if root_override:
+        scoped = {k: v for k, v in root_override.items() if k not in _MOUNTED_NAMESPACES}
+        if scoped:
+            shared_settings.deep_merge(merged, scoped)
 
     if CREWS_DIR.exists():
         for crew_dir in sorted(CREWS_DIR.iterdir(), key=lambda item: item.name):
