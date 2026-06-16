@@ -13,8 +13,11 @@ from config.settings import (
     expand_tildes,
     get_merged_config,
     McpServerSettings,
+    AgentSettings,
+    CrewSettings,
 )
 from config.root import _load_merged_config, get_settings, RootSettings
+from repositories.config.settings import RepositoriesSettings, FilesystemRepositorySettings
 
 
 class TestDeepMerge:
@@ -334,3 +337,33 @@ class TestGetSettings:
                 s2 = get_settings()
         assert s1 is not s2
         assert s1.chat.model == s2.chat.model
+
+
+class TestTypedConfigWrappers:
+    def test_repository_config_uses_injected_settings(self):
+        from repositories.config.settings import Config
+
+        config = Config(
+            RepositoriesSettings(
+                filesystem=FilesystemRepositorySettings(data_dir="/tmp/cv-joint")
+            )
+        )
+
+        assert config.data_dir == "/tmp/cv-joint"
+
+    def test_cv_analysis_config_uses_injected_settings(self):
+        from crews.cv_analysis.config.settings import Config
+
+        config = Config(
+            CrewSettings(
+                agents={
+                    "cv_analyst": AgentSettings(
+                        model="test-model", temperature=0.2, max_tokens=123
+                    )
+                }
+            )
+        )
+
+        assert config.cv_analyst_model == "test-model"
+        assert config.cv_analyst_temperature == "0.2"
+        assert config.cv_analyst_max_tokens == 123

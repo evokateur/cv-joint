@@ -1,7 +1,6 @@
-from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel
-from config.settings import AgentSettings, BaseConfig
+from config.settings import AgentSettings, CrewSettings
 
 
 class Settings(BaseModel):
@@ -10,9 +9,19 @@ class Settings(BaseModel):
     agents: dict[str, AgentSettings]
 
 
-class Config(BaseConfig):
-    def __init__(self):
-        super().__init__(Path(__file__).parent, Settings, "crews.job_posting_analysis")
+class Config:
+    def __init__(self, settings: CrewSettings | None = None):
+        if settings is None:
+            from config.root import get_settings
+
+            settings = get_settings().crews["job_posting_analysis"]
+        self._settings = settings
+
+    def _get_agent_setting(self, agent_name: str, setting: str):
+        agent = self._settings.agents.get(agent_name)
+        if agent is None:
+            raise ValueError(f"Agent '{agent_name}' not found in settings.yaml")
+        return getattr(agent, setting)
 
     @property
     def job_analyst_model(self) -> str:

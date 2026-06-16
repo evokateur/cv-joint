@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from config.settings import get_data_dir
+from config.root import get_settings
 from models import CvTransformationPlan
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
@@ -38,7 +38,12 @@ class ApplicationService:
         self.job_posting_analyzer = JobPostingAnalyzer()
         self.cv_analyzer = CvAnalyzer()
         self.cv_optimizer = CvOptimizer()
-        self.repository = repository or FileSystemRepository(data_dir=get_data_dir())
+        if repository is None:
+            settings = get_settings()
+            repository = FileSystemRepository(
+                data_dir=settings.repositories.filesystem.data_dir
+            )
+        self.repository = repository
         self.markdown_converter = MarkdownConverter()
         self.markdown_exporter = MarkdownExporter(
             self.repository, self.markdown_converter

@@ -9,7 +9,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, convert_to_messages
 from langchain_core.documents import Document
 
-from config.settings import get_mcp_config, get_chat_config
+from config.root import get_settings
 from infrastructure import McpManager
 
 
@@ -17,18 +17,17 @@ class KnowledgeChatService:
     """Service for RAG-equipped chat using MCP server for knowledge retrieval."""
 
     def __init__(self, mcp_server_name: str = "rag-knowledge"):
-        mcp_config = get_mcp_config(mcp_server_name)
+        settings = get_settings()
+        mcp_config = settings.mcpServers.get(mcp_server_name)
         if mcp_config is None:
             raise ValueError(f"MCP server '{mcp_server_name}' not configured")
 
         self._server_name = mcp_server_name
         self._tool_name = mcp_config.tool_name
 
-        # LLM setup
-        chat_config = get_chat_config()
         self.llm = ChatOpenAI(
-            temperature=chat_config["temperature"],
-            model_name=chat_config["model"]
+            temperature=settings.chat.temperature,
+            model_name=settings.chat.model
         )
 
         self.system_prompt_template = """

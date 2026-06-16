@@ -11,8 +11,12 @@ from repositories.filesystem import parse_uri
 
 
 def _load_collection(name: str) -> list[dict]:
-    from config.settings import get_data_dir
-    path = Path(get_data_dir()).expanduser() / "collections" / f"{name}.json"
+    from config.root import get_settings
+    path = (
+        Path(get_settings().repositories.filesystem.data_dir).expanduser()
+        / "collections"
+        / f"{name}.json"
+    )
     if not path.exists():
         return []
     return json.loads(path.read_text())
@@ -87,7 +91,7 @@ def cmd_open():
 @main.command("show-config")
 def show_config():
     """Print merged configuration to stdout and exit."""
-    from config.settings import get_merged_config
+    from config.root import get_merged_config
     config = get_merged_config()
     yaml.dump(config, sys.stdout, default_flow_style=False, sort_keys=False)
 

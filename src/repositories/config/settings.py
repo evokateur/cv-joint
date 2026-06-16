@@ -1,6 +1,4 @@
-from pathlib import Path
 from pydantic import BaseModel
-from config.settings import BaseConfig
 
 
 class FilesystemRepositorySettings(BaseModel):
@@ -11,9 +9,13 @@ class RepositoriesSettings(BaseModel):
     filesystem: FilesystemRepositorySettings
 
 
-class Config(BaseConfig):
-    def __init__(self):
-        super().__init__(Path(__file__).parent, RepositoriesSettings, "repositories")
+class Config:
+    def __init__(self, settings: RepositoriesSettings | None = None):
+        if settings is None:
+            from config.root import get_settings
+
+            settings = get_settings().repositories
+        self._settings = settings
 
     @property
     def data_dir(self) -> str:
