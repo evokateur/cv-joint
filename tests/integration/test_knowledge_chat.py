@@ -1,12 +1,16 @@
 import pytest
-from config.settings import is_mcp_configured
+from config.root import get_settings
+
+
+def _rag_configured() -> bool:
+    return get_settings().mcpServers.get("rag-knowledge") is not None
 
 
 @pytest.mark.slow
 @pytest.mark.integration
 def test_knowledge_chat_service_instantiates():
     """Test that KnowledgeChatService can be instantiated when MCP is configured."""
-    if not is_mcp_configured("rag-knowledge"):
+    if not _rag_configured():
         pytest.skip("MCP server 'rag-knowledge' not configured")
 
     from services.knowledge_chat import KnowledgeChatService
@@ -20,7 +24,7 @@ def test_knowledge_chat_service_instantiates():
 @pytest.mark.asyncio
 async def test_fetch_context_returns_documents():
     """Test that fetch_context returns Documents with expected structure."""
-    if not is_mcp_configured("rag-knowledge"):
+    if not _rag_configured():
         pytest.skip("MCP server 'rag-knowledge' not configured")
 
     from services.knowledge_chat import KnowledgeChatService
@@ -45,7 +49,7 @@ async def test_fetch_context_returns_documents():
 @pytest.mark.asyncio
 async def test_multiple_queries_work():
     """Test that multiple queries can be made in sequence."""
-    if not is_mcp_configured("rag-knowledge"):
+    if not _rag_configured():
         pytest.skip("MCP server 'rag-knowledge' not configured")
 
     from services.knowledge_chat import KnowledgeChatService

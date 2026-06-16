@@ -8,7 +8,6 @@ from unittest.mock import patch
 import tempfile
 
 from config.settings import (
-    load_yaml_config,
     deep_merge,
     expand_tildes,
     McpServerSettings,
@@ -85,74 +84,6 @@ class TestMcpServerSettings:
     def test_constructs_with_python_field_name(self):
         s = McpServerSettings(command="uvx", tool_name="rag_search")
         assert s.tool_name == "rag_search"
-
-
-class TestLoadYamlConfig:
-    def test_loads_settings_yaml(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings_file = Path(tmpdir) / "settings.yaml"
-            settings_file.write_text("key: value\n")
-
-            config = load_yaml_config(Path(tmpdir))
-            assert config["key"] == "value"
-
-    def test_raises_if_settings_yaml_missing(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with pytest.raises(FileNotFoundError):
-                load_yaml_config(Path(tmpdir))
-
-    def test_merges_settings_local_yaml(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings_file = Path(tmpdir) / "settings.yaml"
-            settings_file.write_text("a: 1\nb: 2\n")
-
-            local_file = Path(tmpdir) / "settings.local.yaml"
-            local_file.write_text("b: 3\nc: 4\n")
-
-            config = load_yaml_config(Path(tmpdir))
-            assert config["a"] == 1
-            assert config["b"] == 3
-            assert config["c"] == 4
-
-    def test_merges_user_config(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings_file = Path(tmpdir) / "settings.yaml"
-            settings_file.write_text("a: 1\n")
-
-            user_config_file = Path(tmpdir) / "user_settings.yaml"
-            user_config_file.write_text("a: 2\nb: 3\n")
-
-            with patch("config.settings.USER_CONFIG_FILE", user_config_file):
-                config = load_yaml_config(Path(tmpdir))
-                assert config == {"a": 2, "b": 3}
-
-    def test_extracts_user_config_path(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings_file = Path(tmpdir) / "settings.yaml"
-            settings_file.write_text("agents:\n  analyst:\n    model: default\n")
-
-            user_config_file = Path(tmpdir) / "user_settings.yaml"
-            user_config_file.write_text(
-                "crews:\n  cv_analysis:\n    agents:\n      analyst:\n        model: override\n"
-            )
-
-            with patch("config.settings.USER_CONFIG_FILE", user_config_file):
-                config = load_yaml_config(
-                    Path(tmpdir), user_config_path="crews.cv_analysis"
-                )
-                assert config["agents"]["analyst"]["model"] == "override"
-
-    def test_user_config_path_missing_key_uses_empty_dict(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            settings_file = Path(tmpdir) / "settings.yaml"
-            settings_file.write_text("a: 1\n")
-
-            user_config_file = Path(tmpdir) / "user_settings.yaml"
-            user_config_file.write_text("other:\n  key: value\n")
-
-            with patch("config.settings.USER_CONFIG_FILE", user_config_file):
-                config = load_yaml_config(Path(tmpdir), user_config_path="missing.path")
-                assert config == {"a": 1}
 
 
 class TestGetMergedConfig:
@@ -238,6 +169,20 @@ class TestRootConfigPipeline:
             )
             assert config["repositories"]["filesystem"]["data_dir"] == "./local-data"
             load_dotenv_mock.assert_called_once_with()
+
+    def test_raises_if_root_settings_yaml_missing(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            empty_config_dir = tmp / "config"
+            empty_config_dir.mkdir()
+            with patch("config.root.CONFIG_DIR", empty_config_dir), patch(
+                "config.root.CREWS_DIR", tmp / "crews"
+            ), patch("config.root.REPOSITORIES_DIR", tmp / "repositories"), patch(
+                "config.root.load_dotenv"
+            ):
+                _load_merged_config.cache_clear()
+                with pytest.raises(FileNotFoundError):
+                    get_merged_config()
 
     def test_returns_defensive_copy_from_cached_loader(self):
         with tempfile.TemporaryDirectory() as tmpdir:
