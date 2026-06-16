@@ -11,12 +11,11 @@ from config.settings import (
     load_yaml_config,
     deep_merge,
     expand_tildes,
-    get_merged_config,
     McpServerSettings,
     AgentSettings,
     CrewSettings,
 )
-from config.root import _load_merged_config, get_settings, RootSettings
+from config.root import _load_merged_config, get_merged_config, get_settings, RootSettings
 from repositories.config.settings import RepositoriesSettings, FilesystemRepositorySettings
 
 
@@ -367,3 +366,33 @@ class TestTypedConfigWrappers:
         assert config.cv_analyst_model == "test-model"
         assert config.cv_analyst_temperature == "0.2"
         assert config.cv_analyst_max_tokens == 123
+
+    def test_cv_optimization_config_uses_injected_settings(self):
+        from crews.cv_optimization.config.settings import Config
+
+        config = Config(
+            CrewSettings(
+                agents={
+                    "cv_strategist": AgentSettings(
+                        model="test-model", temperature=0.5, max_tokens=256
+                    )
+                }
+            )
+        )
+
+        assert config.cv_strategist_model == "test-model"
+
+    def test_job_posting_analysis_config_uses_injected_settings(self):
+        from crews.job_posting_analysis.config.settings import Config
+
+        config = Config(
+            CrewSettings(
+                agents={
+                    "job_analyst": AgentSettings(
+                        model="test-model", temperature=0.1, max_tokens=512
+                    )
+                }
+            )
+        )
+
+        assert config.job_analyst_model == "test-model"

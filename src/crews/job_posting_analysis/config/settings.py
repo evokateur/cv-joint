@@ -3,12 +3,6 @@ from pydantic import BaseModel
 from config.settings import AgentSettings, CrewSettings
 
 
-class Settings(BaseModel):
-    """Top-level configuration model"""
-
-    agents: dict[str, AgentSettings]
-
-
 class Config:
     def __init__(self, settings: CrewSettings | None = None):
         if settings is None:

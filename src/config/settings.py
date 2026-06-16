@@ -190,8 +190,3 @@ def is_mcp_configured(server_name: str = "rag-knowledge") -> bool:
     return get_mcp_config(server_name) is not None
 
 
-def get_merged_config() -> dict:
-    """Get fully merged configuration from the central loading pipeline."""
-    from config.root import get_merged_config as load_root_config
-
-    return load_root_config()

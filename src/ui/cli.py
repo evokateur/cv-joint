@@ -13,7 +13,7 @@ from repositories.filesystem import parse_uri
 def _load_collection(name: str) -> list[dict]:
     from config.root import get_settings
     path = (
-        Path(get_settings().repositories.filesystem.data_dir).expanduser()
+        Path(get_settings().repositories.filesystem.data_dir)
         / "collections"
         / f"{name}.json"
     )
