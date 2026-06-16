@@ -109,7 +109,6 @@ def get_merged_config() -> dict:
     return copy.deepcopy(_load_merged_config())
 
 
-@lru_cache(maxsize=1)
 def get_settings() -> RootSettings:
-    """Return the validated typed settings, cached for the process lifetime."""
+    """Return a fresh typed settings object backed by the cached merged config."""
     return RootSettings.model_validate(_load_merged_config())

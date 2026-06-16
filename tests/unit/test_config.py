@@ -212,11 +212,9 @@ class TestRootConfigPipeline:
 class TestGetSettings:
     def setup_method(self):
         _load_merged_config.cache_clear()
-        get_settings.cache_clear()
 
     def teardown_method(self):
         _load_merged_config.cache_clear()
-        get_settings.cache_clear()
 
     def _patch_dirs(self, tmp: Path):
         config_dir = tmp / "config"
@@ -251,7 +249,7 @@ class TestGetSettings:
         assert settings.chat.temperature == 0.5
         assert settings.repositories.filesystem.data_dir == "./data"
 
-    def test_get_settings_is_cached(self):
+    def test_returns_fresh_object_each_call(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
             repo_dir = tmp / "repositories"
@@ -263,9 +261,25 @@ class TestGetSettings:
             with p1, p2, p3, p4, p5:
                 s1 = get_settings()
                 s2 = get_settings()
-        assert s1 is s2
+        assert s1 is not s2
+        assert s1.chat.model == s2.chat.model
 
-    def test_cache_clear_allows_reload(self):
+    def test_mutation_does_not_affect_next_call(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo_dir = tmp / "repositories"
+            (repo_dir / "config").mkdir(parents=True)
+            (repo_dir / "config" / "settings.yaml").write_text(
+                "filesystem:\n  data_dir: ./data\n"
+            )
+            p1, p2, p3, p4, p5 = self._patch_dirs(tmp)
+            with p1, p2, p3, p4, p5:
+                s1 = get_settings()
+                s1.chat.model = "mutated"
+                s2 = get_settings()
+        assert s2.chat.model == "test-model"
+
+    def test_raw_config_cache_clear_causes_reload(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
             repo_dir = tmp / "repositories"
@@ -277,7 +291,6 @@ class TestGetSettings:
             with p1, p2, p3, p4, p5:
                 s1 = get_settings()
                 _load_merged_config.cache_clear()
-                get_settings.cache_clear()
                 s2 = get_settings()
         assert s1 is not s2
         assert s1.chat.model == s2.chat.model
