@@ -8,7 +8,7 @@ and imported by analyzer crews for their own settings.
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 import yaml
 
 
@@ -35,6 +35,8 @@ class ChatSettings(BaseModel):
 
 class McpServerSettings(BaseModel):
     """Configuration for an MCP server"""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     command: str = Field(description="Command to run the MCP server")
     args: list[str] = Field(default_factory=list, description="Command arguments")

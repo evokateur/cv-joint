@@ -12,6 +12,7 @@ from config.settings import (
     deep_merge,
     expand_tildes,
     get_merged_config,
+    McpServerSettings,
 )
 from config.root import _load_merged_config, get_settings, RootSettings
 
@@ -70,6 +71,18 @@ class TestExpandTildes:
         config = {"value": "~"}
         result = expand_tildes(config)
         assert result["value"] == "~"
+
+
+class TestMcpServerSettings:
+    def test_validates_from_yaml_alias(self):
+        s = McpServerSettings.model_validate(
+            {"command": "uvx", "args": [], "env": {}, "x-tool-name": "rag_search"}
+        )
+        assert s.tool_name == "rag_search"
+
+    def test_constructs_with_python_field_name(self):
+        s = McpServerSettings(command="uvx", tool_name="rag_search")
+        assert s.tool_name == "rag_search"
 
 
 class TestLoadYamlConfig:
