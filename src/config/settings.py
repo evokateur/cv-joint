@@ -188,46 +188,7 @@ def is_mcp_configured(server_name: str = "rag-knowledge") -> bool:
 
 
 def get_merged_config() -> dict:
-    """Get fully merged configuration from all sources for display.
+    """Get fully merged configuration from the central loading pipeline."""
+    from config.root import get_merged_config as load_root_config
 
-    Collects configs from:
-    - src/config/settings.yaml (chat, mcp)
-    - src/crews/*/config/settings.yaml (crew-specific agents)
-    - src/repositories/config/settings.yaml (repository settings)
-    - ~/.cv-joint/settings.yaml (user overrides)
-
-    Returns nested dict with explicit paths for user config format.
-    """
-    config_dir = Path(__file__).parent
-    src_dir = config_dir.parent
-    crews_dir = src_dir / "crews"
-    repositories_dir = src_dir / "repositories"
-
-    merged = {}
-
-    base_config = load_yaml_config(config_dir)
-    deep_merge(merged, base_config)
-
-    if crews_dir.exists():
-        for crew_dir in crews_dir.iterdir():
-            crew_settings = crew_dir / "config" / "settings.yaml"
-            if crew_settings.exists():
-                crew_config = load_yaml_config(
-                    crew_dir / "config", f"crews.{crew_dir.name}"
-                )
-                if "crews" not in merged:
-                    merged["crews"] = {}
-                merged["crews"][crew_dir.name] = crew_config
-
-    repositories_settings = repositories_dir / "config" / "settings.yaml"
-    if repositories_settings.exists():
-        repo_config = load_yaml_config(repositories_dir / "config", "repositories")
-        merged["repositories"] = repo_config
-    infrastructure_settings = src_dir / "infrastructure" / "config" / "settings.yaml"
-    if infrastructure_settings.exists():
-        infra_config = load_yaml_config(
-            src_dir / "infrastructure" / "config"
-        )
-        deep_merge(merged, infra_config)
-
-    return merged
+    return load_root_config()

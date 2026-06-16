@@ -13,6 +13,7 @@ from config.settings import (
     expand_tildes,
     get_merged_config,
 )
+from config.root import _load_merged_config
 
 
 class TestDeepMerge:
@@ -147,3 +148,102 @@ class TestGetMergedConfig:
         assert "crews" in config
         assert "repositories" in config
 
+
+class TestRootConfigPipeline:
+    def teardown_method(self):
+        _load_merged_config.cache_clear()
+
+    def test_assembles_namespaced_defaults_and_overrides(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            config_dir = tmp / "config"
+            crews_dir = tmp / "crews"
+            repo_dir = tmp / "repositories"
+
+            config_dir.mkdir()
+            (crews_dir / "cv_analysis" / "config").mkdir(parents=True)
+            (repo_dir / "config").mkdir(parents=True)
+
+            (config_dir / "settings.yaml").write_text(
+                "chat:\n  model: default-chat\nmcpServers:\n  rag-knowledge: null\n"
+            )
+            (crews_dir / "cv_analysis" / "config" / "settings.yaml").write_text(
+                "agents:\n  cv_analyst:\n    model: default-crew\n"
+            )
+            (repo_dir / "config" / "settings.yaml").write_text(
+                "filesystem:\n  data_dir: ./data\n"
+            )
+
+            user_config_file = tmp / "user_settings.yaml"
+            user_config_file.write_text(
+                "\n".join(
+                    [
+                        "chat:",
+                        "  model: user-chat",
+                        "mcpServers:",
+                        "  rag-knowledge:",
+                        "    command: uvx",
+                        "    args: [rag-server]",
+                        "    x-tool-name: rag_search",
+                        "crews:",
+                        "  cv_analysis:",
+                        "    agents:",
+                        "      cv_analyst:",
+                        "        model: user-crew",
+                        "repositories:",
+                        "  filesystem:",
+                        "    data_dir: ~/cv-data",
+                    ]
+                )
+                + "\n"
+            )
+
+            (crews_dir / "cv_analysis" / "config" / "settings.local.yaml").write_text(
+                "agents:\n  cv_analyst:\n    model: local-crew\n"
+            )
+            (repo_dir / "config" / "settings.local.yaml").write_text(
+                "filesystem:\n  data_dir: ./local-data\n"
+            )
+
+            with patch("config.root.CONFIG_DIR", config_dir), patch(
+                "config.root.CREWS_DIR", crews_dir
+            ), patch("config.root.REPOSITORIES_DIR", repo_dir), patch(
+                "config.settings.USER_CONFIG_FILE", user_config_file
+            ), patch(
+                "config.root.load_dotenv"
+            ) as load_dotenv_mock:
+                _load_merged_config.cache_clear()
+                config = get_merged_config()
+
+            assert config["chat"]["model"] == "user-chat"
+            assert config["mcpServers"]["rag-knowledge"]["x-tool-name"] == "rag_search"
+            assert (
+                config["crews"]["cv_analysis"]["agents"]["cv_analyst"]["model"]
+                == "local-crew"
+            )
+            assert config["repositories"]["filesystem"]["data_dir"] == "./local-data"
+            load_dotenv_mock.assert_called_once_with()
+
+    def test_returns_defensive_copy_from_cached_loader(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            config_dir = tmp / "config"
+            config_dir.mkdir()
+            (config_dir / "settings.yaml").write_text(
+                "chat:\n  model: default-chat\nmcpServers:\n  rag-knowledge: null\n"
+            )
+            user_config_file = tmp / "missing-user-settings.yaml"
+
+            with patch("config.root.CONFIG_DIR", config_dir), patch(
+                "config.root.CREWS_DIR", tmp / "crews"
+            ), patch("config.root.REPOSITORIES_DIR", tmp / "repositories"), patch(
+                "config.settings.USER_CONFIG_FILE", user_config_file
+            ), patch(
+                "config.root.load_dotenv"
+            ):
+                _load_merged_config.cache_clear()
+                config = get_merged_config()
+                config["chat"]["model"] = "mutated"
+                refreshed = get_merged_config()
+
+            assert refreshed["chat"]["model"] == "default-chat"
