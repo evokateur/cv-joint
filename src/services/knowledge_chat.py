@@ -43,6 +43,16 @@ Retrieved Context:
 {context}
 """
 
+    async def close(self) -> None:
+        """Close resources owned by the chat service."""
+        await self._manager.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+        await self.close()
+
     async def fetch_context(self, question: str, top_k: int = 5) -> list[Document]:
         """
         Retrieve relevant context documents using MCP RAG server.

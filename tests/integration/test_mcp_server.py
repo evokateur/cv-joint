@@ -17,19 +17,20 @@ async def test_mcp_manager_connection():
         pytest.skip("MCP server 'rag-knowledge' not configured")
 
     manager = McpManager(settings)
-    session = await manager.get_session()
-    assert session is not None
+    try:
+        session = await manager.get_session()
+        assert session is not None
 
-    tools = await session.list_tools()
-    assert tools is not None
-    assert hasattr(tools, "tools")
+        tools = await session.list_tools()
+        assert tools is not None
+        assert hasattr(tools, "tools")
 
-    tool_names = [tool.name for tool in tools.tools]
-    assert settings.tool_name in tool_names, (
-        f"Expected '{settings.tool_name}' tool, got: {tool_names}"
-    )
-
-    await manager.close()
+        tool_names = [tool.name for tool in tools.tools]
+        assert settings.tool_name in tool_names, (
+            f"Expected '{settings.tool_name}' tool, got: {tool_names}"
+        )
+    finally:
+        await manager.close()
 
 
 @pytest.mark.slow
@@ -42,9 +43,10 @@ async def test_mcp_manager_caches_session():
         pytest.skip("MCP server 'rag-knowledge' not configured")
 
     manager = McpManager(settings)
-    session1 = await manager.get_session()
-    session2 = await manager.get_session()
+    try:
+        session1 = await manager.get_session()
+        session2 = await manager.get_session()
 
-    assert session1 is session2
-
-    await manager.close()
+        assert session1 is session2
+    finally:
+        await manager.close()

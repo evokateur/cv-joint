@@ -37,6 +37,10 @@ class KnowledgeSearchTool(BaseTool):
         """Search the knowledge base for relevant experience."""
         return _loop.run_until_complete(self._async_search(query))
 
+    def close(self) -> None:
+        """Close the underlying MCP manager on the tool event loop."""
+        _loop.run_until_complete(self._manager.close())
+
     async def _async_search(self, query: str) -> str:
         """Async implementation of the search."""
         session = await self._manager.get_session()

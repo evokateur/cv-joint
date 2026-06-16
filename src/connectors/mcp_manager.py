@@ -39,29 +39,31 @@ class McpManager:
         if self._session is not None:
             return self._session
 
-        server_params = StdioServerParameters(
-            command=self._settings.command,
-            args=self._settings.args,
-            env=self._settings.env if self._settings.env else None,
-        )
+        try:
+            server_params = StdioServerParameters(
+                command=self._settings.command,
+                args=self._settings.args,
+                env=self._settings.env if self._settings.env else None,
+            )
 
-        client_cm = stdio_client(server_params)
-        read, write = await client_cm.__aenter__()
-        self._client_cm = client_cm
+            client_cm = stdio_client(server_params)
+            read, write = await client_cm.__aenter__()
+            self._client_cm = client_cm
 
-        session_cm = ClientSession(read, write)
-        session = await session_cm.__aenter__()
-        self._session_cm = session_cm
+            session_cm = ClientSession(read, write)
+            session = await session_cm.__aenter__()
+            self._session_cm = session_cm
 
-        await session.initialize()
-        self._session = session
+            await session.initialize()
+            self._session = session
 
-        return session
+            return session
+        except Exception:
+            await self.close()
+            raise
 
     async def close(self) -> None:
         """Close the MCP connection."""
-        if self._session is None:
-            return
         try:
             if self._session_cm is not None:
                 await self._session_cm.__aexit__(None, None, None)

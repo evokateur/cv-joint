@@ -30,8 +30,14 @@ class FakeMcpSession:
 
 
 class FakeMcpManager:
+    def __init__(self):
+        self.closed = False
+
     async def get_session(self):
         return FakeMcpSession()
+
+    async def close(self):
+        self.closed = True
 
 
 @pytest.fixture
@@ -52,3 +58,12 @@ def test_knowledge_search_tool_multiple_calls(tool):
 
     assert "results" in json.loads(result1)
     assert "results" in json.loads(result2)
+
+
+def test_knowledge_search_tool_closes_manager():
+    manager = FakeMcpManager()
+    tool = KnowledgeSearchTool(tool_name="rag_search_knowledge", manager=manager)
+
+    tool.close()
+
+    assert manager.closed is True

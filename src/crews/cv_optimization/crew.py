@@ -34,17 +34,26 @@ class CvOptimizationCrew:
         }
         mcp_settings = get_settings().mcpServers.get("rag-knowledge")
         self._knowledge_manager = McpManager(mcp_settings) if mcp_settings else None
-        self._knowledge_tool_name = mcp_settings.tool_name if mcp_settings else None
+        self._knowledge_tool = (
+            KnowledgeSearchTool(
+                tool_name=mcp_settings.tool_name,
+                manager=self._knowledge_manager,
+            )
+            if mcp_settings and self._knowledge_manager
+            else None
+        )
+
+    def close(self) -> None:
+        """Close resources owned by the crew."""
+        if self._knowledge_tool is not None:
+            self._knowledge_tool.close()
 
     @agent
     def cv_strategist(self) -> Agent:
         """Agent that devises a strategy to optimize CVs for job postings"""
         tools = [FileReadTool()]
-        if self._knowledge_manager is not None:
-            tools.append(KnowledgeSearchTool(
-                tool_name=self._knowledge_tool_name,
-                manager=self._knowledge_manager,
-            ))
+        if self._knowledge_tool is not None:
+            tools.append(self._knowledge_tool)
         return Agent(
             config=self.agents_config["cv_strategist"],  # type: ignore[index]
             tools=tools,

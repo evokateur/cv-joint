@@ -27,7 +27,10 @@ def test_knowledge_search_tool_instantiates():
 def test_knowledge_search_tool_returns_results():
     """Test that KnowledgeSearchTool returns search results."""
     tool = _make_tool()
-    result = tool._run("Python experience")
+    try:
+        result = tool._run("Python experience")
+    finally:
+        tool.close()
 
     assert result is not None
     assert isinstance(result, str)
@@ -39,7 +42,10 @@ def test_knowledge_search_tool_returns_results():
 def test_knowledge_search_tool_result_is_json():
     """Test that search results are valid JSON with expected structure."""
     tool = _make_tool()
-    result = tool._run("software development experience")
+    try:
+        result = tool._run("software development experience")
+    finally:
+        tool.close()
 
     data = json.loads(result)
     assert "results" in data
@@ -56,8 +62,11 @@ def test_knowledge_search_tool_multiple_calls():
     that belongs to a closed event loop.
     """
     tool = _make_tool()
-    result1 = tool._run("Python experience")
-    result2 = tool._run("API development")
+    try:
+        result1 = tool._run("Python experience")
+        result2 = tool._run("API development")
+    finally:
+        tool.close()
 
     data1 = json.loads(result1)
     data2 = json.loads(result2)
