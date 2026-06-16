@@ -20,6 +20,12 @@ class AgentSettings(BaseModel):
     max_tokens: Optional[int] = Field(default=4096, description="Maximum tokens for LLM response")
 
 
+class CrewSettings(BaseModel):
+    """Configuration for a crew's agents."""
+
+    agents: dict[str, AgentSettings]
+
+
 class ChatSettings(BaseModel):
     """Configuration for chat/conversation models"""
 

@@ -7,13 +7,13 @@ class FilesystemRepositorySettings(BaseModel):
     data_dir: str
 
 
-class Settings(BaseModel):
+class RepositoriesSettings(BaseModel):
     filesystem: FilesystemRepositorySettings
 
 
 class Config(BaseConfig):
     def __init__(self):
-        super().__init__(Path(__file__).parent, Settings, "repositories")
+        super().__init__(Path(__file__).parent, RepositoriesSettings, "repositories")
 
     @property
     def data_dir(self) -> str:

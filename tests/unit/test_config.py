@@ -13,7 +13,7 @@ from config.settings import (
     expand_tildes,
     get_merged_config,
 )
-from config.root import _load_merged_config
+from config.root import _load_merged_config, get_settings, RootSettings
 
 
 class TestDeepMerge:
@@ -247,3 +247,77 @@ class TestRootConfigPipeline:
                 refreshed = get_merged_config()
 
             assert refreshed["chat"]["model"] == "default-chat"
+
+
+class TestGetSettings:
+    def setup_method(self):
+        _load_merged_config.cache_clear()
+        get_settings.cache_clear()
+
+    def teardown_method(self):
+        _load_merged_config.cache_clear()
+        get_settings.cache_clear()
+
+    def _patch_dirs(self, tmp: Path):
+        config_dir = tmp / "config"
+        config_dir.mkdir()
+        (config_dir / "settings.yaml").write_text(
+            "chat:\n  model: test-model\n  temperature: 0.5\n"
+            "mcpServers:\n  rag-knowledge: null\n"
+        )
+        crews_dir = tmp / "crews"
+        repo_dir = tmp / "repositories"
+        return patch("config.root.CONFIG_DIR", config_dir), patch(
+            "config.root.CREWS_DIR", crews_dir
+        ), patch("config.root.REPOSITORIES_DIR", repo_dir), patch(
+            "config.settings.USER_CONFIG_FILE", tmp / "no-user-settings.yaml"
+        ), patch(
+            "config.root.load_dotenv"
+        )
+
+    def test_returns_root_settings_instance(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo_dir = tmp / "repositories"
+            (repo_dir / "config").mkdir(parents=True)
+            (repo_dir / "config" / "settings.yaml").write_text(
+                "filesystem:\n  data_dir: ./data\n"
+            )
+            p1, p2, p3, p4, p5 = self._patch_dirs(tmp)
+            with p1, p2, p3, p4, p5:
+                settings = get_settings()
+        assert isinstance(settings, RootSettings)
+        assert settings.chat.model == "test-model"
+        assert settings.chat.temperature == 0.5
+        assert settings.repositories.filesystem.data_dir == "./data"
+
+    def test_get_settings_is_cached(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo_dir = tmp / "repositories"
+            (repo_dir / "config").mkdir(parents=True)
+            (repo_dir / "config" / "settings.yaml").write_text(
+                "filesystem:\n  data_dir: ./data\n"
+            )
+            p1, p2, p3, p4, p5 = self._patch_dirs(tmp)
+            with p1, p2, p3, p4, p5:
+                s1 = get_settings()
+                s2 = get_settings()
+        assert s1 is s2
+
+    def test_cache_clear_allows_reload(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo_dir = tmp / "repositories"
+            (repo_dir / "config").mkdir(parents=True)
+            (repo_dir / "config" / "settings.yaml").write_text(
+                "filesystem:\n  data_dir: ./data\n"
+            )
+            p1, p2, p3, p4, p5 = self._patch_dirs(tmp)
+            with p1, p2, p3, p4, p5:
+                s1 = get_settings()
+                _load_merged_config.cache_clear()
+                get_settings.cache_clear()
+                s2 = get_settings()
+        assert s1 is not s2
+        assert s1.chat.model == s2.chat.model

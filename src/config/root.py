@@ -2,12 +2,23 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 import copy
 
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 import yaml
 
 import config.settings as shared_settings
+from config.settings import ChatSettings, CrewSettings, McpServerSettings
+from repositories.config.settings import RepositoriesSettings
+
+
+class RootSettings(BaseModel):
+    chat: ChatSettings
+    mcpServers: dict[str, Optional[McpServerSettings]]
+    crews: dict[str, CrewSettings] = Field(default_factory=dict)
+    repositories: RepositoriesSettings
 
 
 CONFIG_DIR = Path(__file__).parent
@@ -96,3 +107,9 @@ def _load_merged_config() -> dict:
 def get_merged_config() -> dict:
     """Return the merged config in the raw display shape."""
     return copy.deepcopy(_load_merged_config())
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> RootSettings:
+    """Return the validated typed settings, cached for the process lifetime."""
+    return RootSettings.model_validate(_load_merged_config())
