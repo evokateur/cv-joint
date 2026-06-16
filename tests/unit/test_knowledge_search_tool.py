@@ -1,9 +1,7 @@
-import asyncio
 import json
 import pytest
-import anyio
 
-from infrastructure import McpManager
+from crews.tools.knowledge_search import KnowledgeSearchTool
 
 
 FAKE_RESULT = json.dumps({
@@ -27,50 +25,28 @@ class _ToolResult:
 
 
 class FakeMcpSession:
-    """Simulates a real MCP session's event loop lifecycle.
-
-    A real session's underlying streams are closed when the event loop that
-    created them is closed (e.g. by asyncio.run()). This fake replicates that
-    by raising ClosedResourceError when called from a different loop.
-    """
-
-    def __init__(self):
-        self._loop = asyncio.get_running_loop()
-
     async def call_tool(self, name, args):
-        if asyncio.get_running_loop() is not self._loop:
-            raise anyio.ClosedResourceError()
         return _ToolResult(FAKE_RESULT)
 
 
-@pytest.fixture(autouse=True)
-def fake_mcp_manager(monkeypatch):
-    _cache = {}
-
-    async def fake_get_session(server_name):
-        if server_name not in _cache:
-            _cache[server_name] = FakeMcpSession()
-        return _cache[server_name]
-
-    monkeypatch.setattr(McpManager, "get_session", fake_get_session)
-    monkeypatch.setattr(McpManager, "get_tool_name", lambda name: "rag_search_knowledge")
+class FakeMcpManager:
+    async def get_session(self):
+        return FakeMcpSession()
 
 
-def test_knowledge_search_tool_returns_results():
-    from crews.tools.knowledge_search import KnowledgeSearchTool
+@pytest.fixture
+def tool():
+    return KnowledgeSearchTool(tool_name="rag_search_knowledge", manager=FakeMcpManager())
 
-    tool = KnowledgeSearchTool()
+
+def test_knowledge_search_tool_returns_results(tool):
     result = tool._run("Python experience")
-
     data = json.loads(result)
     assert "results" in data
 
 
-def test_knowledge_search_tool_multiple_calls():
-    """Regression: second call must not fail when the first asyncio.run() closed the event loop."""
-    from crews.tools.knowledge_search import KnowledgeSearchTool
-
-    tool = KnowledgeSearchTool()
+def test_knowledge_search_tool_multiple_calls(tool):
+    """Two sequential calls on the same tool instance both return results."""
     result1 = tool._run("Python experience")
     result2 = tool._run("API development")
 

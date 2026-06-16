@@ -10,7 +10,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, convert_to_mess
 from langchain_core.documents import Document
 
 from config.root import get_settings
-from infrastructure import McpManager
+from connectors import McpManager
 
 
 class KnowledgeChatService:
@@ -22,7 +22,7 @@ class KnowledgeChatService:
         if mcp_config is None:
             raise ValueError(f"MCP server '{mcp_server_name}' not configured")
 
-        self._server_name = mcp_server_name
+        self._manager = McpManager(mcp_config)
         self._tool_name = mcp_config.tool_name
 
         self.llm = ChatOpenAI(
@@ -54,7 +54,7 @@ Retrieved Context:
         Returns:
             List of relevant documents from the knowledge base
         """
-        session = await McpManager.get_session(self._server_name)
+        session = await self._manager.get_session()
 
         result = await session.call_tool(self._tool_name, {
             "params": {

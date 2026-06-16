@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from config.settings import McpServerSettings
+from connectors import McpManager
 
 
 def test_knowledge_chat_service_uses_root_settings(monkeypatch):
@@ -30,6 +31,7 @@ def test_knowledge_chat_service_uses_root_settings(monkeypatch):
     service = knowledge_chat.KnowledgeChatService()
 
     assert service._tool_name == "rag_search"
+    assert isinstance(service._manager, McpManager)
     knowledge_chat.ChatOpenAI.assert_called_once_with(
         temperature=0.3,
         model_name="test-chat-model",

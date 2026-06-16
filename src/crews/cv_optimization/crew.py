@@ -6,6 +6,8 @@ from typing import List
 
 from models import CurriculumVitae, CvTransformationPlan
 from crews.tools import KnowledgeSearchTool
+from connectors import McpManager
+from config.root import get_settings
 from .config.settings import get_config
 
 
@@ -30,16 +32,22 @@ class CvOptimizationCrew:
                 max_tokens=config.cv_rewriter_max_tokens,
             ),
         }
+        mcp_settings = get_settings().mcpServers.get("rag-knowledge")
+        self._knowledge_manager = McpManager(mcp_settings) if mcp_settings else None
+        self._knowledge_tool_name = mcp_settings.tool_name if mcp_settings else None
 
     @agent
     def cv_strategist(self) -> Agent:
         """Agent that devises a strategy to optimize CVs for job postings"""
+        tools = [FileReadTool()]
+        if self._knowledge_manager is not None:
+            tools.append(KnowledgeSearchTool(
+                tool_name=self._knowledge_tool_name,
+                manager=self._knowledge_manager,
+            ))
         return Agent(
             config=self.agents_config["cv_strategist"],  # type: ignore[index]
-            tools=[
-                FileReadTool(),
-                KnowledgeSearchTool(),
-            ],
+            tools=tools,
             llm=self.llms["cv_strategist"],
         )
 
