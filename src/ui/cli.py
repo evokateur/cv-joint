@@ -91,8 +91,8 @@ def cmd_open():
 @main.command("show-config")
 def show_config():
     """Print merged configuration to stdout and exit."""
-    from config.root import get_merged_config
-    config = get_merged_config()
+    from config.root import get_settings
+    config = get_settings().model_dump(by_alias=True)
     yaml.dump(config, sys.stdout, default_flow_style=False, sort_keys=False)
 
 
