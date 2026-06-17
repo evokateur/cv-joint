@@ -11,7 +11,7 @@ from ui.components import front_matter_to_code_block
 from models import JobPosting, CurriculumVitae, CvTransformationPlan
 from services import ApplicationService
 from services import KnowledgeChatService
-from config.settings import get_chat_config, is_mcp_configured
+from config.root import get_settings
 
 _UPLOADS_DIR = Path(__file__).parent.parent.parent / "uploads"
 
@@ -20,8 +20,9 @@ def create_app():
     """Create and configure the Gradio application."""
 
     service = ApplicationService()
-    chat_config = get_chat_config()
-    mcp_available = is_mcp_configured("rag-knowledge")
+    settings = get_settings()
+    chat_config = settings.chat
+    mcp_available = settings.mcpServers.get("rag-knowledge") is not None
     chat_service = KnowledgeChatService() if mcp_available else None
 
     custom_css = """
@@ -1110,7 +1111,7 @@ def create_app():
                 app.load(fn=load_cv_template_choices, outputs=[cv_template_selection])
 
             # Tab 5: Knowledge Chat
-            with gr.Tab(f"Knowledge Chat ({chat_config['model']})"):
+            with gr.Tab(f"Knowledge Chat ({chat_config.model})"):
                 if not mcp_available:
                     gr.Markdown(
                         "### ⚠️ MCP Server Not Configured\n\n"
@@ -1120,11 +1121,11 @@ def create_app():
                     )
                 else:
                     gr.Markdown(
-                        f"### 💬 Chat with **{chat_config['model']}** about your work history"
+                        f"### 💬 Chat with **{chat_config.model}** about your work history"
                     )
                     gr.Markdown(
                         "Ask questions about your experience, skills, and projects; "
-                        f"**{chat_config['model']}** will search your knowledge base and provide relevant answers."
+                        f"**{chat_config.model}** will search your knowledge base and provide relevant answers."
                     )
 
                     with gr.Row():

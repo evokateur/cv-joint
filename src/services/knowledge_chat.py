@@ -9,26 +9,25 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, convert_to_messages
 from langchain_core.documents import Document
 
-from config.settings import get_mcp_config, get_chat_config
-from infrastructure import McpManager
+from config.root import get_settings
+from connectors import McpManager
 
 
 class KnowledgeChatService:
     """Service for RAG-equipped chat using MCP server for knowledge retrieval."""
 
     def __init__(self, mcp_server_name: str = "rag-knowledge"):
-        mcp_config = get_mcp_config(mcp_server_name)
+        settings = get_settings()
+        mcp_config = settings.mcpServers.get(mcp_server_name)
         if mcp_config is None:
             raise ValueError(f"MCP server '{mcp_server_name}' not configured")
 
-        self._server_name = mcp_server_name
+        self._manager = McpManager(mcp_config)
         self._tool_name = mcp_config.tool_name
 
-        # LLM setup
-        chat_config = get_chat_config()
         self.llm = ChatOpenAI(
-            temperature=chat_config["temperature"],
-            model_name=chat_config["model"]
+            temperature=settings.chat.temperature,
+            model_name=settings.chat.model
         )
 
         self.system_prompt_template = """
@@ -44,6 +43,16 @@ Retrieved Context:
 {context}
 """
 
+    async def close(self) -> None:
+        """Close resources owned by the chat service."""
+        await self._manager.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+        await self.close()
+
     async def fetch_context(self, question: str, top_k: int = 5) -> list[Document]:
         """
         Retrieve relevant context documents using MCP RAG server.
@@ -55,7 +64,7 @@ Retrieved Context:
         Returns:
             List of relevant documents from the knowledge base
         """
-        session = await McpManager.get_session(self._server_name)
+        session = await self._manager.get_session()
 
         result = await session.call_tool(self._tool_name, {
             "params": {
