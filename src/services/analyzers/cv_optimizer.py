@@ -5,7 +5,8 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from models import CurriculumVitae, CvTransformationPlan, JobPosting
-from .ports import CvOptimizationPort, OptimizerOutput
+from .models import OptimizerOutput
+from .ports import CvOptimizationPort
 
 _OUTPUT_TYPES: dict[str, type[BaseModel]] = {
     "cv": CurriculumVitae,

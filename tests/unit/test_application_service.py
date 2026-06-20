@@ -314,7 +314,7 @@ class TestRegenerateCv:
 class TestRegenerateCvOptimization:
     @pytest.fixture
     def service_with_optimization(self, service, sample_job_posting_data, sample_cv_data):
-        from services.analyzers.cv_optimizer import OptimizerOutput
+        from services.analyzers.models import OptimizerOutput
 
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.save_cv(sample_cv_data, "jane-doe")

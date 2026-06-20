@@ -1,14 +1,13 @@
 import os
-
 from models import JobPosting
+
+os.environ["CREWAI_TRACING_ENABLED"] = "false"
 
 
 class CrewAiJobPostingAnalyzer:
     """CrewAI implementation of job posting analysis."""
 
     def analyze(self, url: str, content_file: str | None = None) -> JobPosting:
-        os.environ["CREWAI_TRACING_ENABLED"] = "false"
-
         from crews.job_posting_analysis.crew import JobPostingAnalysisCrew
 
         inputs = {

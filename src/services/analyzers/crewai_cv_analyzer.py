@@ -1,14 +1,13 @@
 import os
-
 from models import CurriculumVitae
+
+os.environ["CREWAI_TRACING_ENABLED"] = "false"
 
 
 class CrewAiCvAnalyzer:
     """CrewAI implementation of CV analysis."""
 
     def analyze(self, file_path: str) -> CurriculumVitae:
-        os.environ["CREWAI_TRACING_ENABLED"] = "false"
-
         from crews.cv_analysis.crew import CvAnalysisCrew
 
         inputs = {

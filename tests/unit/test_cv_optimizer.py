@@ -5,11 +5,10 @@ Unit tests for CvOptimizer facade.
 import json
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 from models import CurriculumVitae, CvTransformationPlan, Contact, JobPosting
-from services.analyzers.crewai_cv_optimizer import CrewAiCvOptimizer
-from services.analyzers.cv_optimizer import CvOptimizer, OptimizerOutput
+from services.analyzers.cv_optimizer import CvOptimizer, FileBasedCvOptimizer
+from services.analyzers.models import OptimizerOutput
 
 
 @pytest.fixture
@@ -67,34 +66,35 @@ def _fake_kickoff(inputs, cv, plan):
     )
 
 
+class FakeKickoffOptimizer(FileBasedCvOptimizer):
+    """Test double: drives FileBasedCvOptimizer with a provided kickoff callable."""
+
+    def __init__(self, kickoff_fn):
+        super().__init__()
+        self._kickoff_fn = kickoff_fn
+
+    def optimize(self, cv, job_posting):
+        return self._optimize_with_files(cv, job_posting, self._kickoff_fn)
+
+
 class TestCvOptimizerInterface:
     def test_optimize_returns_optimizer_output(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        implementation = CrewAiCvOptimizer()
-        optimizer = CvOptimizer(implementation=implementation)
-        with patch.object(implementation, "_build_crew") as mock_build_crew:
-            mock_crew = MagicMock()
-            mock_build_crew.return_value = mock_crew
-            mock_crew.crew.return_value.kickoff.side_effect = (
-                lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
-            )
-            result = optimizer.optimize(sample_cv, sample_job_posting)
+        optimizer = CvOptimizer(implementation=FakeKickoffOptimizer(
+            lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
+        ))
+        result = optimizer.optimize(sample_cv, sample_job_posting)
 
         assert isinstance(result, OptimizerOutput)
 
     def test_optimize_cv_is_curriculum_vitae(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        implementation = CrewAiCvOptimizer()
-        optimizer = CvOptimizer(implementation=implementation)
-        with patch.object(implementation, "_build_crew") as mock_build_crew:
-            mock_crew = MagicMock()
-            mock_build_crew.return_value = mock_crew
-            mock_crew.crew.return_value.kickoff.side_effect = (
-                lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
-            )
-            result = optimizer.optimize(sample_cv, sample_job_posting)
+        optimizer = CvOptimizer(implementation=FakeKickoffOptimizer(
+            lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
+        ))
+        result = optimizer.optimize(sample_cv, sample_job_posting)
 
         assert isinstance(result.cv, CurriculumVitae)
         assert result.cv.name == sample_cv.name
@@ -102,15 +102,10 @@ class TestCvOptimizerInterface:
     def test_optimize_artifacts_contains_transformation_plan(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        implementation = CrewAiCvOptimizer()
-        optimizer = CvOptimizer(implementation=implementation)
-        with patch.object(implementation, "_build_crew") as mock_build_crew:
-            mock_crew = MagicMock()
-            mock_build_crew.return_value = mock_crew
-            mock_crew.crew.return_value.kickoff.side_effect = (
-                lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
-            )
-            result = optimizer.optimize(sample_cv, sample_job_posting)
+        optimizer = CvOptimizer(implementation=FakeKickoffOptimizer(
+            lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
+        ))
+        result = optimizer.optimize(sample_cv, sample_job_posting)
 
         assert "transformation-plan" in result.artifacts
         assert isinstance(result.artifacts["transformation-plan"], CvTransformationPlan)
@@ -118,8 +113,6 @@ class TestCvOptimizerInterface:
     def test_optimize_passes_domain_objects_as_serialized_files(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        implementation = CrewAiCvOptimizer()
-        optimizer = CvOptimizer(implementation=implementation)
         captured_content = {}
 
         def capture_and_fake(inputs):
@@ -127,11 +120,8 @@ class TestCvOptimizerInterface:
             captured_content["job"] = json.loads(Path(inputs["job_posting_path"]).read_text())
             _fake_kickoff(inputs, sample_cv, sample_plan)
 
-        with patch.object(implementation, "_build_crew") as mock_build_crew:
-            mock_crew = MagicMock()
-            mock_build_crew.return_value = mock_crew
-            mock_crew.crew.return_value.kickoff.side_effect = capture_and_fake
-            optimizer.optimize(sample_cv, sample_job_posting)
+        optimizer = CvOptimizer(implementation=FakeKickoffOptimizer(capture_and_fake))
+        optimizer.optimize(sample_cv, sample_job_posting)
 
         assert captured_content["cv"]["name"] == sample_cv.name
         assert captured_content["job"]["company"] == sample_job_posting.company
@@ -139,18 +129,13 @@ class TestCvOptimizerInterface:
     def test_optimize_cleans_up_temp_directory(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        implementation = CrewAiCvOptimizer()
-        optimizer = CvOptimizer(implementation=implementation)
         captured = {}
 
         def capture_and_fake(inputs):
             captured.update(inputs)
             _fake_kickoff(inputs, sample_cv, sample_plan)
 
-        with patch.object(implementation, "_build_crew") as mock_build_crew:
-            mock_crew = MagicMock()
-            mock_build_crew.return_value = mock_crew
-            mock_crew.crew.return_value.kickoff.side_effect = capture_and_fake
-            optimizer.optimize(sample_cv, sample_job_posting)
+        optimizer = CvOptimizer(implementation=FakeKickoffOptimizer(capture_and_fake))
+        optimizer.optimize(sample_cv, sample_job_posting)
 
         assert not Path(captured["output_directory"]).exists()

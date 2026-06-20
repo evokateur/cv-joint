@@ -1,15 +1,6 @@
-from dataclasses import dataclass, field
 from typing import Protocol
-
-from pydantic import BaseModel
-
 from models import CurriculumVitae, JobPosting
-
-
-@dataclass
-class OptimizerOutput:
-    cv: CurriculumVitae
-    artifacts: dict[str, BaseModel] = field(default_factory=dict)
+from .models import OptimizerOutput
 
 
 class CvAnalysisPort(Protocol):
@@ -29,7 +20,5 @@ class JobPostingAnalysisPort(Protocol):
 class CvOptimizationPort(Protocol):
     """Implementation contract for CV optimization."""
 
-    def optimize(
-        self, cv: CurriculumVitae, job_posting: JobPosting
-    ) -> OptimizerOutput:
+    def optimize(self, cv: CurriculumVitae, job_posting: JobPosting) -> OptimizerOutput:
         """Optimize a CV for a job posting."""
