@@ -1,15 +1,11 @@
 import json
-import os
 import tempfile
-from dataclasses import dataclass, field
 from pathlib import Path
-
-os.environ["CREWAI_TRACING_ENABLED"] = "false"
 
 from pydantic import BaseModel
 
-from crews import CvOptimizationCrew
 from models import CurriculumVitae, CvTransformationPlan, JobPosting
+from .ports import CvOptimizationPort, OptimizerOutput
 
 _OUTPUT_TYPES: dict[str, type[BaseModel]] = {
     "cv": CurriculumVitae,
@@ -17,40 +13,27 @@ _OUTPUT_TYPES: dict[str, type[BaseModel]] = {
 }
 
 
-@dataclass
-class OptimizerOutput:
-    cv: CurriculumVitae
-    artifacts: dict[str, BaseModel] = field(default_factory=dict)
-
-
 class CvOptimizer:
-    """Facade over CvOptimizationCrew. Accepts domain objects, returns OptimizerOutput."""
+    """Lightweight facade for CV optimization."""
+
+    def __init__(self, implementation: CvOptimizationPort | None = None):
+        self._implementation = implementation
 
     def optimize(self, cv: CurriculumVitae, job_posting: JobPosting) -> OptimizerOutput:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            input_dir = Path(temp_dir) / "input"
-            output_dir = Path(temp_dir) / "output"
-            input_dir.mkdir()
-            output_dir.mkdir()
+        return self._get_implementation().optimize(cv, job_posting)
 
-            cv_path = input_dir / "cv.json"
-            cv_path.write_text(cv.model_dump_json())
+    def _get_implementation(self) -> CvOptimizationPort:
+        if self._implementation is None:
+            from .crewai_cv_optimizer import CrewAiCvOptimizer
 
-            job_posting_path = input_dir / "job-posting.json"
-            job_posting_path.write_text(job_posting.model_dump_json())
+            self._implementation = CrewAiCvOptimizer()
+        return self._implementation
 
-            inputs = {
-                "cv_path": str(cv_path),
-                "job_posting_path": str(job_posting_path),
-                "output_directory": str(output_dir),
-            }
 
-            crew = CvOptimizationCrew()
-            crew.crew().kickoff(inputs=inputs)
+class OutputLoader:
+    """Loads optimizer artifacts written by an implementation."""
 
-            return self._load_output(output_dir)
-
-    def _load_output(self, output_dir: Path) -> OptimizerOutput:
+    def load(self, output_dir: Path) -> OptimizerOutput:
         optimized_cv = None
         artifacts: dict[str, BaseModel] = {}
 
@@ -70,3 +53,38 @@ class CvOptimizer:
             raise ValueError("Crew did not produce a cv.json output")
 
         return OptimizerOutput(cv=optimized_cv, artifacts=artifacts)
+
+
+class FileBasedCvOptimizer:
+    """Base helper for optimizer implementations that exchange JSON files."""
+
+    def __init__(self, output_loader: OutputLoader | None = None):
+        self._output_loader = output_loader or OutputLoader()
+
+    def _optimize_with_files(
+        self,
+        cv: CurriculumVitae,
+        job_posting: JobPosting,
+        kickoff,
+    ) -> OptimizerOutput:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_dir = Path(temp_dir) / "input"
+            output_dir = Path(temp_dir) / "output"
+            input_dir.mkdir()
+            output_dir.mkdir()
+
+            cv_path = input_dir / "cv.json"
+            cv_path.write_text(cv.model_dump_json())
+
+            job_posting_path = input_dir / "job-posting.json"
+            job_posting_path.write_text(job_posting.model_dump_json())
+
+            inputs = {
+                "cv_path": str(cv_path),
+                "job_posting_path": str(job_posting_path),
+                "output_directory": str(output_dir),
+            }
+
+            kickoff(inputs)
+
+            return self._output_loader.load(output_dir)

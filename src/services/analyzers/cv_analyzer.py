@@ -1,15 +1,15 @@
-import os
-
-os.environ["CREWAI_TRACING_ENABLED"] = "false"
-
-from crews import CvAnalysisCrew
 from models import CurriculumVitae
+
+from .ports import CvAnalysisPort
 
 
 class CvAnalyzer:
     """
-    Analyzer that wraps the CvAnalysis crew to extract structured CV data.
+    Lightweight facade for extracting structured CV data.
     """
+
+    def __init__(self, implementation: CvAnalysisPort | None = None):
+        self._implementation = implementation
 
     def analyze(self, file_path: str) -> CurriculumVitae:
         """
@@ -21,16 +21,11 @@ class CvAnalyzer:
         Returns:
             CurriculumVitae Pydantic model with extracted data
         """
-        inputs = {
-            "candidate_cv_path": file_path,
-        }
+        return self._get_implementation().analyze(file_path)
 
-        crew = CvAnalysisCrew()
-        result = crew.crew().kickoff(inputs=inputs)
+    def _get_implementation(self) -> CvAnalysisPort:
+        if self._implementation is None:
+            from .crewai_cv_analyzer import CrewAiCvAnalyzer
 
-        if not isinstance(result.pydantic, CurriculumVitae):
-            raise TypeError(
-                "Expected CurriculumVitae, got {}".format(type(result.pydantic))
-            )
-
-        return result.pydantic
+            self._implementation = CrewAiCvAnalyzer()
+        return self._implementation

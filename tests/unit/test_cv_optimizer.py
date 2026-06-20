@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from models import CurriculumVitae, CvTransformationPlan, Contact, JobPosting
+from services.analyzers.crewai_cv_optimizer import CrewAiCvOptimizer
 from services.analyzers.cv_optimizer import CvOptimizer, OptimizerOutput
 
 
@@ -70,10 +71,11 @@ class TestCvOptimizerInterface:
     def test_optimize_returns_optimizer_output(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        optimizer = CvOptimizer()
-        with patch("services.analyzers.cv_optimizer.CvOptimizationCrew") as mock_class:
+        implementation = CrewAiCvOptimizer()
+        optimizer = CvOptimizer(implementation=implementation)
+        with patch.object(implementation, "_build_crew") as mock_build_crew:
             mock_crew = MagicMock()
-            mock_class.return_value = mock_crew
+            mock_build_crew.return_value = mock_crew
             mock_crew.crew.return_value.kickoff.side_effect = (
                 lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
             )
@@ -84,10 +86,11 @@ class TestCvOptimizerInterface:
     def test_optimize_cv_is_curriculum_vitae(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        optimizer = CvOptimizer()
-        with patch("services.analyzers.cv_optimizer.CvOptimizationCrew") as mock_class:
+        implementation = CrewAiCvOptimizer()
+        optimizer = CvOptimizer(implementation=implementation)
+        with patch.object(implementation, "_build_crew") as mock_build_crew:
             mock_crew = MagicMock()
-            mock_class.return_value = mock_crew
+            mock_build_crew.return_value = mock_crew
             mock_crew.crew.return_value.kickoff.side_effect = (
                 lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
             )
@@ -99,10 +102,11 @@ class TestCvOptimizerInterface:
     def test_optimize_artifacts_contains_transformation_plan(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        optimizer = CvOptimizer()
-        with patch("services.analyzers.cv_optimizer.CvOptimizationCrew") as mock_class:
+        implementation = CrewAiCvOptimizer()
+        optimizer = CvOptimizer(implementation=implementation)
+        with patch.object(implementation, "_build_crew") as mock_build_crew:
             mock_crew = MagicMock()
-            mock_class.return_value = mock_crew
+            mock_build_crew.return_value = mock_crew
             mock_crew.crew.return_value.kickoff.side_effect = (
                 lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
             )
@@ -114,7 +118,8 @@ class TestCvOptimizerInterface:
     def test_optimize_passes_domain_objects_as_serialized_files(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        optimizer = CvOptimizer()
+        implementation = CrewAiCvOptimizer()
+        optimizer = CvOptimizer(implementation=implementation)
         captured_content = {}
 
         def capture_and_fake(inputs):
@@ -122,9 +127,9 @@ class TestCvOptimizerInterface:
             captured_content["job"] = json.loads(Path(inputs["job_posting_path"]).read_text())
             _fake_kickoff(inputs, sample_cv, sample_plan)
 
-        with patch("services.analyzers.cv_optimizer.CvOptimizationCrew") as mock_class:
+        with patch.object(implementation, "_build_crew") as mock_build_crew:
             mock_crew = MagicMock()
-            mock_class.return_value = mock_crew
+            mock_build_crew.return_value = mock_crew
             mock_crew.crew.return_value.kickoff.side_effect = capture_and_fake
             optimizer.optimize(sample_cv, sample_job_posting)
 
@@ -134,16 +139,17 @@ class TestCvOptimizerInterface:
     def test_optimize_cleans_up_temp_directory(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        optimizer = CvOptimizer()
+        implementation = CrewAiCvOptimizer()
+        optimizer = CvOptimizer(implementation=implementation)
         captured = {}
 
         def capture_and_fake(inputs):
             captured.update(inputs)
             _fake_kickoff(inputs, sample_cv, sample_plan)
 
-        with patch("services.analyzers.cv_optimizer.CvOptimizationCrew") as mock_class:
+        with patch.object(implementation, "_build_crew") as mock_build_crew:
             mock_crew = MagicMock()
-            mock_class.return_value = mock_crew
+            mock_build_crew.return_value = mock_crew
             mock_crew.crew.return_value.kickoff.side_effect = capture_and_fake
             optimizer.optimize(sample_cv, sample_job_posting)
 

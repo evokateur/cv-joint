@@ -1,21 +1,17 @@
-from typing import Optional
-
-import os
-import tempfile
-
-# Disable CrewAI tracing to prevent 20s timeout prompt
-os.environ["CREWAI_TRACING_ENABLED"] = "false"
-
-from crews import JobPostingAnalysisCrew
 from models import JobPosting
+
+from .ports import JobPostingAnalysisPort
 
 
 class JobPostingAnalyzer:
     """
-    Analyzer that wraps the JobPostingAnalyzer crew to extract structured job posting data.
+    Lightweight facade for extracting structured job posting data.
     """
 
-    def analyze(self, url: str, content_file: Optional[str] = None) -> JobPosting:
+    def __init__(self, implementation: JobPostingAnalysisPort | None = None):
+        self._implementation = implementation
+
+    def analyze(self, url: str, content_file: str | None = None) -> JobPosting:
         """
         Analyze a job posting URL and return structured JobPosting data.
 
@@ -26,15 +22,11 @@ class JobPostingAnalyzer:
         Returns:
             JobPosting Pydantic model with extracted data
         """
-        inputs = {
-            "job_posting_url": url,
-            "content_file": content_file,
-        }
+        return self._get_implementation().analyze(url, content_file)
 
-        crew = JobPostingAnalysisCrew()
-        result = crew.crew().kickoff(inputs=inputs)
+    def _get_implementation(self) -> JobPostingAnalysisPort:
+        if self._implementation is None:
+            from .crewai_job_posting_analyzer import CrewAiJobPostingAnalyzer
 
-        if not isinstance(result.pydantic, JobPosting):
-            raise TypeError("Expected JobPosting, got {}".format(type(result.pydantic)))
-
-        return result.pydantic
+            self._implementation = CrewAiJobPostingAnalyzer()
+        return self._implementation
