@@ -221,25 +221,11 @@ class FileSystemRepository:
 
     def archive_job_posting(self, identifier: str) -> JobPostingRecord:
         """Mark a job posting as archived."""
-        self.transition_job_posting(identifier, "archived")
-        collection = self._load_collection(self.job_postings_collection)
-        record_data = next(item for item in collection if item["identifier"] == identifier)
-        record_data["is_archived"] = True
-        self._save_collection(self.job_postings_collection, collection)
-        result = JobPostingRecord(**record_data)
-        self._patch_document_frontmatter(result)
-        return result
+        return self.transition_job_posting(identifier, "archived", record_fields={"is_archived": True})
 
     def unarchive_job_posting(self, identifier: str) -> JobPostingRecord:
         """Return a job posting to the root (active/unfiled)."""
-        self.transition_job_posting(identifier, ".")
-        collection = self._load_collection(self.job_postings_collection)
-        record_data = next(item for item in collection if item["identifier"] == identifier)
-        record_data["is_archived"] = False
-        self._save_collection(self.job_postings_collection, collection)
-        result = JobPostingRecord(**record_data)
-        self._patch_document_frontmatter(result)
-        return result
+        return self.transition_job_posting(identifier, ".", record_fields={"is_archived": False})
 
     def mark_applied(
         self,
@@ -249,30 +235,24 @@ class FileSystemRepository:
     ) -> JobPostingRecord:
         """Record that a job posting was applied to."""
         applied_at_dt = applied_at or datetime.now()
-        self.transition_job_posting(
-            identifier, "applied",
-            {"applied_with": cv_identifier, "applied_at": applied_at_dt.isoformat()},
-        )
-        collection = self._load_collection(self.job_postings_collection)
-        record_data = next(item for item in collection if item["identifier"] == identifier)
-        record_data["applied_with"] = cv_identifier
-        record_data["applied_at"] = applied_at_dt.isoformat()
-        self._save_collection(self.job_postings_collection, collection)
-        result = JobPostingRecord(**record_data)
-        self._patch_document_frontmatter(result)
-        return result
+        denorm = {"applied_with": cv_identifier, "applied_at": applied_at_dt.isoformat()}
+        return self.transition_job_posting(identifier, "applied", fields=denorm, record_fields=denorm)
 
     def transition_job_posting(
         self,
         identifier: str,
         location: str,
         fields: dict[str, Any] | None = None,
+        record_fields: dict[str, Any] | None = None,
     ) -> JobPostingRecord:
         """
         File a job posting into a named location, recording the transition.
 
         ``location`` may be ``"."`` to return to root; it is stored verbatim in
         the transition log but normalised to ``None`` in the record.
+
+        ``record_fields`` are merged into the collection entry in the same write,
+        so callers do not need a second load/save cycle for denormalized fields.
         """
         collection = self._load_collection(self.job_postings_collection)
         record_data = next(
@@ -288,6 +268,8 @@ class FileSystemRepository:
         record_data["location"] = normalised
         record_data["transitions"] = record_data.get("transitions", []) + [entry]
         record_data["updated_at"] = now.isoformat()
+        if record_fields:
+            record_data.update(record_fields)
 
         record = JobPostingRecord(**record_data)
         target_path = _job_posting_canonical_path(record)
@@ -681,10 +663,10 @@ class FileSystemRepository:
                 continue
             content = path.read_text()
             if not content.startswith("---\n"):
-                raise ValueError(f"No frontmatter block in {path}")
+                continue
             end = content.find("\n---\n", 4)
             if end == -1:
-                raise ValueError(f"Unclosed frontmatter block in {path}")
+                continue
             existing = yaml.safe_load(content[4:end]) or {}
             body = content[end + 5:]
             existing.update(record.model_dump(mode="json"))

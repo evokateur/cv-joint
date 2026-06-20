@@ -221,14 +221,17 @@ class TestPatchDocumentFrontmatter:
         # Should not raise even if no .md file exists yet
         repository_with_job_posting.archive_job_posting("acme-swe")
 
-    def test_raises_on_missing_frontmatter_block(
+    def test_skips_file_with_missing_frontmatter_block(
         self, repository_with_job_posting, temp_data_dir
     ):
         path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# No frontmatter here\n")
-        with pytest.raises(ValueError, match="No frontmatter block"):
-            repository_with_job_posting.archive_job_posting("acme-swe")
+        # Should not raise; file without frontmatter is skipped gracefully
+        record = repository_with_job_posting.archive_job_posting("acme-swe")
+        assert record.location == "archived"
+        moved = Path(temp_data_dir) / "job-postings" / "archived" / "acme-swe" / "job-posting.md"
+        assert "# No frontmatter here" in moved.read_text()
 
 
 class TestUpsertOptimizedCv:
