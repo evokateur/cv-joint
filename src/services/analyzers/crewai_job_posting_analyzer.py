@@ -2,6 +2,7 @@ import os
 from models import JobPosting
 
 os.environ["CREWAI_TRACING_ENABLED"] = "false"
+os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
 
 
 class CrewAiJobPostingAnalyzer:

@@ -4,6 +4,7 @@ from .cv_optimizer import FileBasedCvOptimizer
 from .models import OptimizerOutput
 
 os.environ["CREWAI_TRACING_ENABLED"] = "false"
+os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
 
 
 class CrewAiCvOptimizer(FileBasedCvOptimizer):
