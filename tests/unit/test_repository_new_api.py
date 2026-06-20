@@ -459,3 +459,31 @@ class TestOptimizedCvUsesParentPath:
         result = repository_with_job_posting.purge_optimized_cv("acme-swe", "opt-1")
         assert result is True
         assert not cv_dir.exists()
+
+
+class TestTransitionAuditLog:
+    def test_appends_entry_with_required_keys(self, repository_with_job_posting):
+        record = repository_with_job_posting.transition_job_posting("acme-swe", "applied")
+        assert len(record.transitions) == 1
+        entry = record.transitions[0]
+        assert entry["location"] == "applied"
+        assert "date" in entry
+
+    def test_arbitrary_fields_included_in_entry(self, repository_with_job_posting):
+        record = repository_with_job_posting.transition_job_posting(
+            "acme-swe", "applied", {"note": "strong match"}
+        )
+        assert record.transitions[0]["note"] == "strong match"
+
+    def test_subsequent_transitions_append_not_replace(self, repository_with_job_posting):
+        repository_with_job_posting.transition_job_posting("acme-swe", "applied")
+        record = repository_with_job_posting.transition_job_posting("acme-swe", "archived")
+        assert len(record.transitions) == 2
+        assert record.transitions[0]["location"] == "applied"
+        assert record.transitions[1]["location"] == "archived"
+
+    def test_dot_stored_verbatim_in_log_normalized_on_record(self, repository_with_job_posting):
+        repository_with_job_posting.transition_job_posting("acme-swe", "archived")
+        record = repository_with_job_posting.transition_job_posting("acme-swe", ".")
+        assert record.location is None
+        assert record.transitions[-1]["location"] == "."
