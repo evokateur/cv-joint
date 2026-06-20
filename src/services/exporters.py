@@ -74,16 +74,19 @@ class MarkdownExporter:
         if collection_name is None or collection_name == "optimizations":
             for item in self.repository.list_optimized_cvs():
                 record = OptimizedCvRecord(**item)
-                base_uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
+                uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
+                actual_path = self.repository.optimized_cv_base_uri(
+                    record.job_posting_identifier, record.identifier
+                )
                 cv = self.repository.get_optimized_cv(
                     record.job_posting_identifier, record.identifier
                 )
                 if cv:
                     self.export_cv(record, cv)
                     count += 1
-                for obj in self.repository.load_all_objects(base_uri).values():
+                for obj in self.repository.load_all_objects(actual_path).values():
                     if isinstance(obj, CurriculumVitae):
                         continue  # already exported via export_cv
-                    self._save(base_uri, obj)
+                    self._save(uri, obj)
                     count += 1
         return count

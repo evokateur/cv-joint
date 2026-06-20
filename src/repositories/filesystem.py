@@ -585,15 +585,17 @@ class FileSystemRepository:
                 raise ValueError(f"Not found: {uri}")
             return _cv_canonical_path(record)
 
-        parent_path = self.canonical_path(f"job-postings/{parsed['job_posting_identifier']}")
-        return f"{parent_path}/cvs/{parsed['identifier']}"
+        return self.optimized_cv_base_uri(parsed['job_posting_identifier'], parsed['identifier'])
+
+    def optimized_cv_base_uri(self, job_posting_identifier: str, cv_identifier: str) -> str:
+        record = self.get_job_posting_record(job_posting_identifier)
+        parent_path = record.path if record else f"job-postings/{job_posting_identifier}"
+        return f"{parent_path}/cvs/{cv_identifier}"
 
     def _cv_optimization_dir(
         self, job_posting_identifier: str, identifier: str
     ) -> Path:
-        return (
-            self.data_dir / "job-postings" / job_posting_identifier / "cvs" / identifier
-        )
+        return self._resolve_path(self.optimized_cv_base_uri(job_posting_identifier, identifier))
 
     # -------------------------------------------------------------------------
     # Generic object storage (URI-addressed, self-describing JSON)
@@ -712,7 +714,7 @@ class FileSystemRepository:
         if existing is not None:
             raise ValueError(f"Optimized CV already exists: job-postings/{job_posting_identifier}/cvs/{identifier}")
 
-        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        base_uri = self.optimized_cv_base_uri(job_posting_identifier, identifier)
         self.save_object(base_uri, cv)
 
         job_posting_record = self.get_job_posting_record(job_posting_identifier)
@@ -756,7 +758,7 @@ class FileSystemRepository:
     def get_optimized_cv(
         self, job_posting_identifier: str, identifier: str
     ) -> Optional[CurriculumVitae]:
-        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        base_uri = self.optimized_cv_base_uri(job_posting_identifier, identifier)
         return self.load_object(base_uri, CurriculumVitae)
 
     def list_optimized_cvs(

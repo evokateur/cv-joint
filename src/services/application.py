@@ -441,7 +441,7 @@ class ApplicationService:
             )
 
         identifier = f"{datetime.date.today()}"
-        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
 
         output = self.cv_optimizer.optimize(cv, job_posting)
         self.repository.save_object(base_uri, output.cv)
@@ -465,7 +465,7 @@ class ApplicationService:
         self, job_posting_identifier: str, identifier: str, output
     ):
         """Write peripheral optimizer artifacts via the repository (class-name convention)."""
-        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
         for artifact in output.artifacts.values():
             self.repository.save_object(base_uri, artifact)
 
@@ -483,7 +483,7 @@ class ApplicationService:
         Returns:
             OptimizedCvRecord
         """
-        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
         plan = self.repository.load_object(base_uri, CvTransformationPlan)
         cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
 
@@ -528,7 +528,7 @@ class ApplicationService:
         Returns:
             tuple of (plan_data, cv_data)
         """
-        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
         plan = self.repository.load_object(base_uri, CvTransformationPlan)
         cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
 
