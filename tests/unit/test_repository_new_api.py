@@ -6,6 +6,7 @@ list_optimized_cvs, remove_optimized_cv, rename_optimized_cv, purge_optimized_cv
 """
 
 import json
+import shutil
 import pytest
 import tempfile
 from pathlib import Path
@@ -382,3 +383,79 @@ class TestPurgeOptimizedCv:
 
     def test_returns_false_when_directory_not_found(self, repository_with_job_posting):
         assert repository_with_job_posting.purge_optimized_cv("acme-swe", "nonexistent") is False
+
+
+class TestOptimizedCvUsesParentPath:
+    """Optimized CV path operations must use the stored JobPostingRecord.path, not reconstruct from identifiers.
+
+    Regression tests for CJ-17: operations break when a job posting's path in the collection
+    index differs from the default `job-postings/{identifier}` (e.g. after archiving/moving).
+    """
+
+    def _move_job_posting(self, repository, identifier, new_rel):
+        """Physically move a job posting directory and update its stored path in the collection."""
+        collection = repository._load_collection(repository.job_postings_collection)
+        item = next(i for i in collection if i["identifier"] == identifier)
+        old_abs = repository.data_dir / item["path"]
+        new_abs = repository.data_dir / new_rel
+        new_abs.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old_abs), str(new_abs))
+        item["path"] = new_rel
+        repository._save_collection(repository.job_postings_collection, collection)
+
+    def test_add_optimized_cv_saves_under_parent_stored_path(
+        self, repository_with_job_posting, sample_cv, temp_data_dir
+    ):
+        self._move_job_posting(
+            repository_with_job_posting, "acme-swe", "job-postings/archived/acme-swe"
+        )
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        correct = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1/curriculum-vitae.json"
+        assert correct.exists()
+
+    def test_get_optimized_cv_reads_from_parent_stored_path(
+        self, repository_with_job_posting, sample_cv
+    ):
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        # Moving the job posting dir carries the nested cvs/opt-1 subdir with it.
+        self._move_job_posting(
+            repository_with_job_posting, "acme-swe", "job-postings/archived/acme-swe"
+        )
+        result = repository_with_job_posting.get_optimized_cv("acme-swe", "opt-1")
+        assert result is not None
+
+    def test_remove_optimized_cv_deletes_from_parent_stored_path(
+        self, repository_with_job_posting, sample_cv, temp_data_dir
+    ):
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        self._move_job_posting(
+            repository_with_job_posting, "acme-swe", "job-postings/archived/acme-swe"
+        )
+        cv_dir = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1"
+        assert cv_dir.exists()
+        repository_with_job_posting.remove_optimized_cv("acme-swe", "opt-1")
+        assert not cv_dir.exists()
+
+    def test_rename_optimized_cv_uses_parent_stored_path(
+        self, repository_with_job_posting, sample_cv, temp_data_dir
+    ):
+        repository_with_job_posting.add_optimized_cv("acme-swe", "old-id", "jane-doe", sample_cv)
+        self._move_job_posting(
+            repository_with_job_posting, "acme-swe", "job-postings/archived/acme-swe"
+        )
+        repository_with_job_posting.rename_optimized_cv("acme-swe", "old-id", "new-id")
+        assert not (Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/old-id").exists()
+        assert (Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/new-id").exists()
+
+    def test_purge_optimized_cv_deletes_from_parent_stored_path(
+        self, repository_with_job_posting, sample_cv, temp_data_dir
+    ):
+        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        self._move_job_posting(
+            repository_with_job_posting, "acme-swe", "job-postings/archived/acme-swe"
+        )
+        cv_dir = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1"
+        assert cv_dir.exists()
+        result = repository_with_job_posting.purge_optimized_cv("acme-swe", "opt-1")
+        assert result is True
+        assert not cv_dir.exists()
