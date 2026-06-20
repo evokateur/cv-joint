@@ -183,7 +183,7 @@ cv-joint
 
 Launches Gradio, runs `GRADIO_LAUNCHED_COMMAND`, `GRADIO_FINISHED_COMMAND` after Ctl-C
 
-(I have it run a wrapper app pointing at `http://localhost:7860`, then close it)
+(I have it launch a wrapper pointing at `http://localhost:7860`, then close it)
 
 ```sh
 cv-joint open
