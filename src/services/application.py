@@ -132,7 +132,7 @@ class ApplicationService:
         Retrieve saved job postings.
 
         Args:
-            archived: If False (default), excludes archived postings.
+            archived: If True, include archived postings. Default False.
             query: Optional keyword to filter by company, title, or experience level.
 
         Returns:
@@ -150,9 +150,19 @@ class ApplicationService:
             ]
         return results
 
+    def transition_job_posting(
+        self, identifier: str, location: str, fields: dict | None = None
+    ):
+        """File a job posting into a named location, recording the transition."""
+        return self.repository.transition_job_posting(identifier, location, fields)
+
     def archive_job_posting(self, identifier: str):
         """Mark a job posting as archived."""
         return self.repository.archive_job_posting(identifier)
+
+    def unarchive_job_posting(self, identifier: str):
+        """Return a job posting to the root (active/unfiled)."""
+        return self.repository.unarchive_job_posting(identifier)
 
     def mark_applied(
         self, identifier: str, cv_identifier: str, applied_at: Optional[datetime] = None

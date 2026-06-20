@@ -206,7 +206,7 @@ def rename(uri, new_id):
 
 @main.command("list")
 @click.argument("collection", type=click.Choice(["job-postings", "cvs", "curriculum-vitae"]))
-@click.option("--archived", is_flag=True, help="Show only archived entries")
+@click.option("--archived", is_flag=True, help="Show only archived job postings")
 @click.option("-q", "--query", metavar="QUERY", help="Filter by company, title, experience level, or URL")
 def list_objects(collection, archived, query):
     """List objects by collection and exit."""
@@ -214,33 +214,60 @@ def list_objects(collection, archived, query):
     service = ApplicationService()
 
     if collection == "job-postings":
-        if archived:
-            jobs = [j for j in service.get_job_postings(archived=True, query=query) if j.get("is_archived")]
-        else:
-            jobs = service.get_job_postings(archived=False, query=query)
-        for j in jobs:
+        for j in service.get_job_postings(archived=archived, query=query):
             click.echo(f"job-postings/{j.get('identifier', '')}")
     elif collection in ("cvs", "curriculum-vitae"):
         for cv in service.get_cvs(query=query):
             click.echo(f"cvs/{cv.get('identifier', '')}")
 
 
-@main.command("archive")
-@click.argument("uri", shell_complete=_complete_job_posting_uri)
-def archive(uri):
-    """Archive a job posting by URI and exit."""
-    from services.application import ApplicationService
-    service = ApplicationService()
+def _complete_location(_ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    candidates = [".", "applied", "archived"]
+    return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+
+
+def _require_job_posting_uri(uri: str) -> str:
     try:
         parsed = parse_uri(uri)
     except ValueError:
         raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
-
     if parsed["collection"] != "job-postings":
         raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
+    return parsed["identifier"]
 
-    service.archive_job_posting(parsed["identifier"])
+
+@main.command("transition")
+@click.argument("uri", shell_complete=_complete_job_posting_uri)
+@click.argument("location", shell_complete=_complete_location)
+@click.option("--field", multiple=True, metavar="KEY=VALUE", help="Extra fields to record in the transition log")
+def transition(uri, location, field):
+    """File a job posting into a named location and exit."""
+    from services.application import ApplicationService
+    identifier = _require_job_posting_uri(uri)
+    fields = dict(f.split("=", 1) for f in field) if field else None
+    ApplicationService().transition_job_posting(identifier, location, fields)
+    click.echo(f"Transitioned {uri} to {location!r}")
+
+
+@main.command("archive")
+@click.argument("uri", shell_complete=_complete_job_posting_uri)
+def archive(uri):
+    """Archive a job posting by URI and exit."""
+    identifier = _require_job_posting_uri(uri)
+    from services.application import ApplicationService
+    ApplicationService().archive_job_posting(identifier)
     click.echo(f"Archived {uri}")
+
+
+@main.command("unarchive")
+@click.argument("uri", shell_complete=_complete_job_posting_uri)
+def unarchive(uri):
+    """Return an archived job posting to active and exit."""
+    identifier = _require_job_posting_uri(uri)
+    from services.application import ApplicationService
+    ApplicationService().unarchive_job_posting(identifier)
+    click.echo(f"Unarchived {uri}")
 
 
 @main.command("apply")
@@ -249,19 +276,11 @@ def archive(uri):
 @click.option("--date", metavar="YYYY-MM-DD", help="Application date (defaults to today)")
 def apply(uri, cv_identifier, date):
     """Mark a job posting as applied to and exit."""
-    from services.application import ApplicationService
-    service = ApplicationService()
-    try:
-        parsed = parse_uri(uri)
-    except ValueError:
-        raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
-
-    if parsed["collection"] != "job-postings":
-        raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
-
+    identifier = _require_job_posting_uri(uri)
     applied_at = datetime.strptime(date, "%Y-%m-%d") if date else None
     cv_identifier = _normalise_cv_identifier(cv_identifier)
-    service.mark_applied(parsed["identifier"], cv_identifier, applied_at=applied_at)
+    from services.application import ApplicationService
+    ApplicationService().mark_applied(identifier, cv_identifier, applied_at=applied_at)
     click.echo(f"Marked {uri} as applied with {cv_identifier}")
 
 

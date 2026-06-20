@@ -484,7 +484,7 @@ class TestGetCvOptimizationsNew:
         service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
         service.archive_job_posting("acme-swe")
         opts = service.get_cv_optimizations()
-        assert all(o.get("job_posting_identifier") != "acme-swe" for o in opts)
+        assert not any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
 
     def test_includes_optimizations_from_active_job_postings(
         self, service, sample_job_posting_data, sample_cv_data

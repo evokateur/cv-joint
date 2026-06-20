@@ -194,7 +194,7 @@ class TestPatchDocumentFrontmatter:
             "job-postings/acme-swe/job-posting.md", "# Acme\n\nBody text.\n"
         )
         repository_with_job_posting.archive_job_posting("acme-swe")
-        path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
+        path = Path(temp_data_dir) / "job-postings" / "archived" / "acme-swe" / "job-posting.md"
         content = path.read_text()
         assert content.startswith("---\n")
         assert "is_archived: true" in content
@@ -202,19 +202,19 @@ class TestPatchDocumentFrontmatter:
     def test_preserves_hand_added_frontmatter_keys(
         self, repository_with_job_posting, temp_data_dir
     ):
-        path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("---\ncustom_tag: keep-me\n---\n# Acme\n")
+        src = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
+        src.parent.mkdir(parents=True, exist_ok=True)
+        src.write_text("---\ncustom_tag: keep-me\n---\n# Acme\n")
         repository_with_job_posting.archive_job_posting("acme-swe")
-        content = path.read_text()
-        assert "custom_tag: keep-me" in content
+        path = Path(temp_data_dir) / "job-postings" / "archived" / "acme-swe" / "job-posting.md"
+        assert "custom_tag: keep-me" in path.read_text()
 
     def test_preserves_body_content(self, repository_with_job_posting, temp_data_dir):
         repository_with_job_posting.save_document(
             "job-postings/acme-swe/job-posting.md", "# Acme\n\nHand-edited paragraph.\n"
         )
         repository_with_job_posting.archive_job_posting("acme-swe")
-        path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
+        path = Path(temp_data_dir) / "job-postings" / "archived" / "acme-swe" / "job-posting.md"
         assert "Hand-edited paragraph." in path.read_text()
 
     def test_skips_nonexistent_markdown_files(self, repository_with_job_posting):

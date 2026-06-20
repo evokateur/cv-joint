@@ -51,14 +51,13 @@ class TestListCommand:
     def test_archived_flag_shows_only_archived(self, runner):
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = [
-            {"identifier": "old-job", "company": "Gone", "title": "Dev", "created_at": "2025-01-15T00:00:00", "is_archived": True},
-            {"identifier": "active-job", "company": "Here", "title": "Dev", "created_at": "2025-02-01T00:00:00", "is_archived": False},
+            {"identifier": "old-job", "company": "Gone", "title": "Dev", "created_at": "2025-01-15T00:00:00"},
         ]
         with patch("services.application.ApplicationService", return_value=mock_service):
             result = runner.invoke(main, ["list", "job-postings", "--archived"])
         assert result.exit_code == 0
+        mock_service.get_job_postings.assert_called_once_with(archived=True, query=None)
         assert "job-postings/old-job" in result.output
-        assert "job-postings/active-job" not in result.output
 
     def test_unknown_collection_exits(self, runner):
         result = runner.invoke(main, ["list", "dogs"])

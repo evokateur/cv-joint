@@ -188,6 +188,8 @@ class JobPostingRecord(BaseModel):
     applied_at: Optional[datetime] = Field(default=None, description="When the application was submitted")
     applied_with: Optional[str] = Field(default=None, description="CV identifier used to apply")
     is_archived: bool = Field(default=False, description="Whether this posting is archived")
+    location: Optional[str] = Field(default=None, description="Current filed location; null means active/unfiled")
+    transitions: list[dict] = Field(default_factory=list, description="Ordered audit log of location transitions")
     created_at: datetime = Field(description="When this record was created")
     updated_at: datetime = Field(description="When this record was last updated")
 

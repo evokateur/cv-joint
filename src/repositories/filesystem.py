@@ -48,6 +48,8 @@ def parse_uri(uri: str) -> dict[str, str]:
 
 
 def _job_posting_canonical_path(record: JobPostingRecord) -> str:
+    if record.location:
+        return f"job-postings/{record.location}/{record.identifier}"
     return f"job-postings/{record.identifier}"
 
 
@@ -217,30 +219,22 @@ class FileSystemRepository:
         return [item for item in collection if not item.get("is_archived", False)]
 
     def archive_job_posting(self, identifier: str) -> JobPostingRecord:
-        """
-        Mark a job posting as archived.
-
-        Returns:
-            Updated JobPostingRecord
-        """
+        """Mark a job posting as archived."""
+        self.transition_job_posting(identifier, "archived")
         collection = self._load_collection(self.job_postings_collection)
-        record_data = next(
-            (item for item in collection if item["identifier"] == identifier), None
-        )
-        if record_data is None:
-            raise ValueError(f"Job posting not found: {identifier}")
-
+        record_data = next(item for item in collection if item["identifier"] == identifier)
         record_data["is_archived"] = True
-        record_data["updated_at"] = datetime.now().isoformat()
+        self._save_collection(self.job_postings_collection, collection)
+        result = JobPostingRecord(**record_data)
+        self._patch_document_frontmatter(result)
+        return result
 
-        record = JobPostingRecord(**record_data)
-        target_path = _job_posting_canonical_path(record)
-        if target_path != record.path:
-            new_abs = self._resolve_path(target_path)
-            new_abs.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(self._resolve_path(record.path)), str(new_abs))
-            record_data["path"] = target_path
-
+    def unarchive_job_posting(self, identifier: str) -> JobPostingRecord:
+        """Return a job posting to the root (active/unfiled)."""
+        self.transition_job_posting(identifier, ".")
+        collection = self._load_collection(self.job_postings_collection)
+        record_data = next(item for item in collection if item["identifier"] == identifier)
+        record_data["is_archived"] = False
         self._save_collection(self.job_postings_collection, collection)
         result = JobPostingRecord(**record_data)
         self._patch_document_frontmatter(result)
@@ -252,11 +246,32 @@ class FileSystemRepository:
         cv_identifier: str,
         applied_at: Optional[datetime] = None,
     ) -> JobPostingRecord:
-        """
-        Record that a job posting was applied to.
+        """Record that a job posting was applied to."""
+        applied_at_dt = applied_at or datetime.now()
+        self.transition_job_posting(
+            identifier, "applied",
+            {"applied_with": cv_identifier, "applied_at": applied_at_dt.isoformat()},
+        )
+        collection = self._load_collection(self.job_postings_collection)
+        record_data = next(item for item in collection if item["identifier"] == identifier)
+        record_data["applied_with"] = cv_identifier
+        record_data["applied_at"] = applied_at_dt.isoformat()
+        self._save_collection(self.job_postings_collection, collection)
+        result = JobPostingRecord(**record_data)
+        self._patch_document_frontmatter(result)
+        return result
 
-        Returns:
-            Updated JobPostingRecord
+    def transition_job_posting(
+        self,
+        identifier: str,
+        location: str,
+        fields: dict[str, Any] | None = None,
+    ) -> JobPostingRecord:
+        """
+        File a job posting into a named location, recording the transition.
+
+        ``location`` may be ``"."`` to return to root; it is stored verbatim in
+        the transition log but normalised to ``None`` in the record.
         """
         collection = self._load_collection(self.job_postings_collection)
         record_data = next(
@@ -265,16 +280,20 @@ class FileSystemRepository:
         if record_data is None:
             raise ValueError(f"Job posting not found: {identifier}")
 
-        record_data["applied_with"] = cv_identifier
-        record_data["applied_at"] = (applied_at or datetime.now()).isoformat()
-        record_data["updated_at"] = datetime.now().isoformat()
+        now = datetime.now()
+        entry = {"date": now.isoformat(), "location": location, **(fields or {})}
+        normalised = None if location == "." else location
+
+        record_data["location"] = normalised
+        record_data["transitions"] = record_data.get("transitions", []) + [entry]
+        record_data["updated_at"] = now.isoformat()
 
         record = JobPostingRecord(**record_data)
         target_path = _job_posting_canonical_path(record)
-        if target_path != record.path:
+        if target_path != record_data.get("path"):
             new_abs = self._resolve_path(target_path)
             new_abs.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(self._resolve_path(record.path)), str(new_abs))
+            shutil.move(str(self._resolve_path(record_data["path"])), str(new_abs))
             record_data["path"] = target_path
 
         self._save_collection(self.job_postings_collection, collection)
