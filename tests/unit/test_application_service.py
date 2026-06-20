@@ -420,12 +420,19 @@ class TestRenameCv:
 
 
 class TestGetJobPostings:
-    def test_forwards_archived_param(self):
+    def test_forwards_location_param(self):
         mock_repo = MagicMock()
         mock_repo.list_job_postings.return_value = []
         service = ApplicationService(repository=mock_repo)
-        service.get_job_postings(archived=True)
-        mock_repo.list_job_postings.assert_called_once_with(archived=True)
+        service.get_job_postings(location="archived")
+        mock_repo.list_job_postings.assert_called_once_with(location="archived", all=False)
+
+    def test_forwards_all_param(self):
+        mock_repo = MagicMock()
+        mock_repo.list_job_postings.return_value = []
+        service = ApplicationService(repository=mock_repo)
+        service.get_job_postings(all=True)
+        mock_repo.list_job_postings.assert_called_once_with(location=None, all=True)
 
 
 class TestArchiveJobPosting:

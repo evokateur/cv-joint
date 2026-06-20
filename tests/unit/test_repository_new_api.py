@@ -197,7 +197,7 @@ class TestPatchDocumentFrontmatter:
         path = Path(temp_data_dir) / "job-postings" / "archived" / "acme-swe" / "job-posting.md"
         content = path.read_text()
         assert content.startswith("---\n")
-        assert "is_archived: true" in content
+        assert "location: archived" in content
 
     def test_preserves_hand_added_frontmatter_keys(
         self, repository_with_job_posting, temp_data_dir

@@ -126,19 +126,20 @@ class ApplicationService:
         return self.repository.get_job_posting(identifier)
 
     def get_job_postings(
-        self, archived: bool = False, query: str | None = None
+        self, location: str | None = None, all: bool = False, query: str | None = None
     ) -> list[dict[str, Any]]:
         """
         Retrieve saved job postings.
 
         Args:
-            archived: If True, include archived postings. Default False.
+            location: Filter by location. None (default) returns active/unfiled only.
+            all: If True and location is None, return all records across all locations.
             query: Optional keyword to filter by company, title, or experience level.
 
         Returns:
             list of job posting metadata dictionaries
         """
-        results = self.repository.list_job_postings(archived=archived)
+        results = self.repository.list_job_postings(location=location, all=all)
         if query:
             q = query.lower()
             results = [
@@ -521,7 +522,7 @@ class ApplicationService:
         """
         opts = self.repository.list_optimized_cvs()
         active_job_ids = {
-            item["identifier"] for item in self.repository.list_job_postings(archived=False)
+            item["identifier"] for item in self.repository.list_job_postings()
         }
         return [o for o in opts if o.get("job_posting_identifier") in active_job_ids]
 
@@ -560,7 +561,7 @@ class ApplicationService:
 
     def get_cv_data_filepaths(self) -> list[dict[str, Any]]:
         active_job_ids = {
-            item["identifier"] for item in self.repository.list_job_postings(archived=False)
+            item["identifier"] for item in self.repository.list_job_postings()
         }
         results = []
         for item in self.repository.list_cvs():

@@ -203,20 +203,21 @@ class FileSystemRepository:
 
         return JobPostingRecord(**data)
 
-    def list_job_postings(self, archived: bool = False) -> list[dict[str, Any]]:
+    def list_job_postings(self, location: str | None = None, all: bool = False) -> list[dict[str, Any]]:
         """
         List job postings in the collection.
 
         Args:
-            archived: If False (default), excludes archived postings.
+            location: Filter by location. None (default) returns active/unfiled records only.
+            all: If True and location is None, return all records across all locations.
 
         Returns:
             List of collection metadata dicts
         """
         collection = self._load_collection(self.job_postings_collection)
-        if archived:
+        if all and location is None:
             return collection
-        return [item for item in collection if not item.get("is_archived", False)]
+        return [item for item in collection if item.get("location") == location]
 
     def archive_job_posting(self, identifier: str) -> JobPostingRecord:
         """Mark a job posting as archived."""

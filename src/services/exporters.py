@@ -60,7 +60,7 @@ class MarkdownExporter:
 
         count = 0
         if collection_name is None or collection_name == "job-postings":
-            for item in self.repository.list_job_postings():
+            for item in self.repository.list_job_postings(all=True):
                 record = JobPostingRecord(**item)
                 job_posting = self.repository.get_job_posting(record.identifier)
                 self.export_job_posting(record, job_posting)

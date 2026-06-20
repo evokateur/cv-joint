@@ -165,24 +165,36 @@ class TestJobPostingOperations:
         assert "active-job" in identifiers
         assert "archived-job" not in identifiers
 
-    def test_list_job_postings_includes_archived_when_requested(
+    def test_list_job_postings_by_location(
         self, repository, sample_job_posting
     ):
         repository.add_job_posting(sample_job_posting, "active-job")
         repository.add_job_posting(sample_job_posting, "archived-job")
         repository.archive_job_posting("archived-job")
 
-        listings = repository.list_job_postings(archived=True)
+        listings = repository.list_job_postings(location="archived")
+        identifiers = [item["identifier"] for item in listings]
+        assert "active-job" not in identifiers
+        assert "archived-job" in identifiers
+
+    def test_list_job_postings_all_returns_every_record(
+        self, repository, sample_job_posting
+    ):
+        repository.add_job_posting(sample_job_posting, "active-job")
+        repository.add_job_posting(sample_job_posting, "archived-job")
+        repository.archive_job_posting("archived-job")
+
+        listings = repository.list_job_postings(all=True)
         identifiers = [item["identifier"] for item in listings]
         assert "active-job" in identifiers
         assert "archived-job" in identifiers
 
-    def test_archive_job_posting_sets_flag(self, repository, sample_job_posting):
+    def test_archive_job_posting_sets_location(self, repository, sample_job_posting):
         repository.add_job_posting(sample_job_posting, "test-job")
         record = repository.archive_job_posting("test-job")
 
-        assert record.is_archived is True
-        assert repository.get_job_posting_record("test-job").is_archived is True
+        assert record.location == "archived"
+        assert repository.get_job_posting_record("test-job").location == "archived"
 
     def test_archive_job_posting_updates_updated_at(self, repository, sample_job_posting):
         from datetime import datetime

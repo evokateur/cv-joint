@@ -204,21 +204,39 @@ def rename(uri, new_id):
     click.echo(f"Renamed {uri} to {new_id}")
 
 
+def _complete_collection(_ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    base = ["job-postings", "cvs", "curriculum-vitae"]
+    locations = sorted({
+        item["location"]
+        for item in _load_collection("job-postings")
+        if item.get("location")
+    })
+    candidates = base + [f"job-postings/{loc}" for loc in locations]
+    return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+
+
 @main.command("list")
-@click.argument("collection", type=click.Choice(["job-postings", "cvs", "curriculum-vitae"]))
-@click.option("--archived", is_flag=True, help="Show only archived job postings")
+@click.argument("collection", shell_complete=_complete_collection)
+@click.option("--all", "all_locations", is_flag=True, help="Include all locations (job-postings only)")
 @click.option("-q", "--query", metavar="QUERY", help="Filter by company, title, experience level, or URL")
-def list_objects(collection, archived, query):
+def list_objects(collection, all_locations, query):
     """List objects by collection and exit."""
     from services.application import ApplicationService
     service = ApplicationService()
 
-    if collection == "job-postings":
-        for j in service.get_job_postings(archived=archived, query=query):
+    if collection == "job-postings" or collection.startswith("job-postings/"):
+        if collection == "job-postings":
+            location = None
+        else:
+            location = collection.split("/", 1)[1]
+        for j in service.get_job_postings(location=location, all=all_locations, query=query):
             click.echo(f"job-postings/{j.get('identifier', '')}")
     elif collection in ("cvs", "curriculum-vitae"):
         for cv in service.get_cvs(query=query):
             click.echo(f"cvs/{cv.get('identifier', '')}")
+    else:
+        raise click.UsageError(f"Unknown collection: {collection!r}")
 
 
 def _complete_location(_ctx, _param, incomplete):
