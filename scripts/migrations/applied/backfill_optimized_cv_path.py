@@ -10,6 +10,7 @@ Safe to run multiple times.
 Usage:
     uv run python scripts/migrations/backfill_optimized_cv_path.py
     uv run python scripts/migrations/backfill_optimized_cv_path.py --dry-run
+    uv run python scripts/migrations/backfill_optimized_cv_path.py --data-dir /path/to/data --dry-run
 """
 
 import argparse
@@ -20,8 +21,12 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from config.settings import get_data_dir
+from config.root import get_settings
 from models import OptimizedCvRecord
+
+
+def default_data_dir() -> str:
+    return get_settings().repositories.filesystem.data_dir
 
 
 def migrate(data_dir: str, dry_run: bool) -> None:
@@ -74,10 +79,11 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
+    parser.add_argument("--data-dir", metavar="PATH", help="Path to data directory")
     parser.add_argument("--dry-run", action="store_true", help="Print what would happen without writing")
     args = parser.parse_args()
 
-    migrate(get_data_dir(), dry_run=args.dry_run)
+    migrate(args.data_dir or default_data_dir(), dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
