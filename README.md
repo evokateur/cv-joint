@@ -145,14 +145,23 @@ Data directory structure:
 │   ├── job-postings.json
 │   ├── cvs.json
 │   └── optimized-cvs.json
-├── job-postings/{identifier}/
-│   ├── job-posting.json
-│   ├── job-posting.md  
-│   └── cvs/{identifier}/ # optimized for job posting
-│       ├── curriculum-vitae.json
-│       ├── curriculum-vitae.md
-│       ├── cv-transformation-plan.json
-│       └── cv-transformation-plan.md
+├── job-postings/
+│   ├── {identifier}/                 # active/unfiled job posting
+│   │   ├── job-posting.json
+│   │   ├── job-posting.md
+│   │   └── cvs/{identifier}/         # optimized for job posting
+│   │       ├── curriculum-vitae.json
+│   │       ├── curriculum-vitae.md
+│   │       ├── cv-transformation-plan.json
+│   │       └── cv-transformation-plan.md
+│   └── {location}/{identifier}/      # applied, archived, or custom location
+│       ├── job-posting.json
+│       ├── job-posting.md
+│       └── cvs/{identifier}/
+│           ├── curriculum-vitae.json
+│           ├── curriculum-vitae.md
+│           ├── cv-transformation-plan.json
+│           └── cv-transformation-plan.md
 └── cvs/{identifier}/
     ├── curriculum-vitae.json
     └── curriculum-vitae.md
@@ -191,9 +200,13 @@ cv-joint open      # serve and open in browser
 
 # Job postings
 cv-joint list job-postings
-cv-joint list job-postings --archived
+cv-joint list job-postings/applied
+cv-joint list job-postings/archived
+cv-joint list job-postings --all
 cv-joint list job-postings -q acme
+cv-joint transition job-postings/{id} {location}
 cv-joint archive job-postings/{id}
+cv-joint unarchive job-postings/{id}
 cv-joint apply job-postings/{id} {cv-id}
 cv-joint apply job-postings/{id} {cv-id} --date 2026-05-27
 cv-joint reanalyze job-postings/{id}
@@ -208,6 +221,6 @@ cv-joint remove job-postings/{id}
 cv-joint remove job-postings/{id}/cvs/{id}
 cv-joint rename job-postings/{id} {new-id}
 cv-joint export-markdown
-cv-joint export-markdown [job-postings|cvs]
+cv-joint export-markdown [job-postings|cvs|optimizations]
 cv-joint show-config
 ```
