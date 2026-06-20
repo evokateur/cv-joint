@@ -263,7 +263,15 @@ def transition(uri, location, field):
     """File a job posting into a named location and exit."""
     from services.application import ApplicationService
     identifier = _require_job_posting_uri(uri)
-    fields = dict(f.split("=", 1) for f in field) if field else None
+    if not location:
+        raise click.UsageError("location must not be empty")
+    if field:
+        pairs = [f.split("=", 1) for f in field]
+        if any(len(p) < 2 for p in pairs):
+            raise click.UsageError("--field values must be KEY=VALUE pairs")
+        fields = dict(pairs)
+    else:
+        fields = None
     ApplicationService().transition_job_posting(identifier, location, fields)
     click.echo(f"Transitioned {uri} to {location!r}")
 
