@@ -528,7 +528,7 @@ class ApplicationService:
         Returns:
             tuple of (plan_data, cv_data)
         """
-        base_uri = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
         plan = self.repository.load_object(base_uri, CvTransformationPlan)
         cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
 

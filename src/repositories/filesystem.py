@@ -585,8 +585,7 @@ class FileSystemRepository:
                 raise ValueError(f"Not found: {uri}")
             return _cv_canonical_path(record)
 
-        parent_path = self.canonical_path(f"job-postings/{parsed['job_posting_identifier']}")
-        return f"{parent_path}/cvs/{parsed['identifier']}"
+        return self.optimized_cv_base_uri(parsed['job_posting_identifier'], parsed['identifier'])
 
     def optimized_cv_base_uri(self, job_posting_identifier: str, cv_identifier: str) -> str:
         record = self.get_job_posting_record(job_posting_identifier)

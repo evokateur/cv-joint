@@ -580,7 +580,7 @@ class TestSaveCvOptimizationUsesParentPath:
 
 
 class TestExportOptimizationsUsesParentPath:
-    """export('optimizations') must load artifacts via the parent's stored path."""
+    """export('optimizations') must load artifacts and write markdown via the parent's stored path."""
 
     def test_finds_artifacts_after_parent_path_moved(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
@@ -603,3 +603,41 @@ class TestExportOptimizationsUsesParentPath:
 
         # CV via export_cv counts as 1; plan via load_all_objects counts as 1 more.
         assert count == 2
+
+    def test_markdown_written_at_parent_stored_path(
+        self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        cv = CurriculumVitae(**sample_cv_data)
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
+
+        _move_job_posting(service.repository, "acme-swe", "job-postings/archived/acme-swe")
+
+        service.export_markdown(collection_name="optimizations")
+
+        cv_md = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1/curriculum-vitae.md"
+        assert cv_md.exists()
+
+
+class TestGetCvOptimizationUsesParentPath:
+    """get_cv_optimization must load the transformation plan from the parent's stored path."""
+
+    def test_finds_plan_at_parent_stored_path(
+        self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        _move_job_posting(service.repository, "acme-swe", "job-postings/archived/acme-swe")
+
+        cv = CurriculumVitae(**sample_cv_data)
+        plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
+
+        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
+
+        cv_dir = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1"
+        plan_json = plan.model_dump(mode="json")
+        plan_json["_type"] = "CvTransformationPlan"
+        (cv_dir / "cv-transformation-plan.json").write_text(json.dumps(plan_json))
+
+        plan_data, _ = service.get_cv_optimization("acme-swe", "opt-1")
+
+        assert plan_data != {}
