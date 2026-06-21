@@ -711,6 +711,9 @@ def create_app():
                     )
 
                     with gr.Group(visible=False) as opt_save_controls:
+                        opt_identifier = gr.Textbox(
+                            label="Identifier", interactive=True
+                        )
                         with gr.Row():
                             save_opt_btn = gr.Button(
                                 "Save Optimization", variant="primary"
@@ -758,6 +761,7 @@ def create_app():
                             gr.update(visible=False),
                             "⚠ Please select both a job posting and a CV",
                             gr.update(value="", visible=False),
+                            "",
                         )
 
                     plan_data, cv_data, identifiers = service.create_cv_optimization(
@@ -779,6 +783,7 @@ def create_app():
                         gr.update(visible=True),
                         f"✓ Optimization complete: {identifiers.get('identifier', '')}",
                         gr.update(value="", visible=False),
+                        identifiers.get("identifier", ""),
                     )
 
                 def view_saved_optimization(evt: gr.SelectData):
@@ -796,6 +801,7 @@ def create_app():
                             gr.update(visible=False),
                             "",
                             gr.update(value="", visible=False),
+                            "",
                         )
 
                     plan_data, cv_data = service.get_cv_optimization(
@@ -828,6 +834,7 @@ def create_app():
                             value=f"job-postings/{job_posting_identifier}/cvs/{identifier}",
                             visible=True,
                         ),
+                        "",
                     )
 
                 def save_optimization(identifiers, is_saved, plan_data, cv_data):
@@ -903,6 +910,7 @@ def create_app():
                             {},
                             gr.update(visible=False),
                             gr.update(),
+                            "",
                         )
 
                     if not identifiers:
@@ -916,6 +924,7 @@ def create_app():
                             {},
                             gr.update(visible=False),
                             gr.update(),
+                            "",
                         )
 
                     return (
@@ -928,6 +937,7 @@ def create_app():
                         {},
                         gr.update(visible=False),
                         gr.update(value="", visible=False),
+                        "",
                     )
 
                 def load_cv_optimizations():
@@ -955,6 +965,7 @@ def create_app():
                         gr.update(visible=False),
                         "⏳ Optimizing CV...",
                         gr.update(value="", visible=False),
+                        "",
                     ),
                     outputs=[
                         opt_plan_json,
@@ -966,6 +977,7 @@ def create_app():
                         opt_save_controls,
                         opt_status,
                         opt_uri,
+                        opt_identifier,
                     ],
                 ).then(
                     fn=run_optimization,
@@ -980,6 +992,7 @@ def create_app():
                         opt_save_controls,
                         opt_status,
                         opt_uri,
+                        opt_identifier,
                     ],
                 )
 
@@ -995,6 +1008,7 @@ def create_app():
                         opt_save_controls,
                         opt_status,
                         opt_uri,
+                        opt_identifier,
                     ],
                 )
 
@@ -1023,7 +1037,14 @@ def create_app():
                         opt_identifiers,
                         opt_save_controls,
                         opt_uri,
+                        opt_identifier,
                     ],
+                )
+
+                opt_identifier.change(
+                    fn=lambda identifiers, new_id: {**identifiers, "identifier": new_id},
+                    inputs=[opt_identifiers, opt_identifier],
+                    outputs=[opt_identifiers],
                 )
 
                 refresh_optimizations_btn.click(
