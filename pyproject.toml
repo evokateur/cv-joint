@@ -25,6 +25,7 @@ dependencies = [
     "pyyaml",
     "requests",
     "validators",
+    "google-generativeai>=0.8.6",
 ]
 
 [dependency-groups]
