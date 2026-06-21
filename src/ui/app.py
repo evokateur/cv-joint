@@ -830,7 +830,7 @@ def create_app():
                         ),
                     )
 
-                def save_optimization(identifiers, is_saved):
+                def save_optimization(identifiers, is_saved, plan_data, cv_data):
                     if is_saved:
                         return (
                             "ℹ Optimization is already saved",
@@ -850,10 +850,14 @@ def create_app():
                         )
 
                     try:
+                        cv = CurriculumVitae(**cv_data) if cv_data else None
+                        plan = CvTransformationPlan(**plan_data) if plan_data else None
                         record = service.save_cv_optimization(
                             identifiers["job_posting_identifier"],
                             identifiers["identifier"],
                             identifiers["base_cv_identifier"],
+                            cv,
+                            plan,
                         )
                         opts = service.get_cv_optimizations()
                         opt_list_data = [
@@ -914,10 +918,6 @@ def create_app():
                             gr.update(),
                         )
 
-                    service.purge_cv_optimization(
-                        identifiers["job_posting_identifier"],
-                        identifiers["identifier"],
-                    )
                     return (
                         "✓ Optimization discarded",
                         None,
@@ -1000,7 +1000,7 @@ def create_app():
 
                 save_opt_btn.click(
                     fn=save_optimization,
-                    inputs=[opt_identifiers, opt_is_saved],
+                    inputs=[opt_identifiers, opt_is_saved, opt_plan_json, opt_cv_json],
                     outputs=[
                         opt_status,
                         opt_is_saved,

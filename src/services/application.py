@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from config.root import get_settings
-from models import CvTransformationPlan
+from models import CurriculumVitae, CvTransformationPlan
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
@@ -452,12 +452,8 @@ class ApplicationService:
             )
 
         identifier = f"{datetime.date.today()}"
-        base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
 
         output = self.cv_optimizer.optimize(cv, job_posting)
-        self.repository.save_object(base_uri, output.cv)
-        self._write_optimization_outputs(job_posting_identifier, identifier, output)
-
         plan = output.artifacts.get("transformation-plan")
 
         identifiers = {
@@ -481,7 +477,12 @@ class ApplicationService:
             self.repository.save_object(base_uri, artifact)
 
     def save_cv_optimization(
-        self, job_posting_identifier: str, identifier: str, base_cv_identifier: str
+        self,
+        job_posting_identifier: str,
+        identifier: str,
+        base_cv_identifier: str,
+        cv: CurriculumVitae,
+        plan: CvTransformationPlan | None = None,
     ):
         """
         Save a CV optimization to the repository.
@@ -490,24 +491,19 @@ class ApplicationService:
             job_posting_identifier: Identifier of the job posting
             identifier: Identifier for this optimization
             base_cv_identifier: Identifier of the base CV
+            cv: The optimized CV
+            plan: The transformation plan, if any
 
         Returns:
             OptimizedCvRecord
         """
-        base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
-        plan = self.repository.load_object(base_uri, CvTransformationPlan)
-        cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
-
-        if cv is None:
-            raise ValueError(
-                f"Cannot save CV optimization {identifier} for job posting {job_posting_identifier} — optimized CV is missing."
-            )
-
         record = self.repository.add_optimized_cv(
             job_posting_identifier, identifier, base_cv_identifier, cv
         )
 
         if plan is not None:
+            base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
+            self.repository.save_object(base_uri, plan)
             self.markdown_exporter.export_cv_transformation_plan(record, plan)
         self.markdown_exporter.export_cv(record, cv)
 

@@ -560,9 +560,9 @@ def _move_job_posting(repository, identifier, new_rel):
 
 
 class TestSaveCvOptimizationUsesParentPath:
-    """save_cv_optimization must load the transformation plan from the parent's stored path."""
+    """save_cv_optimization must write to the parent's stored path and export markdown."""
 
-    def test_loads_plan_from_parent_stored_path(
+    def test_saves_to_parent_stored_path(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
     ):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
@@ -571,17 +571,8 @@ class TestSaveCvOptimizationUsesParentPath:
         cv = CurriculumVitae(**sample_cv_data)
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
 
-        cv_dir = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1"
-        cv_dir.mkdir(parents=True, exist_ok=True)
-        cv_data = cv.model_dump(mode="json")
-        cv_data["_type"] = "CurriculumVitae"
-        (cv_dir / "curriculum-vitae.json").write_text(json.dumps(cv_data))
-        plan_data = plan.model_dump(mode="json")
-        plan_data["_type"] = "CvTransformationPlan"
-        (cv_dir / "cv-transformation-plan.json").write_text(json.dumps(plan_data))
-
         service.markdown_exporter = MagicMock()
-        service.save_cv_optimization("acme-swe", "opt-1", "jane-doe")
+        service.save_cv_optimization("acme-swe", "opt-1", "jane-doe", cv, plan)
 
         service.markdown_exporter.export_cv_transformation_plan.assert_called_once()
 
