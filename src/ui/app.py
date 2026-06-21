@@ -857,7 +857,7 @@ def create_app():
                         )
 
                     try:
-                        cv = CurriculumVitae(**cv_data) if cv_data else None
+                        cv = CurriculumVitae(**cv_data)
                         plan = CvTransformationPlan(**plan_data) if plan_data else None
                         record = service.save_cv_optimization(
                             identifiers["job_posting_identifier"],
