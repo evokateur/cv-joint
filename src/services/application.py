@@ -451,7 +451,7 @@ class ApplicationService:
                 f"CV or job posting not found: {cv_identifier}, {job_posting_identifier}"
             )
 
-        identifier = f"{datetime.date.today()}"
+        identifier = f"{cv_identifier}-{datetime.date.today()}"
 
         output = self.cv_optimizer.optimize(cv, job_posting)
         plan = output.artifacts.get("transformation-plan")
