@@ -207,18 +207,23 @@ def rename(uri, new_id):
 def _complete_collection(_ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
     base = ["job-postings", "cvs", "curriculum-vitae"]
-    locations = sorted({
-        item["location"]
-        for item in _load_collection("job-postings")
-        if item.get("location")
-    })
-    candidates = base + [f"job-postings/{loc}" for loc in locations]
+    job_postings = _load_collection("job-postings")
+    locations = sorted({item["location"] for item in job_postings if item.get("location")})
+    candidates = (
+        base
+        + [f"job-postings/{loc}" for loc in locations]
+        + [
+            f"job-postings/{item['location']}/{item['identifier']}"
+            for item in job_postings
+            if item.get("location") and item.get("identifier")
+        ]
+    )
     return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
 
 
 @main.command("list")
 @click.argument("collection", shell_complete=_complete_collection)
-@click.option("--all", "all_locations", is_flag=True, help="Include all locations (job-postings only)")
+@click.option("-r", "--recursive", "all_locations", is_flag=True, help="Include all locations (job-postings only)")
 @click.option("-q", "--query", metavar="QUERY", help="Filter by company, title, experience level, or URL")
 def list_objects(collection, all_locations, query):
     """List objects by collection and exit."""
@@ -227,16 +232,24 @@ def list_objects(collection, all_locations, query):
 
     if collection == "job-postings" or collection.startswith("job-postings/"):
         if collection == "job-postings":
-            location = None
+            location, id_prefix = None, None
         else:
-            location = collection.split("/", 1)[1]
-        for j in service.get_job_postings(location=location, all=all_locations, query=query):
+            parts = collection.split("/", 2)
+            location = parts[1]
+            id_prefix = parts[2] if len(parts) > 2 else None
+        results = service.get_job_postings(location=location, all=all_locations, query=query)
+        if id_prefix:
+            results = [j for j in results if j.get("identifier", "").startswith(id_prefix)]
+        for j in results:
             click.echo(f"job-postings/{j.get('identifier', '')}")
     elif collection in ("cvs", "curriculum-vitae"):
         for cv in service.get_cvs(query=query):
             click.echo(f"cvs/{cv.get('identifier', '')}")
     else:
         raise click.UsageError(f"Unknown collection: {collection!r}")
+
+
+main.add_command(list_objects, name="ls")
 
 
 def _complete_location(_ctx, _param, incomplete):
