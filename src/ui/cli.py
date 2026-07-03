@@ -323,6 +323,20 @@ def apply(uri, cv_identifier, date):
     click.echo(f"Marked {uri} as applied with {cv_identifier}")
 
 
+@main.command("add")
+@click.argument("uri", shell_complete=_complete_uri)
+@click.argument("file", type=click.Path(exists=True))
+def add(uri, file):
+    """Add a document to an object's directory by URI."""
+    from services.application import ApplicationService
+    service = ApplicationService()
+    try:
+        doc_uri = service.add_document(uri, file)
+    except ValueError as e:
+        raise click.UsageError(str(e))
+    click.echo(f"Added {doc_uri}")
+
+
 @main.command("completion")
 @click.argument("shell", required=False, type=click.Choice(["bash", "zsh", "fish"]))
 def completion(shell):
