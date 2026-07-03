@@ -63,7 +63,7 @@ class TestListCommand:
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = []
         with patch("services.application.ApplicationService", return_value=mock_service):
-            result = runner.invoke(main, ["list", "job-postings", "--all"])
+            result = runner.invoke(main, ["list", "job-postings", "--recursive"])
         assert result.exit_code == 0
         mock_service.get_job_postings.assert_called_once_with(location=None, all=True, query=None)
 
@@ -71,7 +71,7 @@ class TestListCommand:
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = []
         with patch("services.application.ApplicationService", return_value=mock_service):
-            result = runner.invoke(main, ["list", "job-postings/applied", "--all"])
+            result = runner.invoke(main, ["list", "job-postings/applied", "--recursive"])
         assert result.exit_code == 0
         mock_service.get_job_postings.assert_called_once_with(location="applied", all=True, query=None)
 
