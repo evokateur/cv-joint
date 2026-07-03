@@ -243,9 +243,7 @@ class TestRegenerateJobPosting:
     def test_creates_new_record_with_suffix(self, service, sample_job_posting_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         updated = JobPosting(**{**sample_job_posting_data, "title": "Senior Engineer"})
-        service.job_posting_analyzer = MagicMock()
-        service.job_posting_analyzer.analyze.return_value = updated
-        service._fetch_url_to_tempfile = MagicMock(return_value="/tmp/fake.html")
+        service._analyze_job_posting_url = MagicMock(return_value=updated)
 
         new_record = service.reanalyze_job_posting("acme-swe")
 
@@ -256,9 +254,9 @@ class TestRegenerateJobPosting:
     def test_reanalyze_of_suffixed_identifier_increments_base(self, service, sample_job_posting_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.save_job_posting(sample_job_posting_data, "acme-swe-2")
-        service.job_posting_analyzer = MagicMock()
-        service.job_posting_analyzer.analyze.return_value = JobPosting(**sample_job_posting_data)
-        service._fetch_url_to_tempfile = MagicMock(return_value="/tmp/fake.html")
+        service._analyze_job_posting_url = MagicMock(
+            return_value=JobPosting(**sample_job_posting_data)
+        )
 
         new_record = service.reanalyze_job_posting("acme-swe-2")
 
@@ -266,9 +264,9 @@ class TestRegenerateJobPosting:
 
     def test_regenerates_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.job_posting_analyzer = MagicMock()
-        service.job_posting_analyzer.analyze.return_value = JobPosting(**sample_job_posting_data)
-        service._fetch_url_to_tempfile = MagicMock(return_value="/tmp/fake.html")
+        service._analyze_job_posting_url = MagicMock(
+            return_value=JobPosting(**sample_job_posting_data)
+        )
 
         service.reanalyze_job_posting("acme-swe")
 
@@ -645,67 +643,50 @@ class TestGetCvOptimizationUsesParentPath:
 
 
 class TestCreateJobPostingFromUrl:
-    def test_fetches_url_when_no_content_file(self, service, sample_job_posting_data):
-        service._fetch_url_to_tempfile = MagicMock(return_value="/tmp/fake.html")
-        service.job_posting_analyzer = MagicMock()
-        service.job_posting_analyzer.analyze.return_value = JobPosting(**sample_job_posting_data)
+    def test_analyzes_fetched_url_when_no_content_file(self, service, sample_job_posting_data):
+        service._analyze_job_posting_url = MagicMock(
+            return_value=JobPosting(**sample_job_posting_data)
+        )
 
         service.create_job_posting(url="https://example.com/job/new")
 
-        service._fetch_url_to_tempfile.assert_called_once_with("https://example.com/job/new")
-        service.job_posting_analyzer.analyze.assert_called_once_with("/tmp/fake.html")
+        service._analyze_job_posting_url.assert_called_once_with("https://example.com/job/new")
 
-    def test_url_stored_in_data(self, service, sample_job_posting_data):
-        service._fetch_url_to_tempfile = MagicMock(return_value="/tmp/fake.html")
-        service.job_posting_analyzer = MagicMock()
-        service.job_posting_analyzer.analyze.return_value = JobPosting(**{
-            **sample_job_posting_data, "url": "Not specified"
-        })
+    def test_url_injected_over_analyzer_value(self, service, sample_job_posting_data):
+        service._analyze_job_posting_url = MagicMock(
+            return_value=JobPosting(**{**sample_job_posting_data, "url": "Not specified"})
+        )
 
         data, _ = service.create_job_posting(url="https://example.com/job/new")
 
         assert data["url"] == "https://example.com/job/new"
 
-    def test_skips_fetch_when_content_file_provided(self, service, sample_job_posting_data, tmp_path):
+    def test_uses_content_file_when_provided(self, service, sample_job_posting_data, tmp_path):
         content = tmp_path / "job.md"
         content.write_text("# Job")
-        service._fetch_url_to_tempfile = MagicMock()
+        service._analyze_job_posting_url = MagicMock()
         service.job_posting_analyzer = MagicMock()
         service.job_posting_analyzer.analyze.return_value = JobPosting(**sample_job_posting_data)
 
         service.create_job_posting(url="https://example.com/job/123", content_file=str(content))
 
-        service._fetch_url_to_tempfile.assert_not_called()
+        service._analyze_job_posting_url.assert_not_called()
         service.job_posting_analyzer.analyze.assert_called_once_with(str(content))
 
-    def test_raises_when_neither_provided(self, service):
-        with pytest.raises(ValueError, match="Either url or content_file"):
-            service.create_job_posting()
 
-
-class TestCreateCvFromUrl:
-    def test_fetches_url_when_no_content_file(self, service, sample_cv_data):
-        service._fetch_url_to_tempfile = MagicMock(return_value="/tmp/fake.yaml")
-        service.cv_analyzer = MagicMock()
-        service.cv_analyzer.analyze.return_value = MagicMock(**sample_cv_data)
-
-        service.create_cv(url="https://example.com/cv.yaml")
-
-        service._fetch_url_to_tempfile.assert_called_once_with("https://example.com/cv.yaml")
-
-    def test_skips_fetch_when_content_file_provided(self, service, sample_cv_data, tmp_path):
+class TestCreateCv:
+    def test_analyzes_content_file(self, service, sample_cv_data, tmp_path):
         content = tmp_path / "cv.yaml"
         content.write_text("name: Jane")
-        service._fetch_url_to_tempfile = MagicMock()
         service.cv_analyzer = MagicMock()
         service.cv_analyzer.analyze.return_value = MagicMock(**sample_cv_data)
 
         service.create_cv(content_file=str(content))
 
-        service._fetch_url_to_tempfile.assert_not_called()
+        service.cv_analyzer.analyze.assert_called_once_with(str(content))
 
-    def test_raises_when_neither_provided(self, service):
-        with pytest.raises(ValueError, match="Either url or content_file"):
+    def test_raises_when_content_file_missing(self, service):
+        with pytest.raises(ValueError, match="content_file must be provided"):
             service.create_cv()
 
 

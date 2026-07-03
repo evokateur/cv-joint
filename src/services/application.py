@@ -1,12 +1,11 @@
 import re
 import tempfile
-import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 from config.root import get_settings
-from models import CurriculumVitae, CvTransformationPlan
+from models import CurriculumVitae, CvTransformationPlan, JobPosting
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
@@ -51,16 +50,23 @@ class ApplicationService:
             self.repository, self.markdown_converter
         )
 
-    def _fetch_url_to_tempfile(self, url: str) -> str:
-        """Fetch a URL and write its content to a temporary .html file. Returns the path."""
-        with urllib.request.urlopen(url) as response:
-            data = response.read()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp:
-            tmp.write(data)
-            return tmp.name
+    def _analyze_job_posting_url(self, url: str) -> JobPosting:
+        """Fetch a URL and analyze its content as a job posting.
+
+        The fetched content lives in a context-managed temp file for the
+        duration of the analysis, then is cleaned up automatically.
+        """
+        import requests
+
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        with tempfile.NamedTemporaryFile(suffix=".html") as tmp:
+            tmp.write(resp.content)
+            tmp.flush()
+            return self.job_posting_analyzer.analyze(tmp.name)
 
     def create_job_posting(
-        self, url: Optional[str] = None, content_file: Optional[str] = None
+        self, url: str, content_file: Optional[str] = None
     ) -> tuple[dict[str, Any], str]:
         """
         Analyze a job posting and create a structured JobPosting.
@@ -68,32 +74,28 @@ class ApplicationService:
         Note: This only analyzes, does not save. Use save_job_posting to persist.
 
         Args:
-            url: Job posting URL (used for dedup and provenance; fetched if no content_file)
-            content_file: Local file path to use as content
+            url: Job posting URL — its identity, used for dedup and stored as
+                provenance. Content is fetched from this URL unless content_file
+                is supplied (e.g. sites that only yield content in a browser).
+            content_file: Local file path to analyze in lieu of fetching the URL
 
         Returns:
             tuple of (job_posting_data, suggested_identifier)
         """
-        if url:
-            existing = self.repository.get_job_posting_record_by_url(url)
-            if existing:
-                raise ValueError(
-                    f"Job posting already analyzed: {existing.identifier}"
-                )
+        existing = self.repository.get_job_posting_record_by_url(url)
+        if existing:
+            raise ValueError(f"Job posting already analyzed: {existing.identifier}")
 
         if content_file is None:
-            if url is None:
-                raise ValueError("Either url or content_file must be provided")
-            content_file = self._fetch_url_to_tempfile(url)
+            job_posting = self._analyze_job_posting_url(url)
+        else:
+            job_posting = self.job_posting_analyzer.analyze(content_file)
 
-        job_posting = self.job_posting_analyzer.analyze(content_file)
-        data = job_posting.model_dump()
-        if url:
-            data["url"] = url
+        job_posting = job_posting.model_copy(update={"url": url})
         identifier = self._generate_job_identifier(
             job_posting.company, job_posting.title
         )
-        return data, identifier
+        return job_posting.model_dump(), identifier
 
     def save_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
@@ -191,7 +193,7 @@ class ApplicationService:
         return self.repository.mark_applied(identifier, cv_identifier, applied_at=applied_at)
 
     def create_cv(
-        self, content_file: Optional[str] = None, url: Optional[str] = None
+        self, content_file: Optional[str] = None
     ) -> tuple[dict[str, Any], str]:
         """
         Analyze a CV and create a structured CurriculumVitae.
@@ -200,15 +202,12 @@ class ApplicationService:
 
         Args:
             content_file: Path to CV file (JSON, YAML, plain text, etc.)
-            url: URL to fetch when no content_file is provided
 
         Returns:
             tuple of (cv_data, suggested_identifier)
         """
         if content_file is None:
-            if url is None:
-                raise ValueError("Either url or content_file must be provided")
-            content_file = self._fetch_url_to_tempfile(url)
+            raise ValueError("content_file must be provided")
         cv = self.cv_analyzer.analyze(content_file)
         identifier = self._generate_cv_identifier(cv.profession)
         return cv.model_dump(), identifier
@@ -294,9 +293,9 @@ class ApplicationService:
                 raise ValueError(
                     f"No content file provided and no URL stored for {identifier}"
                 )
-            content_file = self._fetch_url_to_tempfile(record.url)
-
-        job_posting = self.job_posting_analyzer.analyze(content_file)
+            job_posting = self._analyze_job_posting_url(record.url)
+        else:
+            job_posting = self.job_posting_analyzer.analyze(content_file)
         if record.url:
             job_posting = job_posting.model_copy(update={"url": record.url})
 

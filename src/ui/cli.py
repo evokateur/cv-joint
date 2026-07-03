@@ -338,16 +338,21 @@ def add(uri, file):
     click.echo(f"Added {doc_uri}")
 
 
-def _resolve_analyze_input(input_arg: str) -> tuple[str | None, str | None]:
-    """Return (content_file, url) from a CLI input argument (URL, file path, or '-')."""
-    if input_arg.startswith(("http://", "https://")):
-        return None, input_arg
-    if input_arg == "-":
+def _resolve_content(content: str | None) -> tuple[str | None, bool]:
+    """Resolve a content argument to (file_path, is_temp).
+
+    None -> (None, False)    caller fetches from URL
+    '-'  -> stdin written to a temp file (is_temp=True)
+    else -> (content, False) file path
+    """
+    if content is None:
+        return None, False
+    if content == "-":
         data = sys.stdin.buffer.read()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
             tmp.write(data)
-            return tmp.name, None
-    return input_arg, None
+            return tmp.name, True
+    return content, False
 
 
 @main.group("analyze")
@@ -356,34 +361,45 @@ def analyze():
 
 
 @analyze.command("job-posting")
-@click.argument("input", default="-")
-def analyze_job_posting(input):
-    """Analyze a job posting from a URL, file path, or stdin (-)."""
+@click.argument("url")
+@click.argument("content", required=False)
+def analyze_job_posting(url, content):
+    """Analyze a job posting.
+
+    URL is required and stored as the posting's identity. Content is fetched from
+    the URL unless a file path or '-' (stdin) is given.
+    """
     from services.application import ApplicationService
     service = ApplicationService()
-    content_file, url = _resolve_analyze_input(input)
+    content_file, is_temp = _resolve_content(content)
     try:
-        data, identifier = service.create_job_posting(url=url, content_file=content_file)
+        data, identifier = service.create_job_posting(url, content_file)
         record = service.save_job_posting(data, identifier)
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+    finally:
+        if is_temp and content_file:
+            os.unlink(content_file)
     click.echo(f"job-postings/{record.identifier}")
 
 
 @analyze.command("cv")
-@click.argument("input", default="-")
-def analyze_cv(input):
-    """Analyze a CV from a URL, file path, or stdin (-)."""
+@click.argument("content", default="-")
+def analyze_cv(content):
+    """Analyze a CV from a file path or stdin (-)."""
     from services.application import ApplicationService
     service = ApplicationService()
-    content_file, url = _resolve_analyze_input(input)
+    content_file, is_temp = _resolve_content(content)
     try:
-        data, identifier = service.create_cv(content_file=content_file, url=url)
+        data, identifier = service.create_cv(content_file)
         record = service.save_cv(data, identifier)
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+    finally:
+        if is_temp and content_file:
+            os.unlink(content_file)
     click.echo(f"cvs/{record.identifier}")
 
 

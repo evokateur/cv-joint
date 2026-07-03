@@ -208,21 +208,7 @@ class TestUnarchiveCommand:
 
 
 class TestAnalyzeJobPostingCommand:
-    def test_file_calls_service_with_content_file(self, runner, tmp_path):
-        content = tmp_path / "job.md"
-        content.write_text("# Job")
-        mock_record = MagicMock()
-        mock_record.identifier = "acme-swe"
-        with patch("services.application.ApplicationService") as MockService:
-            svc = MockService.return_value
-            svc.create_job_posting.return_value = ({}, "acme-swe")
-            svc.save_job_posting.return_value = mock_record
-            result = runner.invoke(main, ["analyze", "job-posting", str(content)])
-        assert result.exit_code == 0, result.output
-        svc.create_job_posting.assert_called_once_with(url=None, content_file=str(content))
-        assert "job-postings/acme-swe" in result.output
-
-    def test_url_calls_service_with_url(self, runner):
+    def test_url_only_fetches_content(self, runner):
         url = "https://example.com/job"
         mock_record = MagicMock()
         mock_record.identifier = "acme-swe"
@@ -232,21 +218,42 @@ class TestAnalyzeJobPostingCommand:
             svc.save_job_posting.return_value = mock_record
             result = runner.invoke(main, ["analyze", "job-posting", url])
         assert result.exit_code == 0, result.output
-        svc.create_job_posting.assert_called_once_with(url=url, content_file=None)
+        svc.create_job_posting.assert_called_once_with(url, None)
         assert "job-postings/acme-swe" in result.output
 
-    def test_stdin_buffers_to_tempfile(self, runner):
+    def test_url_with_content_file(self, runner, tmp_path):
+        url = "https://example.com/job"
+        content = tmp_path / "job.md"
+        content.write_text("# Job")
         mock_record = MagicMock()
         mock_record.identifier = "acme-swe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
             svc.create_job_posting.return_value = ({}, "acme-swe")
             svc.save_job_posting.return_value = mock_record
-            result = runner.invoke(main, ["analyze", "job-posting", "-"], input="# Job Posting")
+            result = runner.invoke(main, ["analyze", "job-posting", url, str(content)])
         assert result.exit_code == 0, result.output
-        call_kwargs = svc.create_job_posting.call_args
-        assert call_kwargs.kwargs["url"] is None
-        assert call_kwargs.kwargs["content_file"] is not None
+        svc.create_job_posting.assert_called_once_with(url, str(content))
+        assert "job-postings/acme-swe" in result.output
+
+    def test_stdin_content_buffers_to_tempfile(self, runner):
+        url = "https://example.com/job"
+        mock_record = MagicMock()
+        mock_record.identifier = "acme-swe"
+        with patch("services.application.ApplicationService") as MockService:
+            svc = MockService.return_value
+            svc.create_job_posting.return_value = ({}, "acme-swe")
+            svc.save_job_posting.return_value = mock_record
+            result = runner.invoke(main, ["analyze", "job-posting", url, "-"], input="# Job Posting")
+        assert result.exit_code == 0, result.output
+        args = svc.create_job_posting.call_args.args
+        assert args[0] == url
+        assert args[1] is not None
+
+    def test_missing_url_exits_nonzero(self, runner):
+        with patch("services.application.ApplicationService"):
+            result = runner.invoke(main, ["analyze", "job-posting"])
+        assert result.exit_code != 0
 
     def test_service_error_exits_nonzero(self, runner):
         with patch("services.application.ApplicationService") as MockService:
@@ -268,20 +275,7 @@ class TestAnalyzeCvCommand:
             svc.save_cv.return_value = mock_record
             result = runner.invoke(main, ["analyze", "cv", str(content)])
         assert result.exit_code == 0, result.output
-        svc.create_cv.assert_called_once_with(content_file=str(content), url=None)
-        assert "cvs/jane-doe" in result.output
-
-    def test_url_calls_service_with_url(self, runner):
-        url = "https://example.com/cv.md"
-        mock_record = MagicMock()
-        mock_record.identifier = "jane-doe"
-        with patch("services.application.ApplicationService") as MockService:
-            svc = MockService.return_value
-            svc.create_cv.return_value = ({}, "jane-doe")
-            svc.save_cv.return_value = mock_record
-            result = runner.invoke(main, ["analyze", "cv", url])
-        assert result.exit_code == 0, result.output
-        svc.create_cv.assert_called_once_with(content_file=None, url=url)
+        svc.create_cv.assert_called_once_with(str(content))
         assert "cvs/jane-doe" in result.output
 
     def test_stdin_buffers_to_tempfile(self, runner):
@@ -293,13 +287,12 @@ class TestAnalyzeCvCommand:
             svc.save_cv.return_value = mock_record
             result = runner.invoke(main, ["analyze", "cv", "-"], input="name: Jane")
         assert result.exit_code == 0, result.output
-        call_kwargs = svc.create_cv.call_args
-        assert call_kwargs.kwargs["url"] is None
-        assert call_kwargs.kwargs["content_file"] is not None
+        args = svc.create_cv.call_args.args
+        assert args[0] is not None
 
     def test_service_error_exits_nonzero(self, runner):
         with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.create_cv.side_effect = ValueError("Either url or content_file")
+            MockService.return_value.create_cv.side_effect = ValueError("content_file must be provided")
             result = runner.invoke(main, ["analyze", "cv", "-"], input="")
         assert result.exit_code != 0
 
