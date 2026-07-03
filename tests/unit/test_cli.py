@@ -297,6 +297,33 @@ class TestAnalyzeCvCommand:
         assert result.exit_code != 0
 
 
+class TestReanalyzeCommand:
+    def test_job_posting_stdin_buffers_to_tempfile(self, runner):
+        mock_record = MagicMock()
+        mock_record.identifier = "acme-swe-2"
+        with patch("services.application.ApplicationService") as MockService:
+            svc = MockService.return_value
+            svc.reanalyze_job_posting.return_value = mock_record
+            result = runner.invoke(
+                main, ["reanalyze", "job-postings/acme-swe", "-"], input="# Job Posting"
+            )
+        assert result.exit_code == 0, result.output
+        args = svc.reanalyze_job_posting.call_args.args
+        assert args[0] == "acme-swe"
+        assert args[1] is not None and args[1] != "-"
+        assert "job-postings/acme-swe-2" in result.output
+
+    def test_job_posting_no_content_passes_none(self, runner):
+        mock_record = MagicMock()
+        mock_record.identifier = "acme-swe-2"
+        with patch("services.application.ApplicationService") as MockService:
+            svc = MockService.return_value
+            svc.reanalyze_job_posting.return_value = mock_record
+            result = runner.invoke(main, ["reanalyze", "job-postings/acme-swe"])
+        assert result.exit_code == 0, result.output
+        svc.reanalyze_job_posting.assert_called_once_with("acme-swe", None)
+
+
 class TestAddCommand:
     def test_calls_service(self, runner, tmp_path):
         source = tmp_path / "notes.md"

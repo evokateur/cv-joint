@@ -153,6 +153,7 @@ def reanalyze(uri, content_file):
             "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
         )
 
+    content_file, is_temp = _resolve_content(content_file)
     try:
         if parsed["collection"] == "job-postings":
             record = service.reanalyze_job_posting(parsed["identifier"], content_file)
@@ -170,6 +171,9 @@ def reanalyze(uri, content_file):
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+    finally:
+        if is_temp and content_file:
+            os.unlink(content_file)
 
     click.echo(f"Reanalyzed as {new_uri}")
 
