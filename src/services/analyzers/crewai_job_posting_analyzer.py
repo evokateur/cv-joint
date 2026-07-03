@@ -8,11 +8,10 @@ os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
 class CrewAiJobPostingAnalyzer:
     """CrewAI implementation of job posting analysis."""
 
-    def analyze(self, url: str, content_file: str | None = None) -> JobPosting:
+    def analyze(self, content_file: str) -> JobPosting:
         from crews.job_posting_analysis.crew import JobPostingAnalysisCrew
 
         inputs = {
-            "job_posting_url": url,
             "content_file": content_file,
         }
 

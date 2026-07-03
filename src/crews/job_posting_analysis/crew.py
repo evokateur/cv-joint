@@ -1,8 +1,6 @@
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
-from crewai_tools import ScrapeWebsiteTool
-
 from .tools import ScrapeFileTool
 from typing import List
 from models import JobPosting
@@ -29,7 +27,7 @@ class JobPostingAnalysisCrew:
         """Agent that analyzes job postings from URLs"""
         return Agent(
             config=self.agents_config["job_analyst"],  # type: ignore[index]
-            tools=[ScrapeWebsiteTool(), ScrapeFileTool()],
+            tools=[ScrapeFileTool()],
             llm=self.llm,
             verbose=True,
         )

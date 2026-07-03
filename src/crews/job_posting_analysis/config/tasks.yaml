@@ -1,9 +1,6 @@
 job_analysis_task:
   description: >
-    Analyze the job posting at {job_posting_url}.
-
-    If a content file is provided ({content_file}), read the content from that local
-    file instead of fetching from the URL. The URL is still the canonical source.
+    Analyze the job posting from the local file at {content_file}.
 
     Extract structured information into the JobPosting schema:
 

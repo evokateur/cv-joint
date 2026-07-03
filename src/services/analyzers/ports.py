@@ -13,8 +13,8 @@ class CvAnalysisPort(Protocol):
 class JobPostingAnalysisPort(Protocol):
     """Implementation contract for job posting analysis."""
 
-    def analyze(self, url: str, content_file: str | None = None) -> JobPosting:
-        """Analyze a job posting URL or local source file."""
+    def analyze(self, content_file: str) -> JobPosting:
+        """Analyze a job posting from a local source file."""
 
 
 class CvOptimizationPort(Protocol):

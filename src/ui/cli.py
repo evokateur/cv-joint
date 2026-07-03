@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -335,6 +336,55 @@ def add(uri, file):
     except ValueError as e:
         raise click.UsageError(str(e))
     click.echo(f"Added {doc_uri}")
+
+
+def _resolve_analyze_input(input_arg: str) -> tuple[str | None, str | None]:
+    """Return (content_file, url) from a CLI input argument (URL, file path, or '-')."""
+    if input_arg.startswith(("http://", "https://")):
+        return None, input_arg
+    if input_arg == "-":
+        data = sys.stdin.buffer.read()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
+            tmp.write(data)
+            return tmp.name, None
+    return input_arg, None
+
+
+@main.group("analyze")
+def analyze():
+    """Analyze and save a new object."""
+
+
+@analyze.command("job-posting")
+@click.argument("input", default="-")
+def analyze_job_posting(input):
+    """Analyze a job posting from a URL, file path, or stdin (-)."""
+    from services.application import ApplicationService
+    service = ApplicationService()
+    content_file, url = _resolve_analyze_input(input)
+    try:
+        data, identifier = service.create_job_posting(url=url, content_file=content_file)
+        record = service.save_job_posting(data, identifier)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    click.echo(f"job-postings/{record.identifier}")
+
+
+@analyze.command("cv")
+@click.argument("input", default="-")
+def analyze_cv(input):
+    """Analyze a CV from a URL, file path, or stdin (-)."""
+    from services.application import ApplicationService
+    service = ApplicationService()
+    content_file, url = _resolve_analyze_input(input)
+    try:
+        data, identifier = service.create_cv(content_file=content_file, url=url)
+        record = service.save_cv(data, identifier)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    click.echo(f"cvs/{record.identifier}")
 
 
 @main.command("completion")

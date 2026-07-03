@@ -11,18 +11,17 @@ class JobPostingAnalyzer:
     def __init__(self, implementation: JobPostingAnalysisPort | None = None):
         self._implementation = implementation
 
-    def analyze(self, url: str, content_file: str | None = None) -> JobPosting:
+    def analyze(self, content_file: str) -> JobPosting:
         """
-        Analyze a job posting URL and return structured JobPosting data.
+        Analyze a job posting from a local file and return structured JobPosting data.
 
         Args:
-            url: Job posting URL to analyze
-            content_file: Optional local file path to use instead of fetching URL
+            content_file: Local file path to the job posting content
 
         Returns:
             JobPosting Pydantic model with extracted data
         """
-        return self._get_implementation().analyze(url, content_file)
+        return self._get_implementation().analyze(content_file)
 
     def _get_implementation(self) -> JobPostingAnalysisPort:
         if self._implementation is None:
