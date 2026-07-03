@@ -639,3 +639,34 @@ class TestGetCvOptimizationUsesParentPath:
         plan_data, _ = service.get_cv_optimization("acme-swe", "opt-1")
 
         assert plan_data != {}
+
+
+class TestAddDocument:
+    def test_bare_object_uri_uses_source_filename(self, service, sample_job_posting_data, tmp_path):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        source = tmp_path / "notes.md"
+        source.write_text("# Notes")
+        doc_uri = service.add_document("job-postings/acme-swe", str(source))
+        assert doc_uri == "job-postings/acme-swe/notes.md"
+
+    def test_full_document_uri_uses_given_name(self, service, sample_job_posting_data, tmp_path):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        source = tmp_path / "notes.md"
+        source.write_text("# Notes")
+        doc_uri = service.add_document("job-postings/acme-swe/intake.md", str(source))
+        assert doc_uri == "job-postings/acme-swe/intake.md"
+
+    def test_content_written_to_directory(self, service, sample_job_posting_data, tmp_path, temp_data_dir):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        source = tmp_path / "notes.md"
+        source.write_text("# Notes")
+        service.add_document("job-postings/acme-swe", str(source))
+        dest = Path(temp_data_dir) / "job-postings" / "acme-swe" / "notes.md"
+        assert dest.exists()
+        assert dest.read_text() == "# Notes"
+
+    def test_object_not_found_raises(self, service, tmp_path):
+        source = tmp_path / "notes.md"
+        source.write_text("# Notes")
+        with pytest.raises(ValueError, match="Not found"):
+            service.add_document("job-postings/nonexistent", str(source))

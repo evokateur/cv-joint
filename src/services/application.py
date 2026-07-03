@@ -12,6 +12,7 @@ from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
 from repositories import FileSystemRepository
+from repositories.filesystem import parse_uri
 from renderers.latex import render_latex, latex_to_pdf
 
 
@@ -426,6 +427,20 @@ class ApplicationService:
         This overwrites any existing markdown files, including manual edits.
         """
         return self.markdown_exporter.export(collection_name)
+
+    def add_document(self, uri: str, file_path: str) -> str:
+        """Place a file into an object's data directory. Returns the document URI."""
+        try:
+            parse_uri(uri)
+            base_uri = uri
+            doc_uri = f"{uri}/{Path(file_path).name}"
+        except ValueError:
+            base_uri, _ = uri.rsplit("/", 1)
+            doc_uri = uri
+
+        self.repository.resolve_record(base_uri)
+        self.repository.save_document(doc_uri, Path(file_path).read_text())
+        return doc_uri
 
     def create_cv_optimization(
         self, job_posting_identifier: str, cv_identifier: str
