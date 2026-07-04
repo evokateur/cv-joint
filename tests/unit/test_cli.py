@@ -324,6 +324,29 @@ class TestReanalyzeCommand:
         svc.reanalyze_job_posting.assert_called_once_with("acme-swe", None)
 
 
+class TestRenameCommand:
+    def test_normalises_matching_collection_prefix(self, runner):
+        with patch("services.application.ApplicationService") as MockService:
+            mock_service = MockService.return_value
+            result = runner.invoke(
+                main, ["rename", "job-postings/acme-swe", "job-postings/acme-swe-2"]
+            )
+        assert result.exit_code == 0, result.output
+        mock_service.rename_job_posting.assert_called_once_with(
+            "acme-swe", "acme-swe-2"
+        )
+
+    def test_rejects_wrong_collection_prefix(self, runner):
+        with patch("services.application.ApplicationService") as MockService:
+            mock_service = MockService.return_value
+            result = runner.invoke(
+                main, ["rename", "job-postings/acme-swe", "cvs/acme-swe-2"]
+            )
+        assert result.exit_code != 0
+        assert "illegal new identifier" in result.output
+        mock_service.rename_job_posting.assert_not_called()
+
+
 class TestAddCommand:
     def test_calls_service(self, runner, tmp_path):
         source = tmp_path / "notes.md"
