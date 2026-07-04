@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 from repositories import FileSystemRepository
-from repositories.filesystem import parse_uri
+from repositories.filesystem import normalize_new_identifier, parse_uri
 from models import JobPosting, CurriculumVitae
 
 
@@ -545,6 +545,39 @@ class TestParseUri:
     def test_raises_for_unrecognised_uri(self):
         with pytest.raises(ValueError, match="Unrecognised URI"):
             parse_uri("unknown/foo/bar")
+
+
+class TestNormalizeNewIdentifier:
+    def test_bare_identifier_passes_through(self):
+        assert normalize_new_identifier("job-postings/foo", "bar") == "bar"
+
+    def test_strips_matching_job_posting_prefix(self):
+        assert normalize_new_identifier("job-postings/foo", "job-postings/bar") == "bar"
+
+    def test_strips_matching_cv_prefix(self):
+        assert normalize_new_identifier("cvs/foo", "cvs/bar") == "bar"
+
+    def test_strips_matching_optimized_cv_prefix(self):
+        result = normalize_new_identifier(
+            "job-postings/acme/cvs/foo", "job-postings/acme/cvs/bar"
+        )
+        assert result == "bar"
+
+    def test_rejects_wrong_collection_prefix(self):
+        with pytest.raises(ValueError, match="Illegal identifier"):
+            normalize_new_identifier("job-postings/foo", "cvs/bar")
+
+    def test_rejects_unknown_collection_prefix(self):
+        with pytest.raises(ValueError, match="Illegal identifier"):
+            normalize_new_identifier("job-postings/foo", "catbutt/bar")
+
+    def test_rejects_empty_remainder(self):
+        with pytest.raises(ValueError, match="Illegal identifier"):
+            normalize_new_identifier("job-postings/foo", "job-postings/")
+
+    def test_rejects_slash_only(self):
+        with pytest.raises(ValueError, match="Illegal identifier"):
+            normalize_new_identifier("job-postings/foo", "a/b")
 
 
 class TestResolveRecord:

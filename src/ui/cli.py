@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 import yaml
 
-from repositories.filesystem import parse_uri
+from repositories.filesystem import normalize_new_identifier, parse_uri
 
 
 def _load_collection(name: str) -> list[dict]:
@@ -191,6 +191,14 @@ def rename(uri, new_id):
         raise click.UsageError(
             f"unrecognised URI '{uri}'\n"
             "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
+        )
+
+    try:
+        new_id = normalize_new_identifier(uri, new_id)
+    except ValueError:
+        raise click.UsageError(
+            f"illegal new identifier '{new_id}'\n"
+            "Expected a bare identifier (no '/'), optionally prefixed with the source collection"
         )
 
     try:
