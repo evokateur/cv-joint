@@ -21,8 +21,11 @@
                         "type": "string"
                     }
                 },
-                "summary_of_qualifications": {
-                    "type": "string"
+                "qualifications": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "education": {
                     "type": "array",
@@ -65,7 +68,7 @@
                 "languages",
                 "name",
                 "profession",
-                "summary_of_qualifications"
+                "qualifications"
             ],
             "title": "CvSchema"
         },

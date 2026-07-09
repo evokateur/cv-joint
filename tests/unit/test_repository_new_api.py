@@ -43,7 +43,7 @@ def sample_cv():
             linkedin="linkedin.com/in/janedoe", github="github.com/janedoe",
         ),
         core_expertise=["Python"],
-        summary_of_qualifications="10 years experience",
+        qualifications=["10 years experience"],
         education=[], experience=[], additional_experience=[],
         areas_of_expertise=[], languages=[],
     )

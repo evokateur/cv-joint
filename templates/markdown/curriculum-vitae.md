@@ -10,7 +10,9 @@
 
 ## Summary of Qualifications
 
-{{ obj.summary_of_qualifications }}
+{% for qualification in obj.qualifications -%}
+- {{ qualification }}
+{% endfor %}
 
 ## Areas of Expertise
 

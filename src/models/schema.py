@@ -53,7 +53,9 @@ class CurriculumVitae(BaseModel):
     contact: Contact
     profession: str
     core_expertise: List[str]
-    summary_of_qualifications: str
+    qualifications: List[str] = Field(
+        description="Summary of qualifications; each item is a full paragraph"
+    )
     education: List[Education]
     experience: List[Experience]
     additional_experience: List[AdditionalExperience]
@@ -185,11 +187,21 @@ class JobPostingRecord(BaseModel):
     company: str = Field(description="Company name (for listing display)")
     title: str = Field(description="Job title (for listing display)")
     experience_level: str = Field(description="Experience level (for listing display)")
-    applied_at: Optional[datetime] = Field(default=None, description="When the application was submitted")
-    applied_with: Optional[str] = Field(default=None, description="CV identifier used to apply")
-    is_archived: bool = Field(default=False, description="Whether this posting is archived")
-    location: Optional[str] = Field(default=None, description="Current filed location; null means active/unfiled")
-    transitions: list[dict] = Field(default_factory=list, description="Ordered audit log of location transitions")
+    applied_at: Optional[datetime] = Field(
+        default=None, description="When the application was submitted"
+    )
+    applied_with: Optional[str] = Field(
+        default=None, description="CV identifier used to apply"
+    )
+    is_archived: bool = Field(
+        default=False, description="Whether this posting is archived"
+    )
+    location: Optional[str] = Field(
+        default=None, description="Current filed location; null means active/unfiled"
+    )
+    transitions: list[dict] = Field(
+        default_factory=list, description="Ordered audit log of location transitions"
+    )
     created_at: datetime = Field(description="When this record was created")
     updated_at: datetime = Field(description="When this record was last updated")
 
@@ -206,7 +218,8 @@ class CurriculumVitaeRecord(BaseModel):
     name: str = Field(description="Person's name (for listing display)")
     profession: str = Field(description="Profession (for listing display)")
     job_posting_identifier: Optional[str] = Field(
-        default=None, description="Parent job posting identifier, if this is an optimized CV"
+        default=None,
+        description="Parent job posting identifier, if this is an optimized CV",
     )
     created_at: datetime = Field(description="When this record was created")
     updated_at: datetime = Field(description="When this record was last updated")
@@ -229,8 +242,12 @@ class OptimizedCvRecord(BaseModel):
     )
     name: str = Field(description="Person's name (for listing display)")
     profession: str = Field(description="Profession (for listing display)")
-    job_title: Optional[str] = Field(default=None, description="Job title (for listing display)")
-    company: Optional[str] = Field(default=None, description="Company (for listing display)")
+    job_title: Optional[str] = Field(
+        default=None, description="Job title (for listing display)"
+    )
+    company: Optional[str] = Field(
+        default=None, description="Company (for listing display)"
+    )
     created_at: datetime = Field(description="When this optimization was created")
     updated_at: datetime = Field(description="When this optimization was last updated")
 
@@ -252,13 +269,19 @@ class CvOptimizationRecord(BaseModel):
     transformation_plan_filepath: str = Field(
         description="Path to transformation-plan.json relative to data dir"
     )
-    job_title: Optional[str] = Field(default=None, description="Job title (for listing display)")
-    company: Optional[str] = Field(default=None, description="Company (for listing display)")
+    job_title: Optional[str] = Field(
+        default=None, description="Job title (for listing display)"
+    )
+    company: Optional[str] = Field(
+        default=None, description="Company (for listing display)"
+    )
     created_at: datetime = Field(description="When this CV optimization was created")
 
 
-DOMAIN_OBJECT_REGISTRY.update({
-    "CurriculumVitae": CurriculumVitae,
-    "CvTransformationPlan": CvTransformationPlan,
-    "JobPosting": JobPosting,
-})
+DOMAIN_OBJECT_REGISTRY.update(
+    {
+        "CurriculumVitae": CurriculumVitae,
+        "CvTransformationPlan": CvTransformationPlan,
+        "JobPosting": JobPosting,
+    }
+)

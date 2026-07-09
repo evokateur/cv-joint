@@ -108,7 +108,7 @@ class TestConvertCv:
                 github="github.com/janedoe",
             ),
             core_expertise=["Python", "Testing"],
-            summary_of_qualifications="10 years experience",
+            qualifications=["10 years experience"],
             education=[],
             experience=[],
             additional_experience=[],
@@ -201,7 +201,7 @@ class TestGenericConvert:
                 linkedin="linkedin.com/in/janedoe", github="github.com/janedoe",
             ),
             core_expertise=["Python"],
-            summary_of_qualifications="10 years",
+            qualifications=["10 years"],
             education=[], experience=[], additional_experience=[],
             areas_of_expertise=[], languages=[],
         )
