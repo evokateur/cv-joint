@@ -140,7 +140,7 @@ def remove(uri):
 
 @main.command("reanalyze")
 @click.argument("uri", shell_complete=_complete_uri)
-@click.argument("content_file", required=False)
+@click.argument("content_file", required=False, type=click.Path(dir_okay=False, allow_dash=True))
 def reanalyze(uri, content_file):
     """Re-analyze an object by URI and overwrite the existing record."""
     from services.application import ApplicationService
@@ -374,7 +374,7 @@ def analyze():
 
 @analyze.command("job-posting")
 @click.argument("url")
-@click.argument("content", required=False)
+@click.argument("content", required=False, type=click.Path(dir_okay=False, allow_dash=True))
 def analyze_job_posting(url, content):
     """Analyze a job posting.
 
@@ -397,7 +397,7 @@ def analyze_job_posting(url, content):
 
 
 @analyze.command("cv")
-@click.argument("content", default="-")
+@click.argument("content", default="-", type=click.Path(dir_okay=False, allow_dash=True))
 def analyze_cv(content):
     """Analyze a CV from a file path or stdin (-)."""
     from services.application import ApplicationService
