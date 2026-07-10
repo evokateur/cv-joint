@@ -719,3 +719,51 @@ class TestAddDocument:
         source.write_text("# Notes")
         with pytest.raises(ValueError, match="Not found"):
             service.add_document("job-postings/nonexistent", str(source))
+
+
+class TestExtractJobPosting:
+    """extract_job_posting resolves source content to clean markdown."""
+
+    HTML = (
+        "<!DOCTYPE html><html><head><title>Senior Python Engineer</title></head>"
+        "<body><main><h1>Senior Python Engineer</h1>"
+        "<p>We are hiring a backend engineer to build APIs and services with "
+        "Python, FastAPI, and Postgres in a fully remote team.</p>"
+        "</main></body></html>"
+    )
+
+    def test_html_file_is_converted_to_markdown(self, service, tmp_path):
+        html_file = tmp_path / "posting.html"
+        html_file.write_text(self.HTML, encoding="utf-8")
+        markdown = service.extract_job_posting("https://example.com/job/1", str(html_file))
+        assert "Senior Python Engineer" in markdown
+        assert "<html" not in markdown.lower()
+
+    def test_markdown_file_passes_through(self, service, tmp_path):
+        md = "# Already Markdown\n\nAlready extracted job text."
+        md_file = tmp_path / "posting.md"
+        md_file.write_text(md, encoding="utf-8")
+        result = service.extract_job_posting("https://example.com/job/1", str(md_file))
+        assert result == md
+
+    def test_url_is_fetched_and_preprocessed(self, service, monkeypatch):
+        import requests
+
+        class FakeResponse:
+            content = TestExtractJobPosting.HTML.encode("utf-8")
+
+            def raise_for_status(self):
+                pass
+
+        captured = {}
+
+        def fake_get(url, timeout=None):
+            captured["url"] = url
+            captured["timeout"] = timeout
+            return FakeResponse()
+
+        monkeypatch.setattr(requests, "get", fake_get)
+        markdown = service.extract_job_posting("https://example.com/job/42")
+        assert "Senior Python Engineer" in markdown
+        assert captured["url"] == "https://example.com/job/42"
+        assert captured["timeout"] == 30

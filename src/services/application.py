@@ -11,6 +11,7 @@ from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
+from .preprocessing import preprocess_to_markdown
 from repositories import FileSystemRepository
 from repositories.filesystem import parse_uri
 from renderers.latex import render_latex, latex_to_pdf
@@ -49,6 +50,26 @@ class ApplicationService:
         self.markdown_exporter = MarkdownExporter(
             self.repository, self.markdown_converter
         )
+
+    def extract_job_posting(
+        self, url: str, content_file: Optional[str] = None
+    ) -> str:
+        """Resolve source content to clean markdown.
+
+        Reads content_file when given, otherwise fetches the URL. HTML is
+        converted to markdown via the post-extractor stack; already-markdown
+        content passes through. The URL is threaded as source_url so the right
+        site extractor is selected and relative links resolve.
+        """
+        if content_file is not None:
+            content: bytes | str = Path(content_file).read_bytes()
+        else:
+            import requests
+
+            resp = requests.get(url, timeout=30)
+            resp.raise_for_status()
+            content = resp.content
+        return preprocess_to_markdown(content, source_url=url)
 
     def _analyze_job_posting_url(self, url: str) -> JobPosting:
         """Fetch a URL and analyze its content as a job posting.
