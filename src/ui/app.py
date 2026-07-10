@@ -124,7 +124,7 @@ def create_app():
                         _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
                         content_path = str(_UPLOADS_DIR / Path(content_file).name)
                         shutil.copy2(content_file, content_path)
-                    job_data, identifier = service.create_job_posting(url, content_path)
+                    job_data, identifier, _source_md = service.create_job_posting(url, content_path)
                     job_posting = JobPosting(**job_data)
                     job_md = service.to_markdown(job_posting)
                     is_saved = False

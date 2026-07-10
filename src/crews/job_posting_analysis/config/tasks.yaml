@@ -2,6 +2,9 @@ job_analysis_task:
   description: >
     Analyze the job posting from the local file at {content_file}.
 
+    The canonical URL for this posting is {job_posting_url}. Use it verbatim as the
+    `url` field. Do not infer, guess, or invent a URL from the content.
+
     Extract structured information into the JobPosting schema:
 
     **1. Metadata**

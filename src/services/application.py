@@ -71,28 +71,29 @@ class ApplicationService:
             content = resp.content
         return preprocess_to_markdown(content, source_url=url)
 
-    def _analyze_job_posting_url(self, url: str) -> JobPosting:
-        """Fetch a URL and analyze its content as a job posting.
+    def analyze_job_posting(self, url: str, markdown: str) -> JobPosting:
+        """Analyze already-markdown content into a structured JobPosting.
 
-        The fetched content lives in a context-managed temp file for the
+        The URL is handed to the crew only so it does not fabricate one for the
+        required url field; the caller stamps the authoritative URL onto the
+        result. The markdown lives in a context-managed temp file for the
         duration of the analysis, then is cleaned up automatically.
         """
-        import requests
-
-        resp = requests.get(url, timeout=30)
-        resp.raise_for_status()
-        with tempfile.NamedTemporaryFile(suffix=".html") as tmp:
-            tmp.write(resp.content)
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", encoding="utf-8"
+        ) as tmp:
+            tmp.write(markdown)
             tmp.flush()
-            return self.job_posting_analyzer.analyze(tmp.name)
+            return self.job_posting_analyzer.analyze(tmp.name, url)
 
     def create_job_posting(
         self, url: str, content_file: Optional[str] = None
-    ) -> tuple[dict[str, Any], str]:
+    ) -> tuple[dict[str, Any], str, str]:
         """
         Analyze a job posting and create a structured JobPosting.
 
-        Note: This only analyzes, does not save. Use save_job_posting to persist.
+        Note: This only analyzes, does not save. Use save_job_posting to persist
+        the record and save_job_posting_source to persist the source markdown.
 
         Args:
             url: Job posting URL — its identity, used for dedup and stored as
@@ -101,22 +102,20 @@ class ApplicationService:
             content_file: Local file path to analyze in lieu of fetching the URL
 
         Returns:
-            tuple of (job_posting_data, suggested_identifier)
+            tuple of (job_posting_data, suggested_identifier, source_markdown)
         """
         existing = self.repository.get_job_posting_record_by_url(url)
         if existing:
             raise ValueError(f"Job posting already analyzed: {existing.identifier}")
 
-        if content_file is None:
-            job_posting = self._analyze_job_posting_url(url)
-        else:
-            job_posting = self.job_posting_analyzer.analyze(content_file)
+        source_markdown = self.extract_job_posting(url, content_file)
+        job_posting = self.analyze_job_posting(url, source_markdown)
 
         job_posting = job_posting.model_copy(update={"url": url})
         identifier = self._generate_job_identifier(
             job_posting.company, job_posting.title
         )
-        return job_posting.model_dump(), identifier
+        return job_posting.model_dump(), identifier, source_markdown
 
     def save_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
@@ -309,14 +308,13 @@ class ApplicationService:
         if record is None:
             raise ValueError(f"Job posting not found: {identifier}")
 
-        if content_file is None:
-            if not record.url:
-                raise ValueError(
-                    f"No content file provided and no URL stored for {identifier}"
-                )
-            job_posting = self._analyze_job_posting_url(record.url)
-        else:
-            job_posting = self.job_posting_analyzer.analyze(content_file)
+        if content_file is None and not record.url:
+            raise ValueError(
+                f"No content file provided and no URL stored for {identifier}"
+            )
+
+        source_markdown = self.extract_job_posting(record.url, content_file)
+        job_posting = self.analyze_job_posting(record.url, source_markdown)
         if record.url:
             job_posting = job_posting.model_copy(update={"url": record.url})
 

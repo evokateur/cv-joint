@@ -243,7 +243,8 @@ class TestRegenerateJobPosting:
     def test_creates_new_record_with_suffix(self, service, sample_job_posting_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         updated = JobPosting(**{**sample_job_posting_data, "title": "Senior Engineer"})
-        service._analyze_job_posting_url = MagicMock(return_value=updated)
+        service.extract_job_posting = MagicMock(return_value="# md")
+        service.analyze_job_posting = MagicMock(return_value=updated)
 
         new_record = service.reanalyze_job_posting("acme-swe")
 
@@ -254,7 +255,8 @@ class TestRegenerateJobPosting:
     def test_reanalyze_of_suffixed_identifier_increments_base(self, service, sample_job_posting_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.save_job_posting(sample_job_posting_data, "acme-swe-2")
-        service._analyze_job_posting_url = MagicMock(
+        service.extract_job_posting = MagicMock(return_value="# md")
+        service.analyze_job_posting = MagicMock(
             return_value=JobPosting(**sample_job_posting_data)
         )
 
@@ -264,7 +266,8 @@ class TestRegenerateJobPosting:
 
     def test_regenerates_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service._analyze_job_posting_url = MagicMock(
+        service.extract_job_posting = MagicMock(return_value="# md")
+        service.analyze_job_posting = MagicMock(
             return_value=JobPosting(**sample_job_posting_data)
         )
 
@@ -644,34 +647,39 @@ class TestGetCvOptimizationUsesParentPath:
 
 class TestCreateJobPostingFromUrl:
     def test_analyzes_fetched_url_when_no_content_file(self, service, sample_job_posting_data):
-        service._analyze_job_posting_url = MagicMock(
+        service.extract_job_posting = MagicMock(return_value="# md")
+        service.analyze_job_posting = MagicMock(
             return_value=JobPosting(**sample_job_posting_data)
         )
 
         service.create_job_posting(url="https://example.com/job/new")
 
-        service._analyze_job_posting_url.assert_called_once_with("https://example.com/job/new")
+        service.extract_job_posting.assert_called_once_with("https://example.com/job/new", None)
+        service.analyze_job_posting.assert_called_once_with("https://example.com/job/new", "# md")
 
     def test_url_injected_over_analyzer_value(self, service, sample_job_posting_data):
-        service._analyze_job_posting_url = MagicMock(
+        service.extract_job_posting = MagicMock(return_value="# md")
+        service.analyze_job_posting = MagicMock(
             return_value=JobPosting(**{**sample_job_posting_data, "url": "Not specified"})
         )
 
-        data, _ = service.create_job_posting(url="https://example.com/job/new")
+        data, _, _ = service.create_job_posting(url="https://example.com/job/new")
 
         assert data["url"] == "https://example.com/job/new"
 
     def test_uses_content_file_when_provided(self, service, sample_job_posting_data, tmp_path):
         content = tmp_path / "job.md"
         content.write_text("# Job")
-        service._analyze_job_posting_url = MagicMock()
-        service.job_posting_analyzer = MagicMock()
-        service.job_posting_analyzer.analyze.return_value = JobPosting(**sample_job_posting_data)
+        service.extract_job_posting = MagicMock(return_value="# Job")
+        service.analyze_job_posting = MagicMock(
+            return_value=JobPosting(**sample_job_posting_data)
+        )
 
         service.create_job_posting(url="https://example.com/job/123", content_file=str(content))
 
-        service._analyze_job_posting_url.assert_not_called()
-        service.job_posting_analyzer.analyze.assert_called_once_with(str(content))
+        service.extract_job_posting.assert_called_once_with(
+            "https://example.com/job/123", str(content)
+        )
 
 
 class TestCreateCv:
@@ -767,3 +775,24 @@ class TestExtractJobPosting:
         assert "Senior Python Engineer" in markdown
         assert captured["url"] == "https://example.com/job/42"
         assert captured["timeout"] == 30
+
+
+class TestAnalyzeJobPosting:
+    """analyze_job_posting writes markdown to a temp file and threads the url."""
+
+    def test_markdown_and_url_reach_the_analyzer(self, service, sample_job_posting_data):
+        captured = {}
+
+        def fake_analyze(content_file, url):
+            captured["url"] = url
+            captured["content"] = Path(content_file).read_text(encoding="utf-8")
+            return JobPosting(**sample_job_posting_data)
+
+        service.job_posting_analyzer = MagicMock()
+        service.job_posting_analyzer.analyze.side_effect = fake_analyze
+
+        result = service.analyze_job_posting("https://example.com/x", "# Hello job")
+
+        assert captured["url"] == "https://example.com/x"
+        assert captured["content"] == "# Hello job"
+        assert result.company == sample_job_posting_data["company"]
