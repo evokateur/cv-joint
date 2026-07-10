@@ -1,6 +1,6 @@
 import argparse
 from renderers.latex import render_latex
-from model import CurriculumVitae, CoverLetter
+from models.schema import CurriculumVitae, CoverLetter
 
 
 def main_cv():
@@ -32,16 +32,12 @@ def main_cover_letter():
     parser.add_argument("input_file", help="Path to input JSON or YAML file")
     parser.add_argument("output_file", help="Path to output LaTeX file")
 
-    final_tex = rendered_tex.replace("xXposition", cover_letter.position).replace(
-        "xXcompany", cover_letter.company
-    )
+    args = parser.parse_args()
 
     post_replace = {
-        "xXposition": cover_letter.position,
-        "xXcompany": cover_letter.company,
+        "xXposition": "position",
+        "xXcompany": "company",
     }
-
-    args = parser.parse_args()
 
     render_latex(
         args.input_file,
