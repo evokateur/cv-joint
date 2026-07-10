@@ -38,6 +38,7 @@ dev = [
 cv-joint = "ui.cli:main"
 build-cv = "renderers.latex.cli:main_cv"
 build-cover-letter = "renderers.latex.cli:main_cover_letter"
+extract-post = "post_extractor.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
