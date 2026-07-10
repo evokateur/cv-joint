@@ -26,6 +26,10 @@ _WELCOME_TO_THE_JUNGLE_HOSTS = frozenset({
     "app.welcometothejungle.com",
     "welcometothejungle.com",
 })
+_LINKEDIN_HOSTS = frozenset({
+    "linkedin.com",
+    "www.linkedin.com",
+})
 _WELCOME_TO_THE_JUNGLE_EXPERIENCE_LEVELS = (
     ("Junior", re.compile(r"\bJunior\b", re.IGNORECASE)),
     ("Mid", re.compile(r"\bMid\b", re.IGNORECASE)),
@@ -507,7 +511,12 @@ class JobPosting:
     attachments: list[Attachment]
     company: str = ""
     salary: str = ""
+    posted: str = ""
+    applicant_activity: str = ""
     experience: str = ""
+    employment_type: str = ""
+    job_function: str = ""
+    industries: str = ""
     category: str = ""
     category_group: str = ""
     project_types: list[str] | None = None
@@ -561,8 +570,20 @@ class JobPosting:
             lines.append(f"- **Company:** {self.company}")
         if self.salary:
             lines.append(f"- **Salary:** {self.salary}")
+        if self.locations:
+            lines.append(f"- **Locations:** {', '.join(self.locations)}")
+        if self.posted:
+            lines.append(f"- **Posted:** {self.posted}")
+        if self.applicant_activity:
+            lines.append(f"- **Applicant Activity:** {self.applicant_activity}")
         if self.experience:
             lines.append(f"- **Experience:** {self.experience}")
+        if self.employment_type:
+            lines.append(f"- **Employment Type:** {self.employment_type}")
+        if self.job_function:
+            lines.append(f"- **Job Function:** {self.job_function}")
+        if self.industries:
+            lines.append(f"- **Industries:** {self.industries}")
         if self.category:
             lines.append(f"- **Category:** {self.category}")
         if self.category_group:
@@ -575,8 +596,6 @@ class JobPosting:
             lines.append(f"- **Engagement Duration:** {self.engagement_duration}")
         if self.contractor_tier:
             lines.append(f"- **Contractor Tier:** {self.contractor_tier}")
-        if self.locations:
-            lines.append(f"- **Locations:** {', '.join(self.locations)}")
         if self.countries:
             lines.append(f"- **Countries:** {', '.join(self.countries)}")
         if self.regions:
@@ -1099,6 +1118,173 @@ class UpworkExtractor:
         return value.strip()
 
 
+def postprocess_linkedin_markdown(markdown: str) -> JobPosting:
+    lines = markdown.splitlines()
+    title = _extract_linkedin_markdown_title(lines)
+    company, location, posted, applicant_activity = _extract_linkedin_top_card(lines)
+    salary = _extract_linkedin_salary(lines)
+    experience, employment_type, job_function, industries = _extract_linkedin_criteria(lines)
+    body = _extract_linkedin_body(lines)
+
+    return JobPosting(
+        title=title,
+        company=company,
+        salary=salary,
+        posted=posted,
+        applicant_activity=applicant_activity,
+        experience=experience,
+        employment_type=employment_type,
+        job_function=job_function,
+        industries=industries,
+        locations=[location] if location else [],
+        description_html=body,
+        attachments=[],
+    )
+
+
+def _extract_linkedin_markdown_title(lines: list[str]) -> str:
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            title = stripped.removeprefix("# ").strip()
+            if title and " | LinkedIn" not in title:
+                return title
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped and " | LinkedIn" in stripped:
+            return stripped.split(" | ", 1)[0].strip()
+
+    return ""
+
+
+def _extract_linkedin_top_card(lines: list[str]) -> tuple[str, str, str, str]:
+    pattern = re.compile(
+        r"^#### \[(?P<company>[^\]]+)\]\([^)]+\) (?P<details>.+?) "
+        r"(?P<posted>\d+\s+\w+\s+ago)(?: (?P<activity>\d+ .+?))?(?: \[|$)"
+    )
+    for line in lines:
+        match = pattern.match(line.strip())
+        if not match:
+            continue
+
+        return (
+            match.group("company").strip(),
+            match.group("details").strip(),
+            match.group("posted").strip(),
+            (match.group("activity") or "").strip(),
+        )
+
+    return "", "", "", ""
+
+
+def _extract_linkedin_salary(lines: list[str]) -> str:
+    for index, line in enumerate(lines):
+        if line.strip() != "### Base pay range":
+            continue
+
+        for candidate in lines[index + 1:]:
+            stripped = candidate.strip()
+            if stripped:
+                return stripped
+    return ""
+
+
+def _extract_linkedin_criteria(lines: list[str]) -> tuple[str, str, str, str]:
+    for index, line in enumerate(lines):
+        if line.strip() != "Show less":
+            continue
+
+        values = []
+        for candidate in lines[index + 1:]:
+            stripped = candidate.strip()
+            if not stripped:
+                continue
+            if not stripped.startswith("- "):
+                break
+            values.append(stripped.removeprefix("- ").strip())
+            if len(values) == 4:
+                break
+
+        values.extend([""] * (4 - len(values)))
+        return values[0], values[1], values[2], values[3]
+
+    return "", "", "", ""
+
+
+def _extract_linkedin_body(lines: list[str]) -> str:
+    start_index = _find_linkedin_body_start(lines)
+    if start_index is None:
+        return ""
+
+    stop_markers = (
+        "Show more",
+        "Show less",
+        "Referrals increase your chances",
+        "Get notified when a new job is posted.",
+        "## Similar jobs",
+        "## Similar Searches",
+    )
+    body_lines = []
+    for line in lines[start_index:]:
+        stripped = line.strip()
+        if any(stripped.startswith(marker) for marker in stop_markers):
+            break
+        if stripped in {"", " "}:
+            body_lines.append("")
+            continue
+        if stripped in {"[Save]", "Save"}:
+            continue
+        if stripped.startswith("![]("):
+            continue
+        body_lines.append(line.rstrip())
+
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(body_lines).strip())
+
+
+def _find_linkedin_body_start(lines: list[str]) -> int | None:
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("- **Role:**") or stripped.startswith("**Role Overview:**"):
+            return index
+    return None
+
+
+class LinkedInExtractor:
+    def __init__(self, html: str, source_url: str | None = None):
+        self._html = html
+        self._source_url = source_url
+
+    @classmethod
+    def from_string(cls, html: str, source_url: str | None = None) -> "LinkedInExtractor":
+        return cls(html, source_url=source_url)
+
+    @classmethod
+    def matches(cls, html: str, source_url: str | None = None) -> bool:
+        if not _contains_html(html):
+            return False
+
+        return cls._is_linkedin_source(source_url) or "| LinkedIn" in html or "linkedin.com/jobs/view" in html
+
+    @classmethod
+    def _is_linkedin_source(cls, source_url: str | None) -> bool:
+        if not source_url:
+            return False
+
+        host = urlparse(source_url).netloc.lower()
+        return any(host == allowed_host or host.endswith(f".{allowed_host}") for allowed_host in _LINKEDIN_HOSTS)
+
+    def extract(self) -> JobPosting:
+        if not _contains_html(self._html):
+            raise ValueError(_NOT_HTML_ERROR)
+
+        markdown = _render_markdown(_resolve_relative_links(self._html, self._source_url))
+        job = postprocess_linkedin_markdown(markdown)
+        if not job.title:
+            job.title = _extract_title_from_html(self._html).split(" | ", 1)[0].strip()
+        return job
+
+
 class GenericHtmlExtractor:
     def __init__(self, html: str, source_url: str | None = None):
         self._html = html
@@ -1317,7 +1503,7 @@ def select_extractor(html: str, source_url: str | None = None) -> type[Any]:
     if not _contains_html(html):
         raise ValueError(_NOT_HTML_ERROR)
 
-    extractors = (UpworkExtractor, WelcomeToTheJungleExtractor, GenericHtmlExtractor)
+    extractors = (UpworkExtractor, WelcomeToTheJungleExtractor, LinkedInExtractor, GenericHtmlExtractor)
     for extractor in extractors:
         if extractor.matches(html, source_url=source_url):
             return extractor

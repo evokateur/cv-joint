@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
-from .extractor import select_extractor
+from .extractor import postprocess_linkedin_markdown, select_extractor
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -38,7 +38,10 @@ def _fetch_url_html(url: str) -> str:
 
 def _build_output_path(input_value: str) -> Path:
     if not _is_url(input_value):
-        return Path(input_value).with_suffix(".md")
+        input_path = Path(input_value)
+        if input_path.suffix.lower() == ".md":
+            return input_path.with_name(f"{input_path.stem}-cleaned.md")
+        return input_path.with_suffix(".md")
 
     parsed = urlparse(input_value)
     slug = Path(parsed.path).name or parsed.netloc or "posting"
@@ -65,10 +68,14 @@ def main(argv: list[str] | None = None) -> int:
             if not input_file.exists():
                 print(f"Error: file not found: {input_file}", file=sys.stderr)
                 return 1
-            html = input_file.read_text(encoding="utf-8")
-            extractor = select_extractor(html)
-            print(f"Using {extractor.__name__}...", file=status_stream)
-            job = extractor.from_string(html).extract()
+            content = input_file.read_text(encoding="utf-8")
+            if input_file.suffix.lower() == ".md" and "| LinkedIn" in content:
+                print("Using LinkedIn markdown postprocessor...", file=status_stream)
+                job = postprocess_linkedin_markdown(content)
+            else:
+                extractor = select_extractor(content)
+                print(f"Using {extractor.__name__}...", file=status_stream)
+                job = extractor.from_string(content).extract()
     except (OSError, ValueError, RuntimeError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1

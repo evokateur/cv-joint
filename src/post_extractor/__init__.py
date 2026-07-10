@@ -1,9 +1,11 @@
 from .extractor import (
     ExtractedJob,
     GenericHtmlExtractor,
+    LinkedInExtractor,
     UpworkExtractor,
     WelcomeToTheJungleExtractor,
     extract_job_posting,
+    postprocess_linkedin_markdown,
     select_extractor,
 )
 
@@ -12,8 +14,10 @@ __all__ = [
     "select_extractor",
     "UpworkExtractor",
     "WelcomeToTheJungleExtractor",
+    "LinkedInExtractor",
     "GenericHtmlExtractor",
     "ExtractedJob",
+    "postprocess_linkedin_markdown",
 ]
 
 __version__ = "0.1.0"

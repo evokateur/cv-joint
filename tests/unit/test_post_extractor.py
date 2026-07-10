@@ -5,9 +5,11 @@ import pytest
 
 from post_extractor import (
     GenericHtmlExtractor,
+    LinkedInExtractor,
     UpworkExtractor,
     WelcomeToTheJungleExtractor,
     extract_job_posting,
+    postprocess_linkedin_markdown,
     select_extractor,
 )
 from post_extractor import cli
@@ -697,6 +699,34 @@ def test_extract_job_posting_prefers_wttj_extractor_when_available():
     assert job.technologies == ["Python", "GraphQL", "AWS"]
 
 
+def test_postprocess_linkedin_markdown_cleans_example_file():
+    markdown = (FIXTURES / "php-developer-back-end-remote-hire-feed.md").read_text(encoding="utf-8")
+
+    job = postprocess_linkedin_markdown(markdown)
+    output = job.to_markdown()
+
+    assert job.title == "PHP Developer - BackEnd (Remote)"
+    assert job.company == "Hire Feed"
+    assert job.locations == ["United States"]
+    assert job.salary == "$30.00/hr - $110.00/hr"
+    assert job.posted == "12 hours ago"
+    assert job.applicant_activity == "30 applicants"
+    assert job.experience == "Associate"
+    assert job.employment_type == "Contract"
+    assert job.job_function == "Information Technology, Engineering, and Product Management"
+    assert job.industries == "Technology, Information and Media, Software Development, and IT Services and IT Consulting"
+    assert "Minimum 3 years of experience" in output
+    assert "## Similar jobs" not in output
+    assert "Referrals increase your chances" not in output
+
+
+def test_select_extractor_returns_linkedin_for_linkedin_page():
+    html = (FIXTURES / "php-developer-back-end-remote-hire-feed.html").read_text(encoding="utf-8")
+
+    assert LinkedInExtractor.matches(html) is True
+    assert select_extractor(html) is LinkedInExtractor
+
+
 def test_wttj_experience_includes_expert_level():
     job = extract_job_posting(make_wttj_job_page_with_senior_and_expert_levels())
 
@@ -737,6 +767,25 @@ def test_cli_writes_markdown_file(capsys, tmp_path: Path):
     assert output_file.exists()
     assert captured.out == "Using UpworkExtractor...\n"
     assert captured.err == ""
+
+
+def test_cli_postprocesses_linkedin_markdown_file(capsys, tmp_path: Path):
+    saved_page = tmp_path / "linkedin.md"
+    saved_page.write_text(
+        (FIXTURES / "php-developer-back-end-remote-hire-feed.md").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+    exit_code = cli.main([str(saved_page)])
+    captured = capsys.readouterr()
+    output_file = tmp_path / "linkedin-cleaned.md"
+    output = output_file.read_text(encoding="utf-8")
+
+    assert exit_code == 0
+    assert output_file.exists()
+    assert "Using LinkedIn markdown postprocessor...\n" in captured.out
+    assert "- **Company:** Hire Feed" in output
+    assert "## Similar jobs" not in output
 
 
 def test_cli_writes_markdown_to_stdout_when_piped(monkeypatch, capsys, tmp_path: Path):
