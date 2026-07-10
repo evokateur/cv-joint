@@ -144,6 +144,15 @@ class ApplicationService:
         self.markdown_exporter.export_job_posting(record, job_posting)
         return record
 
+    def save_job_posting_source(self, identifier: str, markdown: str) -> None:
+        """Persist the preprocessed source markdown as source.md in the job
+        posting folder. Orthogonal to save_job_posting; call it after the record
+        is saved so the identifier is final.
+        """
+        self.repository.save_document(
+            f"job-postings/{identifier}/source.md", markdown
+        )
+
     def _generate_job_identifier(self, company: str, title: str) -> str:
         """Generate a URL-safe identifier from company and title."""
         import re

@@ -796,3 +796,30 @@ class TestAnalyzeJobPosting:
         assert captured["url"] == "https://example.com/x"
         assert captured["content"] == "# Hello job"
         assert result.company == sample_job_posting_data["company"]
+
+
+class TestSaveJobPostingSource:
+    """save_job_posting_source persists the cleaned source markdown as source.md."""
+
+    def test_writes_source_markdown(self, service, sample_job_posting_data, temp_data_dir):
+        record = service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.save_job_posting_source(record.identifier, "# Cleaned source\n\nBody text.")
+        src = Path(temp_data_dir) / "job-postings" / record.identifier / "source.md"
+        assert src.exists()
+        assert src.read_text() == "# Cleaned source\n\nBody text."
+
+    def test_source_has_no_frontmatter(self, service, sample_job_posting_data, temp_data_dir):
+        record = service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.save_job_posting_source(record.identifier, "# No frontmatter here")
+        src = Path(temp_data_dir) / "job-postings" / record.identifier / "source.md"
+        assert not src.read_text().startswith("---")
+
+    def test_does_not_collide_with_exporter_output(
+        self, service, sample_job_posting_data, temp_data_dir
+    ):
+        record = service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.save_job_posting_source(record.identifier, "# Source")
+        folder = Path(temp_data_dir) / "job-postings" / record.identifier
+        assert (folder / "source.md").exists()
+        assert (folder / "job-posting.md").exists()
+        assert (folder / "source.md").read_text() != (folder / "job-posting.md").read_text()

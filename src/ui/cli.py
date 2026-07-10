@@ -385,8 +385,9 @@ def analyze_job_posting(url, content):
     service = ApplicationService()
     content_file, is_temp = _resolve_content(content)
     try:
-        data, identifier, _source_md = service.create_job_posting(url, content_file)
+        data, identifier, source_md = service.create_job_posting(url, content_file)
         record = service.save_job_posting(data, identifier)
+        service.save_job_posting_source(record.identifier, source_md)
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
