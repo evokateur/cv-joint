@@ -791,6 +791,23 @@ class TestExtractJobPosting:
         assert captured["url"] == "https://example.com/job/42"
         assert captured["timeout"] == 30
 
+    def test_real_wttj_page_yields_job_facts(self, service):
+        """A real saved WTTJ job page routed through the seam yields substantive
+        job markdown (title, salary, location, skills) — not raw HTML."""
+        fixture = (
+            Path(__file__).parent.parent
+            / "fixtures"
+            / "post_extractor"
+            / "welcome-to-the-jungle.html"
+        )
+        url = "https://www.welcometothejungle.com/en/companies/automattic/jobs/experienced-software-engineer"
+        markdown = service.extract_job_posting(url, str(fixture))
+        assert "<html" not in markdown.lower()
+        assert "Experienced Software Engineer" in markdown
+        assert "$70-170k" in markdown
+        assert "Remote from US" in markdown
+        assert "PHP" in markdown
+
 
 class TestAnalyzeJobPosting:
     """analyze_job_posting writes markdown to a temp file and threads the url."""
