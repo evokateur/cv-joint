@@ -110,6 +110,25 @@ def export_markdown(collection):
     click.echo(f"Re-exported {count} markdown file(s)")
 
 
+@main.command("export-schema")
+@click.argument("path", required=False, type=click.Path(file_okay=False))
+def export_schema(path):
+    """Export JSON Schema for domain objects and exit.
+
+    Writes into PATH if given, otherwise into the data directory's schema/ subdirectory.
+    """
+    from services.schema_export import export_json_schemas
+
+    if path:
+        schema_dir = Path(path)
+    else:
+        from config.root import get_settings
+        schema_dir = Path(get_settings().repositories.filesystem.data_dir).expanduser() / "schema"
+
+    for written in export_json_schemas(schema_dir):
+        click.echo(f"Wrote {written}")
+
+
 @main.command("remove")
 @click.argument("uri", shell_complete=_complete_uri)
 def remove(uri):

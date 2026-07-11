@@ -373,3 +373,21 @@ class TestAddCommand:
             MockService.return_value.add_document.side_effect = ValueError("Not found: job-postings/acme-swe")
             result = runner.invoke(main, ["add", "job-postings/acme-swe", str(source)])
         assert result.exit_code != 0
+
+
+class TestExportSchemaCommand:
+    def test_explicit_path_writes_schema_files(self, runner, tmp_path):
+        result = runner.invoke(main, ["export-schema", str(tmp_path)])
+        assert result.exit_code == 0
+        written = {p.name for p in tmp_path.iterdir()}
+        assert "job-posting.schema.json" in written
+        assert "curriculum-vitae.schema.json" in written
+        assert "cv-transformation-plan.schema.json" in written
+
+    def test_default_path_uses_configured_data_dir(self, runner, tmp_path):
+        mock_settings = MagicMock()
+        mock_settings.repositories.filesystem.data_dir = str(tmp_path)
+        with patch("config.root.get_settings", return_value=mock_settings):
+            result = runner.invoke(main, ["export-schema"])
+        assert result.exit_code == 0
+        assert (tmp_path / "schema" / "job-posting.schema.json").exists()
