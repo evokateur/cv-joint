@@ -276,6 +276,21 @@ class TestRegenerateJobPosting:
         md_path = Path(temp_data_dir) / "job-postings" / "acme-swe-2" / "job-posting.md"
         assert md_path.exists()
 
+    def test_persists_source_markdown_on_new_record(
+        self, service, sample_job_posting_data, temp_data_dir
+    ):
+        service.save_job_posting(sample_job_posting_data, "acme-swe")
+        service.extract_job_posting = MagicMock(return_value="# Reanalyzed source")
+        service.analyze_job_posting = MagicMock(
+            return_value=JobPosting(**sample_job_posting_data)
+        )
+
+        new_record = service.reanalyze_job_posting("acme-swe")
+
+        src = Path(temp_data_dir) / "job-postings" / new_record.identifier / "source.md"
+        assert src.exists()
+        assert src.read_text() == "# Reanalyzed source"
+
 
 class TestRegenerateCv:
     def test_raises_when_not_found(self, service):

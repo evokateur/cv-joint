@@ -331,6 +331,7 @@ class ApplicationService:
 
         new_record = self.repository.add_job_posting(job_posting, new_identifier)
         self.markdown_exporter.export_job_posting(new_record, job_posting)
+        self.save_job_posting_source(new_record.identifier, source_markdown)
         return new_record
 
     def reanalyze_cv(self, identifier: str, content_file: str):
