@@ -23,11 +23,9 @@ The workflow was originally monolithic, structured outputs passed internally bet
                                        [ LaTeX renderer ] ──▶ PDF
 ```
 
-Then things began to decompose, the workflow was broken down into separate steps, the outputs persisted at each step.
+Then things began to decompose, the workflow split apart at the structured output boundaries.
 
-Currently, job and CV analysis run independently, producing data that can be used later to create optimized CVs.
-
-Each type of output is saved as JSON in a directory structure managed by a filesystem repository.
+Currently, job and CV analysis are run independently, producing data that can be used later to create optimized CVs.
 
 ## Features
 
@@ -41,7 +39,7 @@ Each type of output is saved as JSON in a directory structure managed by a files
 ## Implementation
 
 - Agentic analysis with CrewAI
-
+
 - Pydantic for domain objects and structured outputs
 
 - Click CLI
