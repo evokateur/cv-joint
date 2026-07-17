@@ -4,7 +4,7 @@ Track job postings, create targeted CVs, render them in LaTeX, achieve constant 
 
 ## Origins
 
-This started with the idea of combining an agentic workflow for CV optimization with rendering LaTeX CVs from structured data.
+This started with the idea of combining an agentic CV optimization workflow with rendering LaTeX CVs from structured data.
 
 The workflow was originally monolithic, structured outputs passed internally between stages in the pipeline:
 
@@ -23,7 +23,11 @@ The workflow was originally monolithic, structured outputs passed internally bet
                                        [ LaTeX renderer ] ──▶ PDF
 ```
 
-Then things began to decompose, the workflow was broken down into separate steps. Currently, job and CV analysis run independently, producing data to be used later to create optimized CVs.
+Then things began to decompose, the workflow was broken down into separate steps, the outputs persisted at each step.
+
+Currently, job and CV analysis run independently, producing data that can be used later to create optimized CVs.
+
+Each type of output is saved as JSON in a directory structure managed by a filesystem repository.
 
 ## Features
 
