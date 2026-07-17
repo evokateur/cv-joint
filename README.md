@@ -4,26 +4,26 @@ Track job postings, create targeted CVs, render them in LaTeX, achieve constant 
 
 ## Origins
 
-This started with the idea of combining an agentic workflow for CV optimization with rendering LaTeX CVs from structured CV output.
+This started with the idea of combining an agentic workflow for CV optimization with rendering LaTeX CVs from structured data.
 
 The workflow was originally monolithic, structured outputs passed internally between stages in the pipeline:
 
 ```text
-  job posting (URL / text) ─────▶ [ job analysis ]  ──▶ JobPosting ─┐
-                                                                     │
-  base CV (text) ───────────────▶ [ CV analysis ]   ──▶ CurriculumVitae ─┐
-                                                                     │    │
-                                                                     ▼    ▼
-   knowledge base ┄┄┄┄┄┄┄┄┄┄┄┄┄▶ [ strategist ] ──▶ CvTransformationPlan
-    (RAG retrieval)                                          │
-                                                             ▼
+  job posting content ─────▶ [ job analysis ] ──▶ JobPosting ─┐
+                                                              │
+  CV content  ────────────▶ [ CV analysis ] ──────▶ CurriculumVitae ─┐
+                                                              │      │
+                                                              ▼      ▼
+     knowledge base ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄▶ [ strategist ] ──▶ CvTransformationPlan
+     (RAG retrieval)                                        │
+                                                            ▼
                                        [ writer ] ──▶ optimized CurriculumVitae
-                                                             │
-                                                             ▼
+                                                            │
+                                                            ▼
                                        [ LaTeX renderer ] ──▶ PDF
 ```
 
-Then things began to decompose, the workflow broken down into separate steps, the idea being that each persists structured output to be used by subsequent steps in the pipeline. Currently, job and CV analysis run independently, producing data to be used later to create optimized CVs. All three types are persisted to the filesystem as JSON, alongside a markdown rendering that also shows up in the Gradio UI.
+Then things began to decompose, the workflow was broken down into separate steps. Currently, job and CV analysis run independently, producing data to be used later to create optimized CVs.
 
 ## Features
 
