@@ -23,9 +23,11 @@ The workflow was originally monolithic, structured outputs passed internally bet
                                        [ LaTeX renderer ] ──▶ PDF
 ```
 
-Then things began to decompose, the workflow split apart at the structured output boundaries.
+Then things began to decompose. The workflow split apart, with structured output being saved to files.
 
-Currently, job and CV analysis are run independently, producing data that can be used later to create optimized CVs.
+Currently, job and CV analysis are run independently, producing data to be used later to create optimized CVs.
+
+It functions as a job tracking system. A repository layer handles the storage of job postings, CVs, and optimizations as JSON in structured directories.
 
 ## Features
 
