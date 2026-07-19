@@ -25,22 +25,21 @@ The workflow was originally monolithic, structured data passed internally betwee
 
 Then things began to decompose. Job posting analysis was split from the workflow, CV analysis was added, then a Gradio UI.
 
-The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings. Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks their domain state in a separate collection of objects for each type. 
+The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings. Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks their domain state (or *record*, as in  `JobPostingRecord`) in separate collections.
 
-The repository also uses a markdown rendering service, originally created for the Gradio UI, to save a markdown representation of each object alongside the JSON. A nice side-effect is that, with the configured data directory inside a vault, job postings, transformation plans, and optimized CVs are browsable in Obsidian.
+The repository saves a Markdown representation of each object alongside the JSON with its record as front matter.
 
->[!question]
->a partial screenshot here?
+The status of a job posting is synonymous with its location in the job posting directory. The majority of job postings will be under `archived/` or `applied/`.
 
-Domain state (or *record*, as in `JobPostingRecord`) is included as front matter in each object's markdown.
+A nice side-effect all this is, with the configured data directory inside a vault, everything is browsable in Obsidian.
 
->[!question]
->an example here?
-
-RAG retrieval was originally done with a custom tool, with embedding handled in a separate project that managed the KB. Now that's all done in a separate MCP project and the agents have a connector. I can also give the same connector to Claude, as well as access to the data directory, and they can go over CV transformation plans with me, looking for things the agent missed, discussing things the agent got wrong, and how I might want to tweak the prompts. 
-
+With that, future plans have to do with designing a fully realized CLI and decomposing things appropriately for that purpose.
 
 ## Features
+
+RAG retrieval (chunking, embedding, and search) lives in a separate MCP server project; the agents connect to it through a connector.
+
+I can also give the same connector to Claude, as well as access to the data directory, and they can go over CV transformation plans with me, looking for things the agent missed, discussing things the agent got wrong, and how I might want to tweak the prompts or change the chunking strategy.
 
 - Uses agentic analysis to
   - Create structured data from Job Posting URLs or text files
