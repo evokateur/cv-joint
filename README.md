@@ -27,7 +27,7 @@ Then things began to decompose. Job posting analysis was split from the workflow
 
 The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings.
 
-Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks each object's domain state (a.k.a. *record*, e.g.  `JobPostingRecord`) in a separate collection.
+Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks each object's domain state (or *record*, as in  `JobPostingRecord`) in a separate collection.
 
 The repository also saves a Markdown representation of each object (alongside the JSON) with its record as front matter.
 
@@ -118,7 +118,7 @@ Configuration override hierarchy:
 
 1. `src/*/config/settings.yaml` (defaults)
 2. `~/.cv-joint/settings.yaml` (user dotfile)
-3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
+3. `src/*/config/settings.local.yaml` (local overrides, gitignored)
 
 Example user settings (`~/.cv-joint/settings.yaml`):
 
