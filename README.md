@@ -31,22 +31,20 @@ The repository saves a Markdown representation of each object alongside the JSON
 
 The status of a job posting is synonymous with its location in the job posting directory. The majority of job postings will be under `archived/` or `applied/`.
 
-A nice side-effect all this is, with the configured data directory inside a vault, everything is browsable in Obsidian.
+A nice side-effect all this is, with the data directory configured inside a vault, everything is browsable in Obsidian.
 
 With that, future plans have to do with designing a fully realized CLI and decomposing things appropriately for that purpose.
 
+RAG chunking, embedding, and search are managed in a separate MCP project; the agents use a connector.
+
+Claude also has this connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising when prompts, or the chunking strategy, might want to be tweaked.
+
 ## Features
-
-RAG retrieval (chunking, embedding, and search) lives in a separate MCP server project; the agents connect to it through a connector.
-
-I can also give the same connector to Claude, as well as access to the data directory, and they can go over CV transformation plans with me, looking for things the agent missed, discussing things the agent got wrong, and how I might want to tweak the prompts or change the chunking strategy.
 
 - Uses agentic analysis to
   - Create structured data from Job Posting URLs or text files
   - Create structured CV data from text CV files
   - Optimize CV data for a job posting with relevant experience using RAG
-- Generates Markdown versions of domain objects, suitable for Obsidian
-- Renders CV data in LaTeX to generate PDFs
 
 ## Implementation
 
