@@ -25,15 +25,42 @@ The workflow was originally monolithic, structured data passed internally betwee
 
 Then things began to decompose. Job posting analysis was split from the workflow, CV analysis was added, then a Gradio UI.
 
-The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings. Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks domain state (*records*, as in  `JobPostingRecord`) in separate collections.
+The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings. 
+
+Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks each object's domain state (a.k.a. *record*, as in  `JobPostingRecord`) in a separate collection.
 
 The repository saves a Markdown representation of each object alongside the JSON with its record as front matter.
+
+```markdown
+---
+identifier: labcorp-backend-engineer-i
+path: job-postings/archived/labcorp-backend-engineer-i
+url: https://careers.labcorp.com/global/en/job/26813
+company: Labcorp
+title: Backend Engineer I
+experience_level: Entry to Mid-level
+applied_at: null
+applied_with: null
+is_archived: true
+location: archived
+transitions:
+- date: '2026-06-20T00:20:22.059312'
+  location: archived
+created_at: '2026-02-13T02:03:53.572088'
+updated_at: '2026-06-20T00:20:22.059312'
+---
+# Backend Engineer I at Labcorp
+**Original Posting:** [https://careers.labcorp.com/global/en/job/26813](https://careers.labcorp.com/global/en/job/26813)
+...
+```
 
 The status of a job posting is synonymous with its location. The majority of job postings will be under `archived/` or `applied/`.
 
 With the data directory inside a vault, everything is browsable in Obsidian.
 
-Future plans have to do with designing a fully realized CLI and further decomposition.
+<img width="326" height="325" alt="Capture d’écran 2026-07-18 à 17 39 49" src="https://github.com/user-attachments/assets/ce514669-193c-4451-83de-70d2b9851650" />
+
+Future plans (inspired by [*Transforming Programming*](https://pragprog.com/titles/tpp20/the-pragmatic-programmer-20th-anniversary-edition/)) have to do with designing a fully realized CLI and further decomposition.
 
 ## Features
 
