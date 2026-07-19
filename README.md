@@ -4,16 +4,16 @@ Track job postings, create targeted CVs, render them in LaTeX, achieve constant 
 
 ## Origins
 
-This started with the idea of combining an agentic CV optimization workflow with rendering LaTeX CVs from structured data.
+This started with the idea of combining agentic CV optimization with rendering LaTeX CVs from structured data.
 
-The workflow was originally monolithic, structured outputs passed internally between stages in the pipeline:
+The workflow was originally monolithic, structured data passed internally between agents:
 
 ```text
-  job posting content ─────▶ [ job analysis ] ──▶ JobPosting ─┐
-                                                              │
-  CV content  ────────────▶ [ CV analysis ] ──────▶ CurriculumVitae ─┐
-                                                              │      │
-                                                              ▼      ▼
+                                                   CurriculumVitae ─┐
+                                                                    │
+  job posting URL ──▶ [ job posting analyzer ] ──▶ JobPosting ─┐    │
+                                                               │    │
+                                                               ▼    ▼
      knowledge base ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄▶ [ strategist ] ──▶ CvTransformationPlan
      (RAG retrieval)                                        │
                                                             ▼
@@ -23,11 +23,22 @@ The workflow was originally monolithic, structured outputs passed internally bet
                                        [ LaTeX renderer ] ──▶ PDF
 ```
 
-Then things began to decompose. The workflow split apart, with structured output being saved to files.
+Then things began to decompose. Job posting analysis was split from the workflow, CV analysis was added, then a Gradio UI.
 
-Currently, job and CV analysis are run independently, producing data to be used later to create optimized CVs.
+The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings. Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks their domain state in a separate collection of objects for each type. 
 
-It functions as a job tracking system. A repository layer handles the storage of job postings, CVs, and optimizations as JSON in structured directories.
+The repository also uses a markdown rendering service, originally created for the Gradio UI, to save a markdown representation of each object alongside the JSON. A nice side-effect is that, with the configured data directory inside a vault, job postings, transformation plans, and optimized CVs are browsable in Obsidian.
+
+>[!question]
+>a partial screenshot here?
+
+Domain state (or *record*, as in `JobPostingRecord`) is included as front matter in each object's markdown.
+
+>[!question]
+>an example here?
+
+RAG retrieval was originally done with a custom tool, with embedding handled in a separate project that managed the KB. Now that's all done in a separate MCP project and the agents have a connector. I can also give the same connector to Claude, as well as access to the data directory, and they can go over CV transformation plans with me, looking for things the agent missed, discussing things the agent got wrong, and how I might want to tweak the prompts. 
+
 
 ## Features
 
