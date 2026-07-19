@@ -25,21 +25,21 @@ The workflow was originally monolithic, structured data passed internally betwee
 
 Then things began to decompose. Job posting analysis was split from the workflow, CV analysis was added, then a Gradio UI.
 
-The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings. Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks their domain state (or *record*, as in  `JobPostingRecord`) in separate collections.
+The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings. Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks domain state (*records*, as in  `JobPostingRecord`) in separate collections.
 
 The repository saves a Markdown representation of each object alongside the JSON with its record as front matter.
 
-The status of a job posting is synonymous with its location in the job posting directory. The majority of job postings will be under `archived/` or `applied/`.
+The status of a job posting is synonymous with its location. The majority of job postings will be under `archived/` or `applied/`.
 
-A nice side-effect all this is, with the data directory configured inside a vault, everything is browsable in Obsidian.
+With the data directory inside a vault, everything is browsable in Obsidian.
 
-With that, future plans have to do with designing a fully realized CLI and decomposing things appropriately for that purpose.
+Future plans have to do with designing a fully realized CLI and further decomposition.
+
+## Features
 
 RAG chunking, embedding, and search are managed in a separate MCP project; the agents use a connector.
 
 Claude also has this connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising when prompts, or the chunking strategy, might want to be tweaked.
-
-## Features
 
 - Uses agentic analysis to
   - Create structured data from Job Posting URLs or text files
@@ -50,7 +50,7 @@ Claude also has this connector, as well as access to the data directory, and the
 
 - Agentic analysis with CrewAI
 
-- Pydantic for domain objects and structured outputs
+- Pydantic for domain objects/structured outputs
 
 - Click CLI
 
@@ -65,54 +65,17 @@ Claude also has this connector, as well as access to the data directory, and the
   | Comments     | `%( )%`    | `{# #}`         |
   | Line Comment | `%%`       | `##`            |
 
-Simplified project structure:
-
-```sh
-.
-├── src
-│   ├── renderers
-│   │   └── latex # LaTeX PDF rendering
-│   ├── config
-│   ├── crews
-│   │   ├── cv_analysis
-│   │   ├── cv_optimization
-│   │   ├── job_posting_analysis
-│   │   └── tools
-│   ├── infrastructure
-│   ├── models
-│   ├── renderers
-│   │   └── latex
-│   ├── repositories
-│   │   └── filesystem.py
-│   ├── services
-│   │   └── analyzers # crew facades
-│   │   └── application.py
-│   │   └── converters.py
-│   │   └── exporter.py
-│   │   └── knowledge_chat.py
-│   └── ui
-│   │   └── app.py # Gradio
-│   │   └── cli.py
-└── templates
-    ├── cover-letter.tex
-    └── cv.tex
-```
-
 ## Installation
+
+Runs `uv tool install --editable .`:
 
 ```sh
 make install
 ```
 
-runs `uv tool install --editable .`
-
 ## Configuration
 
-```sh
-cp sample.env .env
-```
-
-Set environment variables in `.env`:
+Copy `sample.env` to `.env` and set environment variables:
 
 ```sh
 ANTHROPIC_API_KEY=
@@ -129,8 +92,6 @@ Configuration override hierarchy:
 1. `src/*/config/settings.yaml` (defaults)
 2. `~/.cv-joint/settings.yaml` (user dotfile)
 3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
-
-Strings beginning with `~/` will undergo tilde expansion.
 
 Example user settings (`~/.cv-joint/settings.yaml`):
 
