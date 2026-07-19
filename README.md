@@ -25,11 +25,11 @@ The workflow was originally monolithic, structured data passed internally betwee
 
 Then things began to decompose. Job posting analysis was split from the workflow, CV analysis was added, then a Gradio UI.
 
-The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings. 
+The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings.
 
-Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks each object's domain state (a.k.a. *record*, as in  `JobPostingRecord`) in a separate collection.
+Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks each object's domain state (a.k.a. *record*, e.g.  `JobPostingRecord`) in a separate collection.
 
-The repository saves a Markdown representation of each object alongside the JSON with its record as front matter.
+The repository also saves a Markdown representation of each object (alongside the JSON) with its record as front matter.
 
 ```markdown
 ---
@@ -54,11 +54,11 @@ updated_at: '2026-06-20T00:20:22.059312'
 ...
 ```
 
-The status of a job posting is synonymous with its location. The majority of job postings will be under `archived/` or `applied/`.
-
 With the data directory inside a vault, everything is browsable in Obsidian.
 
 <img width="326" height="325" alt="Capture d’écran 2026-07-18 à 17 39 49" src="https://github.com/user-attachments/assets/ce514669-193c-4451-83de-70d2b9851650" />
+
+The status of a job posting is synonymous with its location. The majority of job postings will be under `archived/` or `applied/`.
 
 Future plans (inspired by [*Transforming Programming*](https://pragprog.com/titles/tpp20/the-pragmatic-programmer-20th-anniversary-edition/)) have to do with designing a fully realized CLI and further decomposition.
 
