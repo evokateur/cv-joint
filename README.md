@@ -62,18 +62,13 @@ The status of a job posting is synonymous with its location. The majority of job
 
 Future plans have to do with designing a fully realized CLI and further decomposition.
 
-## Features
+## RAG & the knowledge base
 
-RAG chunking, embedding, and search are managed in a separate MCP project; the agents use a connector.
+RAG chunking, embedding, and search are implemented in a separate MCP project; agents are configured to use it through a connector.[^claude]
 
-Claude also has this connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising when prompts, or the chunking strategy, might want to be tweaked.
+[^claude]: Claude also has this connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising how prompts, or the chunking strategy, might be tweaked to improve the result.
 
-- Uses agentic analysis to
-  - Create structured data from Job Posting URLs or text files
-  - Create structured CV data from text CV files
-  - Optimize CV data for a job posting with relevant experience using RAG
-
-## Implementation
+## Built with
 
 - Agentic analysis with CrewAI
 
@@ -120,7 +115,8 @@ Configuration override hierarchy:
 2. `~/.cv-joint/settings.yaml` (user dotfile)
 3. `src/*/config/settings.local.yaml` (local overrides, gitignored)
 
-Example user settings (`~/.cv-joint/settings.yaml`):
+<details>
+<summary>Example user settings (<code>~/.cv-joint/settings.yaml</code>)</summary>
 
 ```yaml
 chat:
@@ -159,6 +155,8 @@ repositories:
   filesystem:
     data_dir: "~/vaults/frobozz/areas/job-search/cv-joint"
 ```
+
+</details>
 
 Data directory structure:
 
