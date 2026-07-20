@@ -64,6 +64,8 @@ Future plans have to do with designing a fully realized CLI and further decompos
 
 ## RAG & the knowledge base
 
+During optimization, the alignment strategist searches a personal knowledge base — a store of your actual background and experience — and grounds the transformation plan in what it finds, so proposed changes build on things you've really done rather than invented ones.
+
 RAG chunking, embedding, and search are implemented in a separate MCP project; agents are configured to use it through a connector.[^claude]
 
 [^claude]: Claude also has this connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising how prompts, or the chunking strategy, might be tweaked to improve the result.
@@ -196,52 +198,27 @@ make test
 
 runs `uv run pytest tests/ --tb=short`
 
-## Gradio Usage
+## Usage
+
+Serve the tabbed Gradio UI:
 
 ```sh
-cv-joint
-```
-
-Launches Gradio, runs `GRADIO_LAUNCHED_COMMAND`, `GRADIO_FINISHED_COMMAND` after Ctl-C
-
-(I have it launch a wrapper pointing at `http://localhost:7860`, then close it)
-
-```sh
-cv-joint open
-```
-
-Launches Gradio then opens the default browser at `http://localhost:7860`
-
-## CLI Usage
-
-```sh
-# UI
 cv-joint           # serve at http://localhost:7860
-cv-joint open      # serve and open in browser
-
-# Job postings
-cv-joint list job-postings
-cv-joint list job-postings/applied
-cv-joint list job-postings/archived
-cv-joint list job-postings --all
-cv-joint list job-postings -q acme
-cv-joint transition job-postings/{id} {location}
-cv-joint archive job-postings/{id}
-cv-joint unarchive job-postings/{id}
-cv-joint apply job-postings/{id} {cv-id}
-cv-joint apply job-postings/{id} {cv-id} --date 2026-05-27
-cv-joint reanalyze job-postings/{id}
-
-# CVs
-cv-joint list cvs
-cv-joint list cvs -q wesley
-cv-joint reanalyze cvs/{id} path/to/file
-
-# General
-cv-joint remove job-postings/{id}
-cv-joint remove job-postings/{id}/cvs/{id}
-cv-joint rename job-postings/{id} {new-id}
-cv-joint export-markdown
-cv-joint export-markdown [job-postings|cvs|optimizations]
-cv-joint show-config
+cv-joint open      # serve, then open the browser
 ```
+
+`cv-joint` runs `GRADIO_LAUNCHED_COMMAND` on start and `GRADIO_FINISHED_COMMAND` after Ctrl-C, if set.
+
+Or drive the lifecycle headlessly:
+
+```sh
+cv-joint analyze job-posting URL                # analyze a posting and save it
+cv-joint list job-postings                      # list active postings (one URI per line)
+cv-joint apply job-postings/{id} {cv-id}        # mark as applied with a CV
+cv-joint transition job-postings/{id} archived  # file it into a location
+cv-joint export-markdown                        # re-render all markdown
+```
+
+Run `cv-joint --help` for the complete command set.
+
+The CLI is being rounded out into a complete interface — usable both from a terminal and by agents over MCP — with commands to read, create, and update objects directly, not just analyze them. Optimization, still UI-only, is the main workflow yet to land.
