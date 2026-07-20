@@ -221,4 +221,4 @@ cv-joint export-markdown                        # re-render all markdown
 
 Run `cv-joint --help` for the complete command set.
 
-The CLI is being rounded out into a complete interface — usable both from a terminal and by agents over MCP — with commands to read, create, and update objects directly, not just analyze them. Optimization, still UI-only, is the main workflow yet to land.
+The CLI is being rounded out into a complete interface — usable both from a terminal and by agents over MCP — with commands to read, create, and update objects directly, not just analyze them. Optimization, still UI-only, is the main workflow the CLI doesn't cover yet.
