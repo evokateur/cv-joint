@@ -27,9 +27,9 @@ Then things began to decompose. Job posting analysis was split from the pipeline
 
 The upshot was a job posting/CV tracking system with the ability to optimize CVs.
 
-Structured outputs returned from analysis services are persisted as JSON by a repository service that tracks domain state in separate collections of *record* (e.g. `JobPostingRecord`) objects.
+Structured outputs returned from analysis services are persisted as JSON by a repository service that tracks their domain state in separate collections of *record* (e.g. `JobPostingRecord`) objects.
 
-The repository also writes a Markdown representation of each object (alongside the JSON) with its record as front matter.
+The repository writes a Markdown representation of each object, with its record as front matter, alongside the JSON.
 
 ```markdown
 ---
@@ -54,11 +54,10 @@ updated_at: '2026-06-20T00:20:22.059312'
 ...
 ```
 
-Data directory structure:
 <details>
 <summary>Data directory structure</summary>
 
-```
+```text
 {data_dir}/
 ├── collections/
 │   ├── job-postings.json
@@ -88,19 +87,19 @@ Data directory structure:
 
 </details>
 
-With the data directory inside a vault, everything is browsable in Obsidian.
+With the configured data directory inside a vault, everything is browsable in Obsidian.
 
 The status of a job posting is synonymous with its location. The majority of job postings will be under `archived/` or `applied/`.
 
 <img width="326" height="325" alt="Capture d’écran 2026-07-18 à 17 39 49" src="https://github.com/user-attachments/assets/ce514669-193c-4451-83de-70d2b9851650" />
 
-Future plans have to do with further decomposition and designing a fully realized CLI.
+My main interest, now, is decomposing things further to make a fully functional and composable CLI.
 
 ## RAG & the knowledge base
 
-To create a CV transformation plan, RAG is used to search a knowledge base for matching or transferable experience.
+For optimizing CVs, RAG is used to search a knowledge base for matching or transferable experience.
 
-Chunking, embedding, and search are implemented in a separate [MCP project](https://github.com/evokateur/rag-knowledge-mcp); agents are configured to use it through a connector.[^claude]
+Chunking, embedding, and search are implemented in a separate [MCP project](https://github.com/evokateur/rag-knowledge-mcp); agents use it through a connector.[^claude]
 
 [^claude]: I give Claude the same connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising how prompts or the chunking strategy might be tweaked to improve the result.
 
@@ -108,7 +107,7 @@ Chunking, embedding, and search are implemented in a separate [MCP project](http
 
 - Agentic analysis with CrewAI
 
-- Pydantic for domain objects/structured outputs
+- Pydantic domain objects/structured outputs
 
 - Click CLI
 
@@ -143,12 +142,12 @@ OPENAI_API_KEY=
 SERPER_API_KEY=
 ```
 
-Configure a `rag-knowledge` MCP server (see below).
+Configure a `rag-knowledge` MCP server (see *Example user settings* below).
 
 Configuration override hierarchy:
 
 1. `src/*/config/settings.yaml` (defaults)
-2. `~/.cv-joint/settings.yaml` (user dotfile)
+2. `~/.cv-joint/settings.yaml` (user settings)
 3. `src/*/config/settings.local.yaml` (local overrides, gitignored)
 
 <details>
@@ -208,15 +207,14 @@ Gradio:
 
 ```sh
 cv-joint           # serve at http://localhost:7860
-cv-joint open      # serve, then open the browser
+cv-joint open      # serve and open in browser
 ```
 
-CLI:
+Command line:
 
 ```sh
 cv-joint analyze job-posting URL                # analyze a posting and save it
 cv-joint list job-postings                      # list active postings (one URI per line)
 cv-joint apply job-postings/{id} {cv-id}        # mark as applied with a CV
 cv-joint transition job-postings/{id} archived  # file it into a location
-cv-joint export-markdown                        # re-render all markdown
 ```
