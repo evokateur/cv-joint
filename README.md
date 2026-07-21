@@ -27,7 +27,7 @@ Then things began to decompose. Job posting analysis was split from the pipeline
 
 The upshot was a job posting/CV tracking system with the ability to optimize CVs.
 
-Structured outputs returned from analysis services are persisted as JSON by a repository service that tracks their domain state in separate *record* (e.g. `JobPostingRecord`) collections.
+Structured outputs from analysis are persisted as JSON by a repository service that tracks their domain state in separate *record* (e.g. `JobPostingRecord`) collections.
 
 <details>
 <summary>Data directory structure</summary>
@@ -62,10 +62,10 @@ Structured outputs returned from analysis services are persisted as JSON by a re
 
 </details>
 
-Alongside the JSON, the repository writes a Markdown representation of each object with its record as front matter.
+Alongside the JSON, the repository writes a Markdown representation of each object with its *record* as front matter.
 
 <details>
-    <summary>Job posting record front matter example</summary>
+<summary>Job posting record front matter example</summary>
 
 ```markdown
 ---
@@ -98,7 +98,7 @@ With the configured data directory inside a vault, everything is browsable in Ob
 
 The status of a job posting is analogous to its location. The majority of job postings will be under `archived/` or `applied/`.
 
-My main interest, now, is decomposing things further and making a fully functional, composable CLI.
+My main interest, now, is decomposing things further for a fully functional and composable CLI.
 
 ## RAG & the knowledge base
 
