@@ -6,7 +6,7 @@ Track job postings, create targeted CVs, render them in LaTeX, achieve constant 
 
 This started with the idea of combining agentic CV optimization with rendering LaTeX CVs from structured data.
 
-The workflow was originally monolithic, structured data passed internally between agents:
+The agentic workflow was originally monolithic, structured data passed internally between agents:
 
 ```text
                                                    CurriculumVitae ─┐
@@ -23,13 +23,13 @@ The workflow was originally monolithic, structured data passed internally betwee
                                        [ LaTeX renderer ] ──▶ PDF
 ```
 
-Then things began to decompose. Job posting analysis was split from the workflow, CV analysis was added, then a Gradio UI.
+Then things began to decompose. Job posting analysis was split from the pipeline, CV analysis was added, then a Gradio UI.
 
 The upshot was a job posting/CV tracking system with the ability to optimize CVs for job postings.
 
-Structured outputs returned from analysis services are persisted in the file system as pure JSON by a repository service that tracks each object's domain state (or *record*, as in  `JobPostingRecord`) in a separate collection.
+Structured outputs returned from analysis services are persisted in the file system as JSON by a repository service that tracks domain state (*record* objects, as in  `JobPostingRecord`) in separate collections.
 
-The repository also saves a Markdown representation of each object (alongside the JSON) with its record as front matter.
+The repository also writes a Markdown representation of each object (alongside the JSON) with its record as front matter.
 
 ```markdown
 ---
@@ -64,11 +64,11 @@ Future plans have to do with designing a fully realized CLI and further decompos
 
 ## RAG & the knowledge base
 
-During optimization, the alignment strategist searches a personal knowledge base — a store of your actual background and experience — and grounds the transformation plan in what it finds, so proposed changes build on things you've really done rather than invented ones.
+To create a CV transformation plan, RAG is used to search a knowledge base for matching or transferable experience.
 
-RAG chunking, embedding, and search are implemented in a separate MCP project; agents are configured to use it through a connector.[^claude]
+Chunking, embedding, and search are implemented in a separate [MCP project](https://github.com/evokateur/rag-knowledge-mcp); agents are configured to use it through a connector.[^claude]
 
-[^claude]: Claude also has this connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising how prompts, or the chunking strategy, might be tweaked to improve the result.
+[^claude]: I've given Claude the same connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising how prompts or the chunking strategy might be tweaked to improve the result.
 
 ## Built with
 
@@ -109,7 +109,7 @@ OPENAI_API_KEY=
 SERPER_API_KEY=
 ```
 
-Configure the `rag-knowledge` MCP server for RAG functions (see below).
+Configure a `rag-knowledge` MCP server (see below).
 
 Configuration override hierarchy:
 
@@ -161,6 +161,8 @@ repositories:
 </details>
 
 Data directory structure:
+<details>
+<summary>Data directory structure</summary>
 
 ```
 {data_dir}/
@@ -190,6 +192,8 @@ Data directory structure:
     └── curriculum-vitae.md
 ```
 
+</details>
+
 ## Testing
 
 ```sh
@@ -200,16 +204,14 @@ runs `uv run pytest tests/ --tb=short`
 
 ## Usage
 
-Serve the tabbed Gradio UI:
+Gradio:
 
 ```sh
 cv-joint           # serve at http://localhost:7860
 cv-joint open      # serve, then open the browser
 ```
 
-`cv-joint` runs `GRADIO_LAUNCHED_COMMAND` on start and `GRADIO_FINISHED_COMMAND` after Ctrl-C, if set.
-
-Or drive the lifecycle headlessly:
+CLI:
 
 ```sh
 cv-joint analyze job-posting URL                # analyze a posting and save it
@@ -218,7 +220,3 @@ cv-joint apply job-postings/{id} {cv-id}        # mark as applied with a CV
 cv-joint transition job-postings/{id} archived  # file it into a location
 cv-joint export-markdown                        # re-render all markdown
 ```
-
-Run `cv-joint --help` for the complete command set.
-
-The CLI is being rounded out into a complete interface — usable both from a terminal and by agents over MCP — with commands to read, create, and update objects directly, not just analyze them. Optimization, still UI-only, is the main workflow the CLI doesn't cover yet.
