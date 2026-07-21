@@ -65,7 +65,7 @@ Structured outputs returned from analysis services are persisted as JSON by a re
 Alongside the JSON, the repository writes a Markdown representation of each object with its record as front matter.
 
 <details>
-    <summary>`JobPostingRecord` front matter example</summary>
+    <summary>Job posting record front matter example</summary>
 
 ```markdown
 ---
