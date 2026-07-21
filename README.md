@@ -103,11 +103,11 @@ Chunking, embedding, and search are implemented in a separate [MCP project](http
 
 [^claude]: I give Claude the same connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising how prompts or the chunking strategy might be tweaked to improve the result.
 
-## Built with
+## Implementation
 
-- Agentic analysis with CrewAI
+- CrewAI agentic workflows
 
-- Pydantic domain objects/structured outputs
+- Pydantic for defining domain objects/structured outputs
 
 - Click CLI
 
@@ -142,7 +142,7 @@ OPENAI_API_KEY=
 SERPER_API_KEY=
 ```
 
-Configure a `rag-knowledge` MCP server (see *Example user settings* below).
+Configure the `rag-knowledge` MCP server (see *Example user settings* below).
 
 Configuration override hierarchy:
 
