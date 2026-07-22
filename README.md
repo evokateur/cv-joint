@@ -27,7 +27,7 @@ Then things began to decompose. Job posting analysis was split from the pipeline
 
 The upshot was a job posting/CV tracking system with the ability to optimize CVs.
 
-Structured outputs from analysis are persisted as JSON by a repository service that tracks their domain state in separate *record* (e.g. `JobPostingRecord`) collections.
+Structured outputs from analysis are persisted as JSON by a repository service, with their domain state in separate *record* (e.g. `JobPostingRecord`) collections.
 
 <details>
 <summary>Data directory structure</summary>
@@ -96,7 +96,7 @@ With the configured data directory inside a vault, everything is browsable in Ob
 
 <img width="326" height="325" alt="Capture d’écran 2026-07-18 à 17 39 49" src="https://github.com/user-attachments/assets/ce514669-193c-4451-83de-70d2b9851650" />
 
-The status of a job posting is analogous to its location. The majority of job postings will be under `archived/` or `applied/`.
+The dispositional status of a job posting is analogous to its location, those still under consideration at the root. The majority of job postings will be in `archived/` or `applied/`.
 
 My main interest, now, is decomposing things further for a fully functional and composable CLI.
 
@@ -106,7 +106,7 @@ For optimizing CVs, RAG is used to search a knowledge base for matching or trans
 
 Chunking, embedding, and search are implemented in a separate [MCP project](https://github.com/evokateur/rag-knowledge-mcp); agents use it through a connector.[^claude]
 
-[^claude]: I give Claude the same connector, as well as access to the data directory, and they go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising how prompts or the chunking strategy might be tweaked to improve the result.
+[^claude]: With Claude having the same connector, as well as access to the data directory, they can go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising how prompts or the chunking strategy might be tweaked to improve things.
 
 ## Implementation
 
@@ -129,11 +129,11 @@ Chunking, embedding, and search are implemented in a separate [MCP project](http
 
 ## Installation
 
-Runs `uv tool install --editable .`:
-
 ```sh
 make install
 ```
+
+Runs `uv tool install --editable .`
 
 ## Configuration
 
@@ -204,22 +204,40 @@ repositories:
 make test
 ```
 
-runs `uv run pytest tests/ --tb=short`
+Runs `uv run pytest tests/ --tb=short`
 
 ## Usage
 
-Gradio:
+### Gradio
 
 ```sh
-cv-joint           # serve at http://localhost:7860
-cv-joint open      # serve and open in browser
+cv-joint open
 ```
 
-Command line:
+Starts server and opens <http://localhost:7860> in browser
+
+### CLI examples
 
 ```sh
-cv-joint analyze job-posting URL                # analyze a posting and save it
-cv-joint list job-postings                      # list active postings (one URI per line)
-cv-joint apply job-postings/{id} {cv-id}        # mark as applied with a CV
-cv-joint transition job-postings/{id} archived  # file it into a location
+cv-joint analyze job-posting 'https://www.linkedin.com/jobs/view/4426565782/'
 ```
+
+Analyzes job posting and persists result
+
+```sh
+cv-joint list job-postings
+```
+
+Lists top level (active) job postings
+
+```sh
+cv-joint transition job-postings/wordpress-security-static-site-export-specialist archived
+```
+
+Transitions to `archived/`
+
+```sh
+cv-joint apply job-postings/grow-therapy-senior-software-engineer-backend cvs/software-engineer-3-2026-07-08
+```
+
+Transitions to `applied/` with CV
