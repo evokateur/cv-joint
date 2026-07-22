@@ -27,7 +27,7 @@ Then things began to decompose. Job posting analysis was split from the pipeline
 
 The upshot was a job posting/CV tracking system with the ability to optimize CVs.
 
-Structured outputs from analysis are persisted as JSON by a repository service, with their domain state in separate *record* (e.g. `JobPostingRecord`) collections.
+Structured outputs from analysis are persisted as JSON files by a repository service, their domain state in separate collections of typed *records* (e.g. `JobPostingRecord`).
 
 <details>
 <summary>Data directory structure</summary>
