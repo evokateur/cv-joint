@@ -2,20 +2,117 @@
 
 Track job postings, create targeted CVs, render them in LaTeX, achieve constant velocity.
 
-## Features
+## What this is and how it got there
 
-- Uses agentic analysis to
-  - Create structured data from Job Posting URLs or text files
-  - Create structured CV data from text CV files
-  - Optimize CV data for a job posting with relevant experience using RAG
-- Generates Markdown versions of domain objects, suitable for Obsidian
-- Renders CV data in LaTeX to generate PDFs
+This started with the idea of combining agentic CV optimization with rendering LaTeX CVs from structured data.
+
+The agentic workflow was originally monolithic, with structured data passed internally between agents:
+
+```text
+                                                   CurriculumVitae ─┐
+                                                                    │
+  job posting URL ──▶ [ job posting analyzer ] ──▶ JobPosting ─┐    │
+                                                               │    │
+                                                               ▼    ▼
+     knowledge base ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄▶ [ strategist ] ──▶ CvTransformationPlan
+     (RAG retrieval)                                        │
+                                                            ▼
+                                       [ writer ] ──▶ optimized CurriculumVitae
+                                                            │
+                                                            ▼
+                                       [ LaTeX renderer ] ──▶ PDF
+```
+
+Then things began to decompose. Job posting analysis was split from the pipeline, CV analysis was added, then a Gradio UI.
+
+The upshot was a job posting/CV tracking system with the ability to optimize CVs.
+
+Structured outputs from analysis are persisted as JSON files by a repository service, their domain state in separate collections of typed *records* (e.g. `JobPostingRecord`).
+
+<details>
+<summary>Data directory structure</summary>
+
+```text
+{data_dir}/
+├── collections/
+│   ├── job-postings.json
+│   ├── cvs.json
+│   └── optimized-cvs.json
+├── job-postings/
+│   ├── {identifier}/                 # active/unfiled job posting
+│   │   ├── job-posting.json
+│   │   ├── job-posting.md
+│   │   └── cvs/{identifier}/         # optimized for job posting
+│   │       ├── curriculum-vitae.json
+│   │       ├── curriculum-vitae.md
+│   │       ├── cv-transformation-plan.json
+│   │       └── cv-transformation-plan.md
+│   └── {location}/{identifier}/      # applied, archived, or custom location
+│       ├── job-posting.json
+│       ├── job-posting.md
+│       └── cvs/{identifier}/
+│           ├── curriculum-vitae.json
+│           ├── curriculum-vitae.md
+│           ├── cv-transformation-plan.json
+│           └── cv-transformation-plan.md
+└── cvs/{identifier}/
+    ├── curriculum-vitae.json
+    └── curriculum-vitae.md
+```
+
+</details>
+
+Alongside the JSON, the repository writes a Markdown representation of each object with its *record* as front matter.
+
+<details>
+<summary>Job posting record front matter example</summary>
+
+```markdown
+---
+identifier: labcorp-backend-engineer-i
+path: job-postings/archived/labcorp-backend-engineer-i
+url: https://careers.labcorp.com/global/en/job/26813
+company: Labcorp
+title: Backend Engineer I
+experience_level: Entry to Mid-level
+applied_at: null
+applied_with: null
+is_archived: true
+location: archived
+transitions:
+- date: '2026-06-20T00:20:22.059312'
+  location: archived
+created_at: '2026-02-13T02:03:53.572088'
+updated_at: '2026-06-20T00:20:22.059312'
+---
+# Backend Engineer I at Labcorp
+**Original Posting:** [https://careers.labcorp.com/global/en/job/26813](https://careers.labcorp.com/global/en/job/26813)
+...
+```
+
+</details>
+
+With the configured data directory inside a vault, everything is browsable in Obsidian.
+
+<img width="326" height="325" alt="Capture d’écran 2026-07-18 à 17 39 49" src="https://github.com/user-attachments/assets/ce514669-193c-4451-83de-70d2b9851650" />
+
+The dispositional status of a job posting is analogous to its location, those still under consideration at the root. The majority of job postings will be in `archived/` or `applied/`.
+
+My main interest, now, is decomposing things further for a fully functional and composable CLI.
+
+## RAG & the knowledge base
+
+For optimizing CVs, RAG is used to search a knowledge base for matching or transferable experience.
+
+Chunking, embedding, and search are implemented in a separate [MCP project](https://github.com/evokateur/rag-knowledge-mcp); agents use it through a connector.[^claude]
+
+[^claude]: With Claude having the same connector, as well as access to the data directory, they can go over CV transformation plans, looking for things the agent missed, discussing things the agent got wrong, and advising how prompts or the chunking strategy might be tweaked to improve things.
 
 ## Implementation
 
-- Agentic analysis with CrewAI
+- CrewAI agentic workflows
 
-- Pydantic for domain objects and structured outputs
+- Pydantic for defining domain objects/structured outputs
 
 - Click CLI
 
@@ -30,54 +127,17 @@ Track job postings, create targeted CVs, render them in LaTeX, achieve constant 
   | Comments     | `%( )%`    | `{# #}`         |
   | Line Comment | `%%`       | `##`            |
 
-Simplified project structure:
-
-```sh
-.
-├── src
-│   ├── renderers
-│   │   └── latex # LaTeX PDF rendering
-│   ├── config
-│   ├── crews
-│   │   ├── cv_analysis
-│   │   ├── cv_optimization
-│   │   ├── job_posting_analysis
-│   │   └── tools
-│   ├── infrastructure
-│   ├── models
-│   ├── renderers
-│   │   └── latex
-│   ├── repositories
-│   │   └── filesystem.py
-│   ├── services
-│   │   └── analyzers # crew facades
-│   │   └── application.py
-│   │   └── converters.py
-│   │   └── exporter.py
-│   │   └── knowledge_chat.py
-│   └── ui
-│   │   └── app.py # Gradio
-│   │   └── cli.py
-└── templates
-    ├── cover-letter.tex
-    └── cv.tex
-```
-
 ## Installation
 
 ```sh
 make install
 ```
 
-runs `uv tool install --editable .`
+Runs `uv tool install --editable .`
 
 ## Configuration
 
-```sh
-cp sample.env .env
-```
-
-Set environment variables in `.env`:
+Copy `sample.env` to `.env` and set environment variables:
 
 ```sh
 ANTHROPIC_API_KEY=
@@ -87,17 +147,16 @@ OPENAI_API_KEY=
 SERPER_API_KEY=
 ```
 
-Configure the `rag-knowledge` MCP server for RAG functions (see below).
+Configure the `rag-knowledge` MCP server (see *Example user settings* below).
 
 Configuration override hierarchy:
 
 1. `src/*/config/settings.yaml` (defaults)
-2. `~/.cv-joint/settings.yaml` (user dotfile)
-3. `src/*/config/settings.local.yaml` (machine-specific overrides, gitignored)
+2. `~/.cv-joint/settings.yaml` (user settings)
+3. `src/*/config/settings.local.yaml` (local overrides, gitignored)
 
-Strings beginning with `~/` will undergo tilde expansion.
-
-Example user settings (`~/.cv-joint/settings.yaml`):
+<details>
+<summary>Example user settings (<code>~/.cv-joint/settings.yaml</code>)</summary>
 
 ```yaml
 chat:
@@ -137,35 +196,7 @@ repositories:
     data_dir: "~/vaults/frobozz/areas/job-search/cv-joint"
 ```
 
-Data directory structure:
-
-```
-{data_dir}/
-├── collections/
-│   ├── job-postings.json
-│   ├── cvs.json
-│   └── optimized-cvs.json
-├── job-postings/
-│   ├── {identifier}/                 # active/unfiled job posting
-│   │   ├── job-posting.json
-│   │   ├── job-posting.md
-│   │   └── cvs/{identifier}/         # optimized for job posting
-│   │       ├── curriculum-vitae.json
-│   │       ├── curriculum-vitae.md
-│   │       ├── cv-transformation-plan.json
-│   │       └── cv-transformation-plan.md
-│   └── {location}/{identifier}/      # applied, archived, or custom location
-│       ├── job-posting.json
-│       ├── job-posting.md
-│       └── cvs/{identifier}/
-│           ├── curriculum-vitae.json
-│           ├── curriculum-vitae.md
-│           ├── cv-transformation-plan.json
-│           └── cv-transformation-plan.md
-└── cvs/{identifier}/
-    ├── curriculum-vitae.json
-    └── curriculum-vitae.md
-```
+</details>
 
 ## Testing
 
@@ -173,54 +204,40 @@ Data directory structure:
 make test
 ```
 
-runs `uv run pytest tests/ --tb=short`
+Runs `uv run pytest tests/ --tb=short`
 
-## Gradio Usage
+## Usage
 
-```sh
-cv-joint
-```
-
-Launches Gradio, runs `GRADIO_LAUNCHED_COMMAND`, `GRADIO_FINISHED_COMMAND` after Ctl-C
-
-(I have it launch a wrapper pointing at `http://localhost:7860`, then close it)
+### Gradio
 
 ```sh
 cv-joint open
 ```
 
-Launches Gradio then opens the default browser at `http://localhost:7860`
+Starts server and opens <http://localhost:7860> in browser
 
-## CLI Usage
+### CLI examples
 
 ```sh
-# UI
-cv-joint           # serve at http://localhost:7860
-cv-joint open      # serve and open in browser
-
-# Job postings
-cv-joint list job-postings
-cv-joint list job-postings/applied
-cv-joint list job-postings/archived
-cv-joint list job-postings --all
-cv-joint list job-postings -q acme
-cv-joint transition job-postings/{id} {location}
-cv-joint archive job-postings/{id}
-cv-joint unarchive job-postings/{id}
-cv-joint apply job-postings/{id} {cv-id}
-cv-joint apply job-postings/{id} {cv-id} --date 2026-05-27
-cv-joint reanalyze job-postings/{id}
-
-# CVs
-cv-joint list cvs
-cv-joint list cvs -q wesley
-cv-joint reanalyze cvs/{id} path/to/file
-
-# General
-cv-joint remove job-postings/{id}
-cv-joint remove job-postings/{id}/cvs/{id}
-cv-joint rename job-postings/{id} {new-id}
-cv-joint export-markdown
-cv-joint export-markdown [job-postings|cvs|optimizations]
-cv-joint show-config
+cv-joint analyze job-posting 'https://www.linkedin.com/jobs/view/4426565782/'
 ```
+
+Analyzes job posting and persists result
+
+```sh
+cv-joint list job-postings
+```
+
+Lists top level (active) job postings
+
+```sh
+cv-joint transition job-postings/wordpress-security-static-site-export-specialist archived
+```
+
+Transitions to `archived/`
+
+```sh
+cv-joint apply job-postings/grow-therapy-senior-software-engineer-backend cvs/software-engineer-3-2026-07-08
+```
+
+Transitions to `applied/` with CV
