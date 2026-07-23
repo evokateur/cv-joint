@@ -268,11 +268,17 @@ def _extract_json_ld_blocks(html: str) -> list[Any]:
             continue
 
         if isinstance(parsed, list):
-            blocks.extend(item for item in parsed if isinstance(item, dict))
-            continue
+            candidates = [item for item in parsed if isinstance(item, dict)]
+        elif isinstance(parsed, dict):
+            candidates = [parsed]
+        else:
+            candidates = []
 
-        if isinstance(parsed, dict):
-            blocks.append(parsed)
+        for candidate in candidates:
+            blocks.append(candidate)
+            graph = candidate.get("@graph")
+            if isinstance(graph, list):
+                blocks.extend(node for node in graph if isinstance(node, dict))
 
     return blocks
 

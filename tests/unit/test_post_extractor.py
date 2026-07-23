@@ -771,6 +771,54 @@ def test_structured_metadata_extractor_reads_jsonld_from_empty_shell():
     assert "routine technical troubleshooting" in job.to_markdown()
 
 
+def make_jsonld_graph_shell_page() -> str:
+    """A JS-rendered SPA whose JobPosting is nested under @graph."""
+    graph_doc = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {"@type": "WebPage", "name": "Careers"},
+            {
+                "@type": "JobPosting",
+                "title": "Circulation Technician - Temporary",
+                "hiringOrganization": {
+                    "@type": "Organization",
+                    "name": "Samuel Merritt University",
+                },
+                "jobLocation": {
+                    "@type": "Place",
+                    "address": {
+                        "@type": "PostalAddress",
+                        "addressLocality": "Oakland Campus",
+                    },
+                },
+                "description": "Provides staff coverage for the library circulation desk.",
+            },
+        ],
+    }
+    raw_json = json.dumps(graph_doc)
+    return f"""\
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <title></title>
+  <script type="application/ld+json">{raw_json}</script>
+</head>
+<body><div id="root"></div></body>
+</html>
+"""
+
+
+def test_structured_metadata_extractor_reads_jsonld_from_graph_node():
+    assert StructuredMetadataExtractor.matches(make_jsonld_graph_shell_page()) is True
+    assert select_extractor(make_jsonld_graph_shell_page()) is StructuredMetadataExtractor
+    job = StructuredMetadataExtractor.from_string(make_jsonld_graph_shell_page()).extract()
+
+    assert job.title == "Circulation Technician - Temporary"
+    assert job.company == "Samuel Merritt University"
+    assert job.locations == ["Oakland Campus"]
+    assert "circulation desk" in job.to_markdown()
+
+
 def test_structured_metadata_matches_only_with_jsonld_jobposting():
     assert StructuredMetadataExtractor.matches(make_jsonld_shell_page()) is True
     assert StructuredMetadataExtractor.matches(make_generic_job_page()) is False
