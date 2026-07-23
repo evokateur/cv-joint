@@ -6,6 +6,7 @@ import pytest
 from post_extractor import (
     GenericHtmlExtractor,
     LinkedInExtractor,
+    StructuredMetadataExtractor,
     UpworkExtractor,
     WelcomeToTheJungleExtractor,
     extract_job_posting,
@@ -725,6 +726,107 @@ def test_select_extractor_returns_linkedin_for_linkedin_page():
 
     assert LinkedInExtractor.matches(html) is True
     assert select_extractor(html) is LinkedInExtractor
+
+
+def make_jsonld_shell_page() -> str:
+    """A JS-rendered SPA: empty body, but a full JobPosting in JSON-LD."""
+    job_posting = {
+        "@context": "http://schema.org",
+        "@type": "JobPosting",
+        "title": "Circulation Technician - Temporary",
+        "employmentType": "FULL_TIME",
+        "datePosted": "2026-07-20",
+        "hiringOrganization": {"@type": "Organization", "name": "Samuel Merritt University"},
+        "jobLocation": {
+            "@type": "Place",
+            "address": {"@type": "PostalAddress", "addressLocality": "Oakland Campus"},
+        },
+        "description": (
+            "Job Description Summary: The Circulation Technician provides weekday and "
+            "weekend staff coverage for the library circulation desk. Do routine "
+            "technical troubleshooting."
+        ),
+    }
+    raw_json = json.dumps(job_posting)
+    return f"""\
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <title></title>
+  <meta name="description" property="og:description" content="Full posting text in og tag." />
+  <script type="application/ld+json">{raw_json}</script>
+</head>
+<body><div id="root"></div></body>
+</html>
+"""
+
+
+def test_structured_metadata_extractor_reads_jsonld_from_empty_shell():
+    job = StructuredMetadataExtractor.from_string(make_jsonld_shell_page()).extract()
+
+    assert job.title == "Circulation Technician - Temporary"
+    assert job.company == "Samuel Merritt University"
+    assert job.locations == ["Oakland Campus"]
+    assert "circulation desk" in job.to_markdown()
+    assert "routine technical troubleshooting" in job.to_markdown()
+
+
+def test_structured_metadata_matches_only_with_jsonld_jobposting():
+    assert StructuredMetadataExtractor.matches(make_jsonld_shell_page()) is True
+    assert StructuredMetadataExtractor.matches(make_generic_job_page()) is False
+
+
+def test_select_extractor_returns_structured_metadata_for_jsonld_shell():
+    assert select_extractor(make_jsonld_shell_page()) is StructuredMetadataExtractor
+
+
+def test_structured_metadata_extractor_reads_real_workday_shell():
+    html = (FIXTURES / "workday.html").read_text(encoding="utf-8")
+
+    assert select_extractor(html) is StructuredMetadataExtractor
+    job = extract_job_posting(html)
+    assert "Circulation Technician" in job.title
+    assert job.company == "Samuel Merritt University"
+    assert job.locations == ["Oakland Campus"]
+    markdown = job.to_markdown()
+    assert "circulation desk" in markdown
+    assert "Duties and Responsibilities" in markdown
+
+
+def test_structured_metadata_does_not_shadow_wttj():
+    # WTTJ subclasses the structured extractor but must still win for WTTJ pages.
+    extractor = select_extractor(
+        make_welcome_to_the_jungle_job_page(),
+        source_url="https://app.welcometothejungle.com/jobs/example",
+    )
+    assert extractor is WelcomeToTheJungleExtractor
+
+
+def test_postprocess_linkedin_markdown_recovers_member_view_body():
+    markdown = "\n".join(
+        [
+            "# Circulation Technician - Temporary",
+            "",
+            "## About the job",
+            "",
+            "**Description**Job Description Summary:",
+            "",
+            "The Circulation Technician provides weekend coverage for the library circulation desk.",
+            "",
+            "Do routine technical troubleshooting.",
+            "",
+            "## Similar jobs",
+            "Some unrelated posting",
+        ]
+    )
+
+    job = postprocess_linkedin_markdown(markdown)
+    output = job.to_markdown()
+
+    assert job.title == "Circulation Technician - Temporary"
+    assert "circulation desk" in output
+    assert "routine technical troubleshooting" in output
+    assert "Some unrelated posting" not in output
 
 
 def test_wttj_experience_includes_expert_level():

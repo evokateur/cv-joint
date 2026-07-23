@@ -1247,6 +1247,14 @@ def _find_linkedin_body_start(lines: list[str]) -> int | None:
         stripped = line.strip()
         if stripped.startswith("- **Role:**") or stripped.startswith("**Role Overview:**"):
             return index
+
+    # Member ("About the job") view: the body follows the section heading. This
+    # layout has no "Role" markers, so start at the first content line after it.
+    for index, line in enumerate(lines):
+        if line.strip() == "## About the job":
+            for next_index in range(index + 1, len(lines)):
+                if lines[next_index].strip():
+                    return next_index
     return None
 
 
@@ -1324,14 +1332,29 @@ class GenericHtmlExtractor:
         )
 
 
-class WelcomeToTheJungleExtractor:
-    _FIELD_EXTRACTORS = {
-        "technologies": ("job-technology-used", "container_children"),
-        "company_sector_tags": ("company-sector-tags", "container_children"),
-        "salary": ("salary-section", "bucket_first"),
-        "experience": ("experience-section", "experience_levels"),
-        "locations": ("job-locations", "container_children"),
-    }
+_EMPLOYMENT_TYPE_LABELS = {
+    "FULL_TIME": "Full time",
+    "PART_TIME": "Part time",
+    "CONTRACTOR": "Contract",
+    "CONTRACT": "Contract",
+    "TEMPORARY": "Temporary",
+    "INTERN": "Internship",
+    "VOLUNTEER": "Volunteer",
+    "PER_DIEM": "Per diem",
+    "OTHER": "Other",
+}
+
+
+class StructuredMetadataExtractor:
+    """Extract a JobPosting from schema.org JSON-LD embedded in the page.
+
+    This is the structured-data layer of the extractor chain: when a page
+    carries a machine-readable `schema.org/JobPosting` (common on Workday,
+    Greenhouse, Lever, and many ATS shells), it is authoritative and available
+    without rendering JavaScript, so it is preferred over the heuristic
+    GenericHtmlExtractor. Site-specific extractors subclass this and add their
+    own fields via the `_enrich` hook.
+    """
 
     def __init__(self, html: str, source_url: str | None = None):
         self._html = html
@@ -1339,12 +1362,131 @@ class WelcomeToTheJungleExtractor:
         self._job_posting: dict[str, Any] | None = None
 
     @classmethod
-    def from_string(
-        cls,
-        html: str,
-        source_url: str | None = None,
-    ) -> "WelcomeToTheJungleExtractor":
+    def from_string(cls, html: str, source_url: str | None = None):
         return cls(html, source_url=source_url)
+
+    @classmethod
+    def _find_job_posting(cls, html: str) -> dict[str, Any] | None:
+        for block in _extract_json_ld_blocks(html):
+            if block.get("@type") == "JobPosting":
+                return block
+        return None
+
+    @classmethod
+    def matches(cls, html: str, source_url: str | None = None) -> bool:
+        if not _contains_html(html):
+            return False
+        return cls._find_job_posting(html) is not None
+
+    def extract(self) -> JobPosting:
+        if not _contains_html(self._html):
+            raise ValueError(_NOT_HTML_ERROR)
+
+        job_posting = self._job_posting or self._find_job_posting(self._html)
+        if job_posting is None:
+            raise ValueError(_GENERIC_EXTRACTION_ERROR)
+
+        self._job_posting = job_posting
+        description_html = self._build_description_html(job_posting)
+        job = JobPosting(
+            title=_normalize_whitespace(str(job_posting.get("title", ""))),
+            company=self._extract_company(job_posting),
+            salary=self._extract_salary(job_posting),
+            posted=_normalize_whitespace(str(job_posting.get("datePosted", ""))),
+            employment_type=self._extract_employment_type(job_posting),
+            locations=self._extract_locations(job_posting),
+            description_html=description_html,
+            attachments=_extract_links(description_html, self._source_url),
+        )
+        self._enrich(job, job_posting)
+        return job
+
+    def _enrich(self, job: JobPosting, job_posting: dict[str, Any]) -> None:
+        """Hook for site-specific subclasses; no-op for generic structured data."""
+
+    def _extract_company(self, job_posting: dict[str, Any]) -> str:
+        organization = job_posting.get("hiringOrganization")
+        if not isinstance(organization, dict):
+            return ""
+        return _normalize_whitespace(str(organization.get("name", "")))
+
+    def _extract_locations(self, job_posting: dict[str, Any]) -> list[str]:
+        raw = job_posting.get("jobLocation")
+        entries = raw if isinstance(raw, list) else [raw]
+        locations: list[str] = []
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            address = entry.get("address")
+            if not isinstance(address, dict):
+                continue
+            locality = _normalize_whitespace(str(address.get("addressLocality", "")))
+            if locality and locality not in locations:
+                locations.append(locality)
+        return locations
+
+    def _extract_employment_type(self, job_posting: dict[str, Any]) -> str:
+        raw = job_posting.get("employmentType")
+        if isinstance(raw, list):
+            raw = raw[0] if raw else ""
+        text = _normalize_whitespace(str(raw))
+        if not text:
+            return ""
+        return _EMPLOYMENT_TYPE_LABELS.get(text.upper().replace(" ", "_"), text)
+
+    def _extract_salary(self, job_posting: dict[str, Any]) -> str:
+        base = job_posting.get("baseSalary")
+        if not isinstance(base, dict):
+            return ""
+        value = base.get("value")
+        if not isinstance(value, dict):
+            return ""
+        amount = value.get("value")
+        if amount is None:
+            return ""
+        currency = _normalize_whitespace(str(base.get("currency", "")))
+        unit = _normalize_whitespace(str(value.get("unitText", "")))
+        unit_label = f" per {unit.lower()}" if unit else ""
+        return f"{currency} {amount}{unit_label}".strip()
+
+    def _build_description_html(self, job_posting: dict[str, Any]) -> str:
+        sections = []
+        description = self._clean_html_field(job_posting.get("description"))
+        responsibilities = self._clean_html_field(job_posting.get("responsibilities"))
+        skills = self._clean_html_field(job_posting.get("skills"))
+        benefits = self._clean_html_field(job_posting.get("jobBenefits"))
+
+        if description:
+            sections.append(description)
+        if responsibilities and responsibilities not in sections:
+            sections.append(f"<h1>Responsibilities</h1>\n{responsibilities}")
+        if skills and skills not in sections:
+            sections.append(f"<h1>Skills</h1>\n{skills}")
+        if benefits and benefits not in sections:
+            sections.append(f"<h1>Benefits</h1>\n{benefits}")
+
+        return "\n\n".join(section for section in sections if section).strip()
+
+    def _clean_html_field(self, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+
+        cleaned = value.strip()
+        if not cleaned:
+            return ""
+
+        cleaned = re.sub(r"</li>\s*,\s*<li", "</li><li", cleaned)
+        return cleaned.strip()
+
+
+class WelcomeToTheJungleExtractor(StructuredMetadataExtractor):
+    _FIELD_EXTRACTORS = {
+        "technologies": ("job-technology-used", "container_children"),
+        "company_sector_tags": ("company-sector-tags", "container_children"),
+        "salary": ("salary-section", "bucket_first"),
+        "experience": ("experience-section", "experience_levels"),
+        "locations": ("job-locations", "container_children"),
+    }
 
     @classmethod
     def matches(cls, html: str, source_url: str | None = None) -> bool:
@@ -1380,68 +1522,22 @@ class WelcomeToTheJungleExtractor:
             return block
         return None
 
-    def extract(self) -> JobPosting:
-        if not _contains_html(self._html):
-            raise ValueError(_NOT_HTML_ERROR)
-
-        job_posting = self._job_posting or self._find_job_posting(self._html)
-        if job_posting is None:
-            raise ValueError(_GENERIC_EXTRACTION_ERROR)
-
-        self._job_posting = job_posting
-        company = self._extract_company(job_posting)
-        description_html = self._build_description_html(job_posting)
-        attachments = _extract_links(description_html, self._source_url)
+    def _enrich(self, job: JobPosting, job_posting: dict[str, Any]) -> None:
         data_testid_values = _extract_data_testid_values(self._html)
         normalized_fields = self._extract_structured_fields(data_testid_values)
 
-        return JobPosting(
-            title=_normalize_whitespace(str(job_posting.get("title", ""))),
-            company=company,
-            salary=self._coerce_string_field(normalized_fields.get("salary")),
-            experience=self._coerce_string_field(normalized_fields.get("experience")),
-            locations=self._coerce_list_field(normalized_fields.get("locations")),
-            description_html=description_html,
-            attachments=attachments,
-            technologies=self._coerce_list_field(normalized_fields.get("technologies")),
-            company_sector_tags=self._coerce_list_field(normalized_fields.get("company_sector_tags")),
-            data_testid_values=data_testid_values,
+        salary = self._coerce_string_field(normalized_fields.get("salary"))
+        if salary:
+            job.salary = salary
+        job.experience = self._coerce_string_field(normalized_fields.get("experience"))
+        locations = self._coerce_list_field(normalized_fields.get("locations"))
+        if locations:
+            job.locations = locations
+        job.technologies = self._coerce_list_field(normalized_fields.get("technologies"))
+        job.company_sector_tags = self._coerce_list_field(
+            normalized_fields.get("company_sector_tags")
         )
-
-    def _extract_company(self, job_posting: dict[str, Any]) -> str:
-        organization = job_posting.get("hiringOrganization")
-        if not isinstance(organization, dict):
-            return ""
-        return _normalize_whitespace(str(organization.get("name", "")))
-
-    def _build_description_html(self, job_posting: dict[str, Any]) -> str:
-        sections = []
-        description = self._clean_html_field(job_posting.get("description"))
-        responsibilities = self._clean_html_field(job_posting.get("responsibilities"))
-        skills = self._clean_html_field(job_posting.get("skills"))
-        benefits = self._clean_html_field(job_posting.get("jobBenefits"))
-
-        if description:
-            sections.append(description)
-        if responsibilities and responsibilities not in sections:
-            sections.append(f"<h1>Responsibilities</h1>\n{responsibilities}")
-        if skills and skills not in sections:
-            sections.append(f"<h1>Skills</h1>\n{skills}")
-        if benefits and benefits not in sections:
-            sections.append(f"<h1>Benefits</h1>\n{benefits}")
-
-        return "\n\n".join(section for section in sections if section).strip()
-
-    def _clean_html_field(self, value: Any) -> str:
-        if not isinstance(value, str):
-            return ""
-
-        cleaned = value.strip()
-        if not cleaned:
-            return ""
-
-        cleaned = re.sub(r"</li>\s*,\s*<li", "</li><li", cleaned)
-        return cleaned.strip()
+        job.data_testid_values = data_testid_values
 
     def _extract_structured_fields(
         self,
@@ -1503,7 +1599,13 @@ def select_extractor(html: str, source_url: str | None = None) -> type[Any]:
     if not _contains_html(html):
         raise ValueError(_NOT_HTML_ERROR)
 
-    extractors = (UpworkExtractor, WelcomeToTheJungleExtractor, LinkedInExtractor, GenericHtmlExtractor)
+    extractors = (
+        UpworkExtractor,
+        WelcomeToTheJungleExtractor,
+        LinkedInExtractor,
+        StructuredMetadataExtractor,
+        GenericHtmlExtractor,
+    )
     for extractor in extractors:
         if extractor.matches(html, source_url=source_url):
             return extractor
