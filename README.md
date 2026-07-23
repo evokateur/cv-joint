@@ -133,7 +133,7 @@ Chunking, embedding, and search are implemented in a separate [MCP project](http
 make install
 ```
 
-Runs `uv tool install --editable .`
+→ Runs `uv tool install --editable .`
 
 ## Configuration
 
@@ -204,7 +204,7 @@ repositories:
 make test
 ```
 
-Runs `uv run pytest tests/ --tb=short`
+→ Runs `uv run pytest tests/ --tb=short`
 
 ## Usage
 
@@ -214,7 +214,7 @@ Runs `uv run pytest tests/ --tb=short`
 cv-joint open
 ```
 
-Starts server and opens <http://localhost:7860> in browser
+→ Starts server and opens <http://localhost:7860> in browser
 
 ### CLI examples
 
@@ -222,22 +222,22 @@ Starts server and opens <http://localhost:7860> in browser
 cv-joint analyze job-posting 'https://www.linkedin.com/jobs/view/4426565782/'
 ```
 
-Analyzes job posting and persists result
+→ Analyzes job posting and persists result
 
 ```sh
 cv-joint list job-postings
 ```
 
-Lists top level (active) job postings
+→ Lists top level (active) job postings
 
 ```sh
 cv-joint transition job-postings/wordpress-security-static-site-export-specialist archived
 ```
 
-Transitions to `archived/`
+→ Transitions to `archived/`
 
 ```sh
 cv-joint apply job-postings/grow-therapy-senior-software-engineer-backend cvs/software-engineer-3-2026-07-08
 ```
 
-Transitions to `applied/` with CV
+→ Transitions to `applied/` with CV
