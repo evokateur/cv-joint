@@ -66,7 +66,6 @@ def create_app():
                                 elem_classes=["markdown-container"]
                             )
                     job_is_saved = gr.State(value=False)
-                    job_source_md = gr.State(value="")
                     job_uri = gr.Textbox(
                         label="URI",
                         interactive=False,
@@ -118,7 +117,6 @@ def create_app():
                             "⚠ Please enter a URL",
                             gr.update(variant="primary"),
                             gr.update(value="", visible=False),
-                            "",
                         )
 
                     content_path = None
@@ -126,7 +124,7 @@ def create_app():
                         _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
                         content_path = str(_UPLOADS_DIR / Path(content_file).name)
                         shutil.copy2(content_file, content_path)
-                    job_data, identifier, source_md = service.create_job_posting(url, content_path)
+                    job_data, identifier = service.create_job_posting(url, content_path)
                     job_posting = JobPosting(**job_data)
                     job_md = service.to_markdown(job_posting)
                     is_saved = False
@@ -139,7 +137,6 @@ def create_app():
                         "✓ Analysis complete",
                         gr.update(variant="secondary"),
                         gr.update(value="", visible=False),
-                        source_md,
                     )
 
                 def view_saved_job(evt: gr.SelectData):
@@ -187,7 +184,7 @@ def create_app():
                         gr.update(value=f"job-postings/{identifier}", visible=True),
                     )
 
-                def save_job(job_data, identifier, is_saved, source_md):
+                def save_job(job_data, identifier, is_saved):
                     if is_saved:
                         return (
                             "ℹ Job posting is already saved",
@@ -208,7 +205,6 @@ def create_app():
 
                     try:
                         metadata = service.save_job_posting(job_data, identifier)
-                        service.save_job_posting_source(metadata.identifier, source_md)
                         jobs = service.get_job_postings()
                         job_list_data = [
                             [
@@ -304,7 +300,6 @@ def create_app():
                         save_job_status,
                         analyze_job_btn,
                         job_uri,
-                        job_source_md,
                     ],
                 )
 
@@ -324,7 +319,7 @@ def create_app():
 
                 save_job_btn.click(
                     fn=save_job,
-                    inputs=[job_result_json, job_identifier, job_is_saved, job_source_md],
+                    inputs=[job_result_json, job_identifier, job_is_saved],
                     outputs=[
                         save_job_status,
                         job_list,

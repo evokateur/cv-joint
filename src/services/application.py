@@ -11,7 +11,6 @@ from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
-from .preprocessing import preprocess_to_markdown
 from repositories import FileSystemRepository
 from repositories.filesystem import parse_uri
 from renderers.latex import render_latex, latex_to_pdf
@@ -51,49 +50,28 @@ class ApplicationService:
             self.repository, self.markdown_converter
         )
 
-    def extract_job_posting(
-        self, url: str, content_file: Optional[str] = None
-    ) -> str:
-        """Resolve source content to clean markdown.
+    def _analyze_job_posting_url(self, url: str) -> JobPosting:
+        """Fetch a URL and analyze its content as a job posting.
 
-        Reads content_file when given, otherwise fetches the URL. HTML is
-        converted to markdown via the post-extractor stack; already-markdown
-        content passes through. The URL is threaded as source_url so the right
-        site extractor is selected and relative links resolve.
-        """
-        if content_file is not None:
-            content: bytes | str = Path(content_file).read_bytes()
-        else:
-            import requests
-
-            resp = requests.get(url, timeout=30)
-            resp.raise_for_status()
-            content = resp.content
-        return preprocess_to_markdown(content, source_url=url)
-
-    def analyze_job_posting(self, url: str, markdown: str) -> JobPosting:
-        """Analyze already-markdown content into a structured JobPosting.
-
-        The URL is handed to the crew only so it does not fabricate one for the
-        required url field; the caller stamps the authoritative URL onto the
-        result. The markdown lives in a context-managed temp file for the
+        The fetched content lives in a context-managed temp file for the
         duration of the analysis, then is cleaned up automatically.
         """
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".md", encoding="utf-8"
-        ) as tmp:
-            tmp.write(markdown)
+        import requests
+
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        with tempfile.NamedTemporaryFile(suffix=".html") as tmp:
+            tmp.write(resp.content)
             tmp.flush()
-            return self.job_posting_analyzer.analyze(tmp.name, url)
+            return self.job_posting_analyzer.analyze(tmp.name)
 
     def create_job_posting(
         self, url: str, content_file: Optional[str] = None
-    ) -> tuple[dict[str, Any], str, str]:
+    ) -> tuple[dict[str, Any], str]:
         """
         Analyze a job posting and create a structured JobPosting.
 
-        Note: This only analyzes, does not save. Use save_job_posting to persist
-        the record and save_job_posting_source to persist the source markdown.
+        Note: This only analyzes, does not save. Use save_job_posting to persist.
 
         Args:
             url: Job posting URL — its identity, used for dedup and stored as
@@ -102,20 +80,22 @@ class ApplicationService:
             content_file: Local file path to analyze in lieu of fetching the URL
 
         Returns:
-            tuple of (job_posting_data, suggested_identifier, source_markdown)
+            tuple of (job_posting_data, suggested_identifier)
         """
         existing = self.repository.get_job_posting_record_by_url(url)
         if existing:
             raise ValueError(f"Job posting already analyzed: {existing.identifier}")
 
-        source_markdown = self.extract_job_posting(url, content_file)
-        job_posting = self.analyze_job_posting(url, source_markdown)
+        if content_file is None:
+            job_posting = self._analyze_job_posting_url(url)
+        else:
+            job_posting = self.job_posting_analyzer.analyze(content_file)
 
         job_posting = job_posting.model_copy(update={"url": url})
         identifier = self._generate_job_identifier(
             job_posting.company, job_posting.title
         )
-        return job_posting.model_dump(), identifier, source_markdown
+        return job_posting.model_dump(), identifier
 
     def save_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
@@ -143,15 +123,6 @@ class ApplicationService:
         record = self.repository.add_job_posting(job_posting, identifier)
         self.markdown_exporter.export_job_posting(record, job_posting)
         return record
-
-    def save_job_posting_source(self, identifier: str, markdown: str) -> None:
-        """Persist the preprocessed source markdown as source.md in the job
-        posting folder. Orthogonal to save_job_posting; call it after the record
-        is saved so the identifier is final.
-        """
-        self.repository.save_document(
-            f"job-postings/{identifier}/source.md", markdown
-        )
 
     def _generate_job_identifier(self, company: str, title: str) -> str:
         """Generate a URL-safe identifier from company and title."""
@@ -317,13 +288,14 @@ class ApplicationService:
         if record is None:
             raise ValueError(f"Job posting not found: {identifier}")
 
-        if content_file is None and not record.url:
-            raise ValueError(
-                f"No content file provided and no URL stored for {identifier}"
-            )
-
-        source_markdown = self.extract_job_posting(record.url, content_file)
-        job_posting = self.analyze_job_posting(record.url, source_markdown)
+        if content_file is None:
+            if not record.url:
+                raise ValueError(
+                    f"No content file provided and no URL stored for {identifier}"
+                )
+            job_posting = self._analyze_job_posting_url(record.url)
+        else:
+            job_posting = self.job_posting_analyzer.analyze(content_file)
         if record.url:
             job_posting = job_posting.model_copy(update={"url": record.url})
 
@@ -331,7 +303,6 @@ class ApplicationService:
 
         new_record = self.repository.add_job_posting(job_posting, new_identifier)
         self.markdown_exporter.export_job_posting(new_record, job_posting)
-        self.save_job_posting_source(new_record.identifier, source_markdown)
         return new_record
 
     def reanalyze_cv(self, identifier: str, content_file: str):

@@ -243,8 +243,7 @@ class TestRegenerateJobPosting:
     def test_creates_new_record_with_suffix(self, service, sample_job_posting_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         updated = JobPosting(**{**sample_job_posting_data, "title": "Senior Engineer"})
-        service.extract_job_posting = MagicMock(return_value="# md")
-        service.analyze_job_posting = MagicMock(return_value=updated)
+        service._analyze_job_posting_url = MagicMock(return_value=updated)
 
         new_record = service.reanalyze_job_posting("acme-swe")
 
@@ -255,8 +254,7 @@ class TestRegenerateJobPosting:
     def test_reanalyze_of_suffixed_identifier_increments_base(self, service, sample_job_posting_data):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
         service.save_job_posting(sample_job_posting_data, "acme-swe-2")
-        service.extract_job_posting = MagicMock(return_value="# md")
-        service.analyze_job_posting = MagicMock(
+        service._analyze_job_posting_url = MagicMock(
             return_value=JobPosting(**sample_job_posting_data)
         )
 
@@ -266,8 +264,7 @@ class TestRegenerateJobPosting:
 
     def test_regenerates_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.extract_job_posting = MagicMock(return_value="# md")
-        service.analyze_job_posting = MagicMock(
+        service._analyze_job_posting_url = MagicMock(
             return_value=JobPosting(**sample_job_posting_data)
         )
 
@@ -276,20 +273,20 @@ class TestRegenerateJobPosting:
         md_path = Path(temp_data_dir) / "job-postings" / "acme-swe-2" / "job-posting.md"
         assert md_path.exists()
 
-    def test_persists_source_markdown_on_new_record(
-        self, service, sample_job_posting_data, temp_data_dir
+    def test_reanalyze_from_content_file_uses_analyzer(
+        self, service, sample_job_posting_data, tmp_path
     ):
         service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.extract_job_posting = MagicMock(return_value="# Reanalyzed source")
-        service.analyze_job_posting = MagicMock(
-            return_value=JobPosting(**sample_job_posting_data)
+        content = tmp_path / "job.html"
+        content.write_text("<html><body>Job</body></html>")
+        service.job_posting_analyzer = MagicMock()
+        service.job_posting_analyzer.analyze.return_value = JobPosting(
+            **sample_job_posting_data
         )
 
-        new_record = service.reanalyze_job_posting("acme-swe")
+        service.reanalyze_job_posting("acme-swe", str(content))
 
-        src = Path(temp_data_dir) / "job-postings" / new_record.identifier / "source.md"
-        assert src.exists()
-        assert src.read_text() == "# Reanalyzed source"
+        service.job_posting_analyzer.analyze.assert_called_once_with(str(content))
 
 
 class TestRegenerateCv:
@@ -662,39 +659,34 @@ class TestGetCvOptimizationUsesParentPath:
 
 class TestCreateJobPostingFromUrl:
     def test_analyzes_fetched_url_when_no_content_file(self, service, sample_job_posting_data):
-        service.extract_job_posting = MagicMock(return_value="# md")
-        service.analyze_job_posting = MagicMock(
+        service._analyze_job_posting_url = MagicMock(
             return_value=JobPosting(**sample_job_posting_data)
         )
 
         service.create_job_posting(url="https://example.com/job/new")
 
-        service.extract_job_posting.assert_called_once_with("https://example.com/job/new", None)
-        service.analyze_job_posting.assert_called_once_with("https://example.com/job/new", "# md")
+        service._analyze_job_posting_url.assert_called_once_with("https://example.com/job/new")
 
     def test_url_injected_over_analyzer_value(self, service, sample_job_posting_data):
-        service.extract_job_posting = MagicMock(return_value="# md")
-        service.analyze_job_posting = MagicMock(
+        service._analyze_job_posting_url = MagicMock(
             return_value=JobPosting(**{**sample_job_posting_data, "url": "Not specified"})
         )
 
-        data, _, _ = service.create_job_posting(url="https://example.com/job/new")
+        data, _ = service.create_job_posting(url="https://example.com/job/new")
 
         assert data["url"] == "https://example.com/job/new"
 
     def test_uses_content_file_when_provided(self, service, sample_job_posting_data, tmp_path):
         content = tmp_path / "job.md"
         content.write_text("# Job")
-        service.extract_job_posting = MagicMock(return_value="# Job")
-        service.analyze_job_posting = MagicMock(
-            return_value=JobPosting(**sample_job_posting_data)
+        service.job_posting_analyzer = MagicMock()
+        service.job_posting_analyzer.analyze.return_value = JobPosting(
+            **sample_job_posting_data
         )
 
         service.create_job_posting(url="https://example.com/job/123", content_file=str(content))
 
-        service.extract_job_posting.assert_called_once_with(
-            "https://example.com/job/123", str(content)
-        )
+        service.job_posting_analyzer.analyze.assert_called_once_with(str(content))
 
 
 class TestCreateCv:
@@ -743,115 +735,3 @@ class TestAddDocument:
         with pytest.raises(ValueError, match="Not found"):
             service.add_document("job-postings/nonexistent", str(source))
 
-
-class TestExtractJobPosting:
-    """extract_job_posting resolves source content to clean markdown."""
-
-    HTML = (
-        "<!DOCTYPE html><html><head><title>Senior Python Engineer</title></head>"
-        "<body><main><h1>Senior Python Engineer</h1>"
-        "<p>We are hiring a backend engineer to build APIs and services with "
-        "Python, FastAPI, and Postgres in a fully remote team.</p>"
-        "</main></body></html>"
-    )
-
-    def test_html_file_is_converted_to_markdown(self, service, tmp_path):
-        html_file = tmp_path / "posting.html"
-        html_file.write_text(self.HTML, encoding="utf-8")
-        markdown = service.extract_job_posting("https://example.com/job/1", str(html_file))
-        assert "Senior Python Engineer" in markdown
-        assert "<html" not in markdown.lower()
-
-    def test_markdown_file_passes_through(self, service, tmp_path):
-        md = "# Already Markdown\n\nAlready extracted job text."
-        md_file = tmp_path / "posting.md"
-        md_file.write_text(md, encoding="utf-8")
-        result = service.extract_job_posting("https://example.com/job/1", str(md_file))
-        assert result == md
-
-    def test_url_is_fetched_and_preprocessed(self, service, monkeypatch):
-        import requests
-
-        class FakeResponse:
-            content = TestExtractJobPosting.HTML.encode("utf-8")
-
-            def raise_for_status(self):
-                pass
-
-        captured = {}
-
-        def fake_get(url, timeout=None):
-            captured["url"] = url
-            captured["timeout"] = timeout
-            return FakeResponse()
-
-        monkeypatch.setattr(requests, "get", fake_get)
-        markdown = service.extract_job_posting("https://example.com/job/42")
-        assert "Senior Python Engineer" in markdown
-        assert captured["url"] == "https://example.com/job/42"
-        assert captured["timeout"] == 30
-
-    def test_real_wttj_page_yields_job_facts(self, service):
-        """A real saved WTTJ job page routed through the seam yields substantive
-        job markdown (title, salary, location, skills) — not raw HTML."""
-        fixture = (
-            Path(__file__).parent.parent
-            / "fixtures"
-            / "post_extractor"
-            / "welcome-to-the-jungle.html"
-        )
-        url = "https://www.welcometothejungle.com/en/companies/automattic/jobs/experienced-software-engineer"
-        markdown = service.extract_job_posting(url, str(fixture))
-        assert "<html" not in markdown.lower()
-        assert "Experienced Software Engineer" in markdown
-        assert "$70-170k" in markdown
-        assert "Remote from US" in markdown
-        assert "PHP" in markdown
-
-
-class TestAnalyzeJobPosting:
-    """analyze_job_posting writes markdown to a temp file and threads the url."""
-
-    def test_markdown_and_url_reach_the_analyzer(self, service, sample_job_posting_data):
-        captured = {}
-
-        def fake_analyze(content_file, url):
-            captured["url"] = url
-            captured["content"] = Path(content_file).read_text(encoding="utf-8")
-            return JobPosting(**sample_job_posting_data)
-
-        service.job_posting_analyzer = MagicMock()
-        service.job_posting_analyzer.analyze.side_effect = fake_analyze
-
-        result = service.analyze_job_posting("https://example.com/x", "# Hello job")
-
-        assert captured["url"] == "https://example.com/x"
-        assert captured["content"] == "# Hello job"
-        assert result.company == sample_job_posting_data["company"]
-
-
-class TestSaveJobPostingSource:
-    """save_job_posting_source persists the cleaned source markdown as source.md."""
-
-    def test_writes_source_markdown(self, service, sample_job_posting_data, temp_data_dir):
-        record = service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.save_job_posting_source(record.identifier, "# Cleaned source\n\nBody text.")
-        src = Path(temp_data_dir) / "job-postings" / record.identifier / "source.md"
-        assert src.exists()
-        assert src.read_text() == "# Cleaned source\n\nBody text."
-
-    def test_source_has_no_frontmatter(self, service, sample_job_posting_data, temp_data_dir):
-        record = service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.save_job_posting_source(record.identifier, "# No frontmatter here")
-        src = Path(temp_data_dir) / "job-postings" / record.identifier / "source.md"
-        assert not src.read_text().startswith("---")
-
-    def test_does_not_collide_with_exporter_output(
-        self, service, sample_job_posting_data, temp_data_dir
-    ):
-        record = service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.save_job_posting_source(record.identifier, "# Source")
-        folder = Path(temp_data_dir) / "job-postings" / record.identifier
-        assert (folder / "source.md").exists()
-        assert (folder / "job-posting.md").exists()
-        assert (folder / "source.md").read_text() != (folder / "job-posting.md").read_text()
