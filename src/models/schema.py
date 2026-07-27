@@ -85,8 +85,8 @@ class JobPosting(BaseModel):
     title: str
     company: str
     industry: str
-    description: str
     experience_level: str  # entry, mid, senior, etc.
+    description: str  # job description: what the job involves and its context
 
     # Requirements
     education: List[str] = []  # degrees, certifications

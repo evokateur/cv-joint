@@ -9,9 +9,7 @@ job_analysis_task:
 
     **1. Metadata**
     - Extract job title, company name, industry, and experience level.
-    - Extract the narrative description: the prose overview of the role, company, and context. Copy
-      it faithfully without summarizing or condensing. Do not include structured sections (skills,
-      responsibilities, deliverables, application instructions) — those are captured in dedicated fields.
+    - Extract the job description: faithfully capture a prose overview of the job and its context 
 
     **2. Requirements**
     - Extract degrees, certifications, and explicit "years of experience" requirements.
