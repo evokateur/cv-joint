@@ -74,18 +74,14 @@ class ApplicationService:
         Note: This only analyzes, does not save. Use save_job_posting to persist.
 
         Args:
-            url: Job posting URL — its identity, used for dedup and stored as
-                provenance. Content is fetched from this URL unless content_file
-                is supplied (e.g. sites that only yield content in a browser).
+            url: Job posting URL — stored as provenance. Content is fetched from
+                this URL unless content_file is supplied (e.g. sites that only
+                yield content in a browser). Re-analyzing the same URL is allowed.
             content_file: Local file path to analyze in lieu of fetching the URL
 
         Returns:
             tuple of (job_posting_data, suggested_identifier)
         """
-        existing = self.repository.get_job_posting_record_by_url(url)
-        if existing:
-            raise ValueError(f"Job posting already analyzed: {existing.identifier}")
-
         if content_file is None:
             job_posting = self._analyze_job_posting_url(url)
         else:

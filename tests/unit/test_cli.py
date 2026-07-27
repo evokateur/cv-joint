@@ -257,10 +257,10 @@ class TestAnalyzeJobPostingCommand:
 
     def test_service_error_exits_nonzero(self, runner):
         with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.create_job_posting.side_effect = ValueError("already analyzed: foo")
+            MockService.return_value.create_job_posting.side_effect = ValueError("analysis failed")
             result = runner.invoke(main, ["analyze", "job-posting", "https://example.com"])
         assert result.exit_code != 0
-        assert "already analyzed" in result.output
+        assert "analysis failed" in result.output
 
 
 class TestAnalyzeCvCommand:

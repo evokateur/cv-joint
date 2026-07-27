@@ -74,20 +74,6 @@ class TestFindJobPostingByUrl:
         assert service.find_job_posting_by_url("https://example.com/nope") is None
 
 
-class TestCreateJobPostingDuplicateUrl:
-    def test_raises_when_url_already_analyzed(self, service, sample_job_posting_data):
-        service.save_job_posting(sample_job_posting_data, "acme-job")
-
-        from unittest.mock import MagicMock
-        from models import JobPosting
-
-        service.job_posting_analyzer = MagicMock()
-        service.job_posting_analyzer.analyze.return_value = JobPosting(**sample_job_posting_data)
-
-        with pytest.raises(ValueError, match="already analyzed: acme-job"):
-            service.create_job_posting("https://example.com/job/123")
-
-
 class TestSaveJobPostingMarkdown:
     def test_creates_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.save_job_posting(sample_job_posting_data, "test-job")

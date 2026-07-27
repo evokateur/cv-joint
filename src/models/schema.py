@@ -81,7 +81,7 @@ class CoverLetter(BaseModel):
 
 class JobPosting(BaseModel):
     # Basic metadata
-    url: str = Field(description="The job posting URL")
+    url: Optional[str] = Field(default=None, description="The job posting URL")
     title: str
     company: str
     industry: str
@@ -183,7 +183,7 @@ class JobPostingRecord(BaseModel):
 
     identifier: str = Field(description="Unique identifier of the job posting")
     path: str = Field(description="Directory path relative to data dir")
-    url: str = Field(description="Original job posting URL")
+    url: Optional[str] = Field(default=None, description="Original job posting URL")
     company: str = Field(description="Company name (for listing display)")
     title: str = Field(description="Job title (for listing display)")
     experience_level: str = Field(description="Experience level (for listing display)")
