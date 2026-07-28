@@ -168,9 +168,11 @@ def create_app():
                         )
 
                     job_data = job_posting.model_dump()
-                    job_md = front_matter_to_code_block(service.get_display_markdown(
-                        f"job-postings/{identifier}/job-posting.md", job_posting
-                    ))
+                    job_md = front_matter_to_code_block(
+                        service.get_display_markdown(
+                            f"job-postings/{identifier}/job-posting.md", job_posting
+                        )
+                    )
                     is_saved = True
 
                     return (
@@ -483,9 +485,11 @@ def create_app():
                         )
 
                     cv_data = cv.model_dump()
-                    cv_md = front_matter_to_code_block(service.get_display_markdown(
-                        f"cvs/{identifier}/curriculum-vitae.md", cv
-                    ))
+                    cv_md = front_matter_to_code_block(
+                        service.get_display_markdown(
+                            f"cvs/{identifier}/curriculum-vitae.md", cv
+                        )
+                    )
                     is_saved = True
 
                     return (
@@ -811,12 +815,24 @@ def create_app():
                     cv = CurriculumVitae(**cv_data) if cv_data else None
 
                     opt_base = f"job-postings/{job_posting_identifier}/cvs/{identifier}"
-                    plan_md = front_matter_to_code_block(service.get_display_markdown(
-                        f"{opt_base}/cv-transformation-plan.md", plan
-                    )) if plan else ""
-                    cv_md = front_matter_to_code_block(service.get_display_markdown(
-                        f"{opt_base}/curriculum-vitae.md", cv
-                    )) if cv else ""
+                    plan_md = (
+                        front_matter_to_code_block(
+                            service.get_display_markdown(
+                                f"{opt_base}/cv-transformation-plan.md", plan
+                            )
+                        )
+                        if plan
+                        else ""
+                    )
+                    cv_md = (
+                        front_matter_to_code_block(
+                            service.get_display_markdown(
+                                f"{opt_base}/curriculum-vitae.md", cv
+                            )
+                        )
+                        if cv
+                        else ""
+                    )
 
                     return (
                         plan_data,
@@ -1042,7 +1058,10 @@ def create_app():
                 )
 
                 opt_identifier.change(
-                    fn=lambda identifiers, new_id: {**identifiers, "identifier": new_id},
+                    fn=lambda identifiers, new_id: {
+                        **identifiers,
+                        "identifier": new_id,
+                    },
                     inputs=[opt_identifiers, opt_identifier],
                     outputs=[opt_identifiers],
                 )

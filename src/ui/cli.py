@@ -13,6 +13,7 @@ from repositories.filesystem import normalize_new_identifier, parse_uri
 
 def _load_collection(name: str) -> list[dict]:
     from config.root import get_settings
+
     path = (
         Path(get_settings().repositories.filesystem.data_dir)
         / "collections"
@@ -25,8 +26,12 @@ def _load_collection(name: str) -> list[dict]:
 
 def _complete_uri(_ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
+
     candidates = (
-        [f"job-postings/{item['identifier']}" for item in _load_collection("job-postings")]
+        [
+            f"job-postings/{item['identifier']}"
+            for item in _load_collection("job-postings")
+        ]
         + [f"cvs/{item['identifier']}" for item in _load_collection("cvs")]
         + [
             f"job-postings/{item['job_posting_identifier']}/cvs/{item['identifier']}"
@@ -39,12 +44,17 @@ def _complete_uri(_ctx, _param, incomplete):
 
 def _complete_job_posting_uri(_ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
-    candidates = [f"job-postings/{item['identifier']}" for item in _load_collection("job-postings")]
+
+    candidates = [
+        f"job-postings/{item['identifier']}"
+        for item in _load_collection("job-postings")
+    ]
     return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
 
 
 def _complete_cv_identifier(ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
+
     candidates = []
     try:
         parsed = parse_uri(ctx.params.get("uri", ""))
@@ -53,7 +63,8 @@ def _complete_cv_identifier(ctx, _param, incomplete):
             candidates += [
                 f"cvs/{item['identifier']}"
                 for item in _load_collection("optimized-cvs")
-                if item.get("job_posting_identifier") == jp_id and item.get("identifier")
+                if item.get("job_posting_identifier") == jp_id
+                and item.get("identifier")
             ]
     except ValueError:
         pass
@@ -79,6 +90,7 @@ def main(ctx):
     """CV Joint application."""
     if ctx.invoked_subcommand is None:
         from ui.app import launch
+
         launch(inbrowser=False)
 
 
@@ -86,6 +98,7 @@ def main(ctx):
 def cmd_open():
     """Start the Gradio server and open it in a browser."""
     from ui.app import launch
+
     launch(inbrowser=True)
 
 
@@ -93,6 +106,7 @@ def cmd_open():
 def show_config():
     """Print merged configuration to stdout and exit."""
     from config.root import get_settings
+
     config = get_settings().model_dump(by_alias=True)
     yaml.dump(config, sys.stdout, default_flow_style=False, sort_keys=False)
 
@@ -102,6 +116,7 @@ def show_config():
 def export_markdown(collection):
     """Re-export markdown files from stored data and exit."""
     from services.application import ApplicationService
+
     service = ApplicationService()
     try:
         count = service.export_markdown(collection)
@@ -123,7 +138,11 @@ def export_schema(path):
         schema_dir = Path(path)
     else:
         from config.root import get_settings
-        schema_dir = Path(get_settings().repositories.filesystem.data_dir).expanduser() / "schema"
+
+        schema_dir = (
+            Path(get_settings().repositories.filesystem.data_dir).expanduser()
+            / "schema"
+        )
 
     for written in export_json_schemas(schema_dir):
         click.echo(f"Wrote {written}")
@@ -134,6 +153,7 @@ def export_schema(path):
 def remove(uri):
     """Remove an object by URI and exit."""
     from services.application import ApplicationService
+
     service = ApplicationService()
     try:
         parsed = parse_uri(uri)
@@ -144,7 +164,9 @@ def remove(uri):
         )
 
     if parsed["collection"] == "optimized-cvs":
-        removed = service.remove_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"])
+        removed = service.remove_cv_optimization(
+            parsed["job_posting_identifier"], parsed["identifier"]
+        )
     elif parsed["collection"] == "job-postings":
         removed = service.remove_job_posting(parsed["identifier"])
     else:
@@ -159,10 +181,13 @@ def remove(uri):
 
 @main.command("reanalyze")
 @click.argument("uri", shell_complete=_complete_uri)
-@click.argument("content_file", required=False, type=click.Path(dir_okay=False, allow_dash=True))
+@click.argument(
+    "content_file", required=False, type=click.Path(dir_okay=False, allow_dash=True)
+)
 def reanalyze(uri, content_file):
     """Re-analyze an object by URI and overwrite the existing record."""
     from services.application import ApplicationService
+
     service = ApplicationService()
     try:
         parsed = parse_uri(uri)
@@ -183,8 +208,12 @@ def reanalyze(uri, content_file):
             record = service.reanalyze_cv(parsed["identifier"], content_file)
             new_uri = f"cvs/{record.identifier}"
         else:
-            record = service.reanalyze_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"])
-            new_uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
+            record = service.reanalyze_cv_optimization(
+                parsed["job_posting_identifier"], parsed["identifier"]
+            )
+            new_uri = (
+                f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
+            )
     except click.UsageError:
         raise
     except ValueError as e:
@@ -203,6 +232,7 @@ def reanalyze(uri, content_file):
 def rename(uri, new_id):
     """Rename an object by URI and exit."""
     from services.application import ApplicationService
+
     service = ApplicationService()
     try:
         parsed = parse_uri(uri)
@@ -226,7 +256,9 @@ def rename(uri, new_id):
         elif parsed["collection"] == "cvs":
             service.rename_cv(parsed["identifier"], new_id)
         else:
-            service.rename_cv_optimization(parsed["job_posting_identifier"], parsed["identifier"], new_id)
+            service.rename_cv_optimization(
+                parsed["job_posting_identifier"], parsed["identifier"], new_id
+            )
     except click.UsageError:
         raise
     except ValueError as e:
@@ -238,9 +270,12 @@ def rename(uri, new_id):
 
 def _complete_collection(_ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
+
     base = ["job-postings", "cvs", "curriculum-vitae"]
     job_postings = _load_collection("job-postings")
-    locations = sorted({item["location"] for item in job_postings if item.get("location")})
+    locations = sorted(
+        {item["location"] for item in job_postings if item.get("location")}
+    )
     candidates = (
         base
         + [f"job-postings/{loc}" for loc in locations]
@@ -255,11 +290,23 @@ def _complete_collection(_ctx, _param, incomplete):
 
 @main.command("list")
 @click.argument("collection", shell_complete=_complete_collection)
-@click.option("-r", "--recursive", "all_locations", is_flag=True, help="Include all locations (job-postings only)")
-@click.option("-q", "--query", metavar="QUERY", help="Filter by company, title, experience level, or URL")
+@click.option(
+    "-r",
+    "--recursive",
+    "all_locations",
+    is_flag=True,
+    help="Include all locations (job-postings only)",
+)
+@click.option(
+    "-q",
+    "--query",
+    metavar="QUERY",
+    help="Filter by company, title, experience level, or URL",
+)
 def list_objects(collection, all_locations, query):
     """List objects by collection and exit."""
     from services.application import ApplicationService
+
     service = ApplicationService()
 
     if collection == "job-postings" or collection.startswith("job-postings/"):
@@ -269,9 +316,13 @@ def list_objects(collection, all_locations, query):
             parts = collection.split("/", 2)
             location = parts[1]
             id_prefix = parts[2] if len(parts) > 2 else None
-        results = service.get_job_postings(location=location, all=all_locations, query=query)
+        results = service.get_job_postings(
+            location=location, all=all_locations, query=query
+        )
         if id_prefix:
-            results = [j for j in results if j.get("identifier", "").startswith(id_prefix)]
+            results = [
+                j for j in results if j.get("identifier", "").startswith(id_prefix)
+            ]
         for j in results:
             click.echo(f"job-postings/{j.get('identifier', '')}")
     elif collection in ("cvs", "curriculum-vitae"):
@@ -286,6 +337,7 @@ main.add_command(list_objects, name="ls")
 
 def _complete_location(_ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
+
     candidates = [".", "applied", "archived"]
     return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
 
@@ -294,19 +346,29 @@ def _require_job_posting_uri(uri: str) -> str:
     try:
         parsed = parse_uri(uri)
     except ValueError:
-        raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
+        raise click.UsageError(
+            f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}"
+        )
     if parsed["collection"] != "job-postings":
-        raise click.UsageError(f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}")
+        raise click.UsageError(
+            f"unrecognised URI '{uri}'\nExpected: job-postings/{{id}}"
+        )
     return parsed["identifier"]
 
 
 @main.command("transition")
 @click.argument("uri", shell_complete=_complete_job_posting_uri)
 @click.argument("location", shell_complete=_complete_location)
-@click.option("--field", multiple=True, metavar="KEY=VALUE", help="Extra fields to record in the transition log")
+@click.option(
+    "--field",
+    multiple=True,
+    metavar="KEY=VALUE",
+    help="Extra fields to record in the transition log",
+)
 def transition(uri, location, field):
     """File a job posting into a named location and exit."""
     from services.application import ApplicationService
+
     identifier = _require_job_posting_uri(uri)
     if not location:
         raise click.UsageError("location must not be empty")
@@ -327,6 +389,7 @@ def archive(uri):
     """Archive a job posting by URI and exit."""
     identifier = _require_job_posting_uri(uri)
     from services.application import ApplicationService
+
     ApplicationService().archive_job_posting(identifier)
     click.echo(f"Archived {uri}")
 
@@ -337,6 +400,7 @@ def unarchive(uri):
     """Return an archived job posting to active and exit."""
     identifier = _require_job_posting_uri(uri)
     from services.application import ApplicationService
+
     ApplicationService().unarchive_job_posting(identifier)
     click.echo(f"Unarchived {uri}")
 
@@ -344,13 +408,16 @@ def unarchive(uri):
 @main.command("apply")
 @click.argument("uri", shell_complete=_complete_job_posting_uri)
 @click.argument("cv_identifier", shell_complete=_complete_cv_identifier)
-@click.option("--date", metavar="YYYY-MM-DD", help="Application date (defaults to today)")
+@click.option(
+    "--date", metavar="YYYY-MM-DD", help="Application date (defaults to today)"
+)
 def apply(uri, cv_identifier, date):
     """Mark a job posting as applied to and exit."""
     identifier = _require_job_posting_uri(uri)
     applied_at = datetime.strptime(date, "%Y-%m-%d") if date else None
     cv_identifier = _normalise_cv_identifier(cv_identifier)
     from services.application import ApplicationService
+
     ApplicationService().mark_applied(identifier, cv_identifier, applied_at=applied_at)
     click.echo(f"Marked {uri} as applied with {cv_identifier}")
 
@@ -361,6 +428,7 @@ def apply(uri, cv_identifier, date):
 def add(uri, file):
     """Add a document to an object's directory by URI."""
     from services.application import ApplicationService
+
     service = ApplicationService()
     try:
         doc_uri = service.add_document(uri, file)
@@ -393,7 +461,9 @@ def analyze():
 
 @analyze.command("job-posting")
 @click.argument("url")
-@click.argument("content", required=False, type=click.Path(dir_okay=False, allow_dash=True))
+@click.argument(
+    "content", required=False, type=click.Path(dir_okay=False, allow_dash=True)
+)
 def analyze_job_posting(url, content):
     """Analyze a job posting.
 
@@ -401,6 +471,7 @@ def analyze_job_posting(url, content):
     the URL unless a file path or '-' (stdin) is given.
     """
     from services.application import ApplicationService
+
     service = ApplicationService()
     content_file, is_temp = _resolve_content(content)
     try:
@@ -416,10 +487,13 @@ def analyze_job_posting(url, content):
 
 
 @analyze.command("cv")
-@click.argument("content", default="-", type=click.Path(dir_okay=False, allow_dash=True))
+@click.argument(
+    "content", default="-", type=click.Path(dir_okay=False, allow_dash=True)
+)
 def analyze_cv(content):
     """Analyze a CV from a file path or stdin (-)."""
     from services.application import ApplicationService
+
     service = ApplicationService()
     content_file, is_temp = _resolve_content(content)
     try:
@@ -448,6 +522,7 @@ def completion(shell):
     if shell not in ("bash", "zsh", "fish"):
         raise click.UsageError(f"Unknown shell {shell!r}. Supported: bash, zsh, fish")
     import subprocess
+
     result = subprocess.run(
         ["cv-joint"],
         env={**os.environ, "_CV_JOINT_COMPLETE": f"{shell}_source"},
