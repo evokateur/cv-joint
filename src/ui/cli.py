@@ -148,6 +148,49 @@ def export_schema(path):
         click.echo(f"Wrote {written}")
 
 
+def _renderable_uris() -> list[str]:
+    """URIs that resolve to a CV (the only renderable targets today).
+
+    Never a bare job-postings/{id} — that is not a CV, so it is pruned; only its
+    cvs/{id} leaves are offered. Invariant: if it completes, it renders.
+    """
+    uris = [f"cvs/{item['identifier']}" for item in _load_collection("cvs")]
+    uris += [
+        f"job-postings/{item['job_posting_identifier']}/cvs/{item['identifier']}"
+        for item in _load_collection("optimized-cvs")
+        if item.get("job_posting_identifier") and item.get("identifier")
+    ]
+    return uris
+
+
+def _complete_render_target(ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    from renderers.latex import RENDERERS
+
+    typed = ctx.params.get("args") or ()
+    if len(typed) == 0:
+        # position 1: type literals (cv, cover-letter) + renderable URIs
+        candidates = list(RENDERERS) + _renderable_uris()
+        return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+    if len(typed) == 1 and typed[0] in RENDERERS:
+        # position 2, file mode: stdin sentinel + hand off to shell file globbing
+        items = []
+        if "-".startswith(incomplete):
+            items.append(CompletionItem("-"))
+        items.append(CompletionItem(incomplete, type="file"))
+        return items
+    # URI mode takes no second positional; nothing further to complete
+    return []
+
+
+def _complete_template(_ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+
+    templates_dir = Path(__file__).parents[2] / "templates"
+    names = sorted(p.name for p in templates_dir.glob("*.tex"))
+    return [CompletionItem(n) for n in names if n.startswith(incomplete)]
+
+
 def _render_target_from_file(doc_type: str, input_path: str):
     """Resolve file mode to (data, type, default_stem). INPUT '-' reads stdin."""
     from renderers.latex import load_data
@@ -219,7 +262,13 @@ def _emit_render(data, doc_type, fmt, output, default_stem, template):
 
 
 @main.command("render")
-@click.argument("args", nargs=-1, required=True, metavar="TARGET [INPUT]")
+@click.argument(
+    "args",
+    nargs=-1,
+    required=True,
+    metavar="TARGET [INPUT]",
+    shell_complete=_complete_render_target,
+)
 @click.option(
     "-f",
     "--format",
@@ -235,7 +284,12 @@ def _emit_render(data, doc_type, fmt, output, default_stem, template):
     metavar="PATH",
     help="Output path, or '-' for stdout. Default: current directory.",
 )
-@click.option("--template", metavar="NAME", help="Override the type's default template.")
+@click.option(
+    "--template",
+    metavar="NAME",
+    help="Override the type's default template.",
+    shell_complete=_complete_template,
+)
 def render(args, fmt, output, template):
     """Render a document to PDF or TeX.
 
