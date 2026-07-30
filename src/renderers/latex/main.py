@@ -13,17 +13,15 @@ def render_latex(
     output_file: str,
     template_name: str,
     schema_class: Optional[Type[BaseModel]] = None,
-    post_replace: Optional[dict] = None,
 ):
     """
-    Render LaTeX from JSON/YAML data and template, with optional post-render replacements.
+    Render LaTeX from JSON/YAML data and template.
 
     Args:
         input_file: Path to input JSON or YAML file containing data
         output_file: Path to output LaTeX file
         template_name: Name of the template file in the templates directory
         schema_class: Optional Pydantic model class for validation
-        post_replace: Optional dict of {placeholder: attribute_name} for post-render replacement
     """
     path = Path(input_file)
     with open(input_file) as f:
@@ -33,22 +31,14 @@ def render_latex(
             data = yaml.safe_load(f)
 
     if schema_class is not None:
-        obj = schema_class(**data)
-        obj_data = obj.model_dump()
+        obj_data = schema_class(**data).model_dump()
     else:
-        obj = None
         obj_data = data
 
     templates_dir = str(Path(__file__).parents[3] / "templates")
     env = get_tex_env(templates_dir)
     template = env.get_template(template_name)
     rendered_tex = template.render(obj_data)
-
-    if post_replace:
-        for placeholder, attr in post_replace.items():
-            value = getattr(obj, attr, None)
-            if value and placeholder in rendered_tex:
-                rendered_tex = rendered_tex.replace(placeholder, value)
 
     with open(output_file, "w") as f:
         f.write(rendered_tex)

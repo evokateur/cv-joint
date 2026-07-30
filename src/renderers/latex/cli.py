@@ -34,17 +34,11 @@ def main_cover_letter():
 
     args = parser.parse_args()
 
-    post_replace = {
-        "xXposition": "position",
-        "xXcompany": "company",
-    }
-
     render_latex(
         args.input_file,
         args.output_file,
         template_name="cover-letter.tex",
         schema_class=CoverLetter,
-        post_replace=post_replace,
     )
 
 

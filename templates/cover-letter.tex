@@ -30,7 +30,7 @@
 
 \opening{Dear Hiring Manager,}
     (# for paragraph in paragraphs #)
-    (( paragraph ))
+    (( paragraph | replace("xXcompany", company) | replace("xXposition", position) ))
     (# endfor #)
 \closing{Sincerely,}
 
