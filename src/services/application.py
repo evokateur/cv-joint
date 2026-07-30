@@ -13,7 +13,7 @@ from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
 from repositories import FileSystemRepository
 from repositories.filesystem import parse_uri
-from renderers.latex import load_data, render_tex, tex_to_pdf
+from renderers.latex import render_tex, tex_to_pdf
 
 
 def _next_identifier(identifier: str, exists: Callable[[str], Any]) -> str:
@@ -693,8 +693,7 @@ class ApplicationService:
         return self.repository.get_optimized_cv(job_posting_identifier, identifier)
 
     def generate_pdf_file(
-        self, data_path: str, template_name: str, stem: str = "output"
+        self, data: dict[str, Any], template_name: str, output_path: str
     ) -> str:
-        tex = render_tex(load_data(data_path), template_name)
-        output_pdf = str(Path(tempfile.mkdtemp()) / f"{stem}.pdf")
-        return tex_to_pdf(tex, output_pdf)
+        tex = render_tex(data, template_name)
+        return tex_to_pdf(tex, output_path)

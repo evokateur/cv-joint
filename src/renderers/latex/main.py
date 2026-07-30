@@ -77,8 +77,8 @@ def render_document(
 ) -> str:
     """Render a registered document type to a file, in the given format.
 
-    Validates `data` against the type's schema, renders its template to TeX, then
-    writes the .tex (fmt="tex") or compiles a .pdf in a temp dir (fmt="pdf").
+    Uses the document type to choose a default template, then writes the .tex
+    (fmt="tex") or compiles a .pdf in a temp dir (fmt="pdf").
 
     Args:
         data: Raw data dict for the document
@@ -95,8 +95,7 @@ def render_document(
     except KeyError:
         raise ValueError(f"unknown type: {type_name!r}") from None
 
-    obj_data = spec.schema(**data).model_dump()
-    tex_source = render_tex(obj_data, template or spec.template)
+    tex_source = render_tex(data, template or spec.template)
 
     if fmt == "tex":
         destination = Path(output_path)

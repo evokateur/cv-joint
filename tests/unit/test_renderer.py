@@ -2,7 +2,6 @@ import shutil
 
 import pytest
 
-from models.schema import CoverLetter, CurriculumVitae
 from renderers.latex import RENDERERS, load_data, render_document
 
 COVER_LETTER = {
@@ -21,9 +20,7 @@ COVER_LETTER = {
 
 def test_registry_types():
     assert set(RENDERERS) == {"cv", "cover-letter"}
-    assert RENDERERS["cv"].schema is CurriculumVitae
     assert RENDERERS["cv"].template == "cv.tex"
-    assert RENDERERS["cover-letter"].schema is CoverLetter
     assert RENDERERS["cover-letter"].template == "cover-letter.tex"
 
 

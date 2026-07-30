@@ -192,7 +192,7 @@ def _complete_template(_ctx, _param, incomplete):
 
 
 def _render_target_from_file(doc_type: str, input_path: str):
-    """Resolve file mode to (data, type, default_stem). INPUT '-' reads stdin."""
+    """Resolve file mode to (data, type, default base name). INPUT '-' reads stdin."""
     from renderers.latex import load_data
 
     if input_path == "-":
@@ -204,7 +204,7 @@ def _render_target_from_file(doc_type: str, input_path: str):
 
 
 def _render_target_from_uri(uri: str):
-    """Resolve a stored CV URI to (data, type, default_stem)."""
+    """Resolve a stored CV URI to (data, type, default base name)."""
     from services.application import ApplicationService
 
     try:
@@ -219,12 +219,12 @@ def _render_target_from_uri(uri: str):
     service = ApplicationService()
     if parsed["collection"] == "cvs":
         obj = service.get_cv(parsed["identifier"])
-        stem = parsed["identifier"]
+        base_name = parsed["identifier"]
     elif parsed["collection"] == "optimized-cvs":
         obj = service.get_optimized_cv(
             parsed["job_posting_identifier"], parsed["identifier"]
         )
-        stem = f"{parsed['job_posting_identifier']}-{parsed['identifier']}"
+        base_name = f"{parsed['job_posting_identifier']}-{parsed['identifier']}"
     else:
         raise click.UsageError(
             f"not a renderable CV target: {uri}\n"
@@ -234,10 +234,15 @@ def _render_target_from_uri(uri: str):
     if obj is None:
         click.echo(f"Not found: {uri}", err=True)
         sys.exit(1)
-    return obj.model_dump(), "cv", stem
+    return obj.model_dump(), "cv", base_name
 
 
-def _emit_render(data, doc_type, fmt, output, default_stem, template):
+def _default_render_filename(base_name: str, fmt: str) -> str:
+    ext = "tex" if fmt == "tex" else "pdf"
+    return f"{base_name}.{ext}"
+
+
+def _emit_render(data, doc_type, fmt, output, default_base_name, template):
     """Render `data` and write it per the -o convention (path, '-' stdout, or CWD)."""
     from renderers.latex import render_document
 
@@ -253,8 +258,8 @@ def _emit_render(data, doc_type, fmt, output, default_stem, template):
         else:
             if output:
                 dest = output
-            elif default_stem:
-                dest = f"{default_stem}.{ext}"
+            elif default_base_name:
+                dest = _default_render_filename(default_base_name, fmt)
             else:
                 raise click.UsageError(
                     "reading from stdin (-) requires -o <path> or -o -"
@@ -304,12 +309,12 @@ def render(args, fmt, output, template):
     cv-joint render <type> <input>   a data file or '-' (stdin), e.g. cv data/cv.yaml
     """
     if len(args) == 1:
-        data, doc_type, stem = _render_target_from_uri(args[0])
+        data, doc_type, base_name = _render_target_from_uri(args[0])
     elif len(args) == 2:
-        data, doc_type, stem = _render_target_from_file(args[0], args[1])
+        data, doc_type, base_name = _render_target_from_file(args[0], args[1])
     else:
         raise click.UsageError("render takes <uri> or <type> <input>")
-    _emit_render(data, doc_type, fmt, output, stem, template)
+    _emit_render(data, doc_type, fmt, output, base_name, template)
 
 
 @main.command("remove")

@@ -1,12 +1,14 @@
 import os
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 from pathlib import Path
 
 import gradio as gr
 import validators
+from renderers.latex import load_data
 from ui.components import front_matter_to_code_block
 from models import JobPosting, CurriculumVitae, CvTransformationPlan
 from services import ApplicationService
@@ -1119,25 +1121,28 @@ def create_app():
                     default = "cv.tex" if "cv.tex" in templates else None
                     return gr.Dropdown(choices=templates, value=default)
 
-                def pdf_stem_from_path(data_path: str) -> str:
+                def pdf_filename_from_path(data_path: str) -> str:
                     parts = Path(data_path).parts
                     if "job-postings" in parts:
                         cvs_idx = parts.index("cvs")
-                        return f"{parts[cvs_idx - 1]}-{parts[cvs_idx + 1]}"
+                        return f"{parts[cvs_idx - 1]}-{parts[cvs_idx + 1]}.pdf"
                     if "cvs" in parts:
                         cvs_idx = parts.index("cvs")
-                        return parts[cvs_idx + 1]
-                    return Path(data_path).stem
+                        return f"{parts[cvs_idx + 1]}.pdf"
+                    return f"{Path(data_path).stem}.pdf"
 
                 def generate_pdf(data_path, json_file, template_name):
                     data_path = json_file.name if json_file else data_path
-                    if not data_path and not template_name:
-                        return "⚠ Please select or upload a JSON data file", None
+                    if not data_path:
+                        return "Please select or upload a JSON data file", None
                     if not template_name:
-                        return "⚠ Please select a template", None
+                        return "Please select a template", None
 
-                    stem = pdf_stem_from_path(data_path)
-                    pdf_path = service.generate_pdf_file(data_path, template_name, stem)
+                    data = load_data(data_path)
+                    pdf_path = str(
+                        Path(tempfile.mkdtemp()) / pdf_filename_from_path(data_path)
+                    )
+                    pdf_path = service.generate_pdf_file(data, template_name, pdf_path)
 
                     return " PDF generated", pdf_path
 

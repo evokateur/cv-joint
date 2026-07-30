@@ -7,7 +7,7 @@ import shutil
 import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from repositories import FileSystemRepository
 from services import ApplicationService
@@ -61,6 +61,22 @@ def sample_cv_data():
         areas_of_expertise=[],
         languages=[],
     ).model_dump()
+
+
+def test_generate_pdf_file_renders_data_to_explicit_output(service, sample_cv_data):
+    output_path = "/tmp/example.pdf"
+
+    with (
+        patch(
+            "services.application.render_tex", return_value="tex source"
+        ) as render_tex,
+        patch("services.application.tex_to_pdf", return_value=output_path) as tex_to_pdf,
+    ):
+        result = service.generate_pdf_file(sample_cv_data, "cv.tex", output_path)
+
+    assert result == output_path
+    render_tex.assert_called_once_with(sample_cv_data, "cv.tex")
+    tex_to_pdf.assert_called_once_with("tex source", output_path)
 
 
 class TestFindJobPostingByUrl:
@@ -720,4 +736,3 @@ class TestAddDocument:
         source.write_text("# Notes")
         with pytest.raises(ValueError, match="Not found"):
             service.add_document("job-postings/nonexistent", str(source))
-
