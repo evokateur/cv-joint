@@ -36,8 +36,6 @@ dev = [
 
 [project.scripts]
 cv-joint = "ui.cli:main"
-build-cv = "renderers.latex.cli:main_cv"
-build-cover-letter = "renderers.latex.cli:main_cover_letter"
 
 [tool.setuptools.packages.find]
 where = ["src"]
