@@ -160,10 +160,17 @@ class ApplicationService:
         if query:
             q = query.lower()
             results = [
-                r for r in results
+                r
+                for r in results
                 if any(
                     q in (r.get(f) or "").lower()
-                    for f in ("company", "title", "experience_level", "url", "created_at")
+                    for f in (
+                        "company",
+                        "title",
+                        "experience_level",
+                        "url",
+                        "created_at",
+                    )
                 )
             ]
         return results
@@ -186,7 +193,9 @@ class ApplicationService:
         self, identifier: str, cv_identifier: str, applied_at: Optional[datetime] = None
     ):
         """Record that a job posting was applied to with a given CV."""
-        return self.repository.mark_applied(identifier, cv_identifier, applied_at=applied_at)
+        return self.repository.mark_applied(
+            identifier, cv_identifier, applied_at=applied_at
+        )
 
     def create_cv(
         self, content_file: Optional[str] = None
@@ -260,12 +269,15 @@ class ApplicationService:
         if query:
             q = query.lower()
             results = [
-                r for r in results
+                r
+                for r in results
                 if any(q in (r.get(f) or "").lower() for f in ("name", "identifier"))
             ]
         return results
 
-    def reanalyze_job_posting(self, identifier: str, content_file: Optional[str] = None):
+    def reanalyze_job_posting(
+        self, identifier: str, content_file: Optional[str] = None
+    ):
         """
         Re-analyze a job posting and save as a new record with a suffix (e.g. acme-swe-2),
         preserving the original. Uses stored URL as fallback when no content_file is given.
@@ -295,7 +307,9 @@ class ApplicationService:
         if record.url:
             job_posting = job_posting.model_copy(update={"url": record.url})
 
-        new_identifier = _next_identifier(identifier, self.repository.get_job_posting_record)
+        new_identifier = _next_identifier(
+            identifier, self.repository.get_job_posting_record
+        )
 
         new_record = self.repository.add_job_posting(job_posting, new_identifier)
         self.markdown_exporter.export_job_posting(new_record, job_posting)
@@ -341,7 +355,9 @@ class ApplicationService:
         Raises:
             ValueError: If CV optimization not found
         """
-        record = self.repository.get_optimized_cv_record(job_posting_identifier, identifier)
+        record = self.repository.get_optimized_cv_record(
+            job_posting_identifier, identifier
+        )
         if record is None:
             raise ValueError(
                 f"CV optimization not found: job-postings/{job_posting_identifier}/cvs/{identifier}"
@@ -359,7 +375,9 @@ class ApplicationService:
 
         new_identifier = _next_identifier(
             identifier,
-            lambda id: self.repository.get_optimized_cv_record(job_posting_identifier, id),
+            lambda id: self.repository.get_optimized_cv_record(
+                job_posting_identifier, id
+            ),
         )
 
         self._write_optimization_outputs(job_posting_identifier, new_identifier, output)
@@ -516,7 +534,9 @@ class ApplicationService:
         self, job_posting_identifier: str, identifier: str, output
     ):
         """Write peripheral optimizer artifacts via the repository (class-name convention)."""
-        base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
+        base_uri = self.repository.optimized_cv_base_uri(
+            job_posting_identifier, identifier
+        )
         for artifact in output.artifacts.values():
             self.repository.save_object(base_uri, artifact)
 
@@ -546,7 +566,9 @@ class ApplicationService:
         )
 
         if plan is not None:
-            base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
+            base_uri = self.repository.optimized_cv_base_uri(
+                job_posting_identifier, identifier
+            )
             self.repository.save_object(base_uri, plan)
             self.markdown_exporter.export_cv_transformation_plan(record, plan)
         self.markdown_exporter.export_cv(record, cv)
@@ -579,7 +601,9 @@ class ApplicationService:
         Returns:
             tuple of (plan_data, cv_data)
         """
-        base_uri = self.repository.optimized_cv_base_uri(job_posting_identifier, identifier)
+        base_uri = self.repository.optimized_cv_base_uri(
+            job_posting_identifier, identifier
+        )
         plan = self.repository.load_object(base_uri, CvTransformationPlan)
         cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
 
@@ -605,23 +629,35 @@ class ApplicationService:
         }
         results = []
         for item in self.repository.list_cvs():
-            results.append({
-                "identifier": item["identifier"],
-                "filepath": str(self.repository.data_dir / item["path"] / "curriculum-vitae.json"),
-            })
+            results.append(
+                {
+                    "identifier": item["identifier"],
+                    "filepath": str(
+                        self.repository.data_dir
+                        / item["path"]
+                        / "curriculum-vitae.json"
+                    ),
+                }
+            )
         for item in self.repository.list_optimized_cvs():
             if item.get("job_posting_identifier") in active_job_ids:
                 jp_id = item["job_posting_identifier"]
                 id_ = item["identifier"]
                 filepath = str(
                     self.repository.data_dir
-                    / "job-postings" / jp_id / "cvs" / id_ / "curriculum-vitae.json"
+                    / "job-postings"
+                    / jp_id
+                    / "cvs"
+                    / id_
+                    / "curriculum-vitae.json"
                 )
-                results.append({
-                    "identifier": id_,
-                    "job_posting_identifier": jp_id,
-                    "filepath": filepath,
-                })
+                results.append(
+                    {
+                        "identifier": id_,
+                        "job_posting_identifier": jp_id,
+                        "filepath": filepath,
+                    }
+                )
         return results
 
     def get_cv_template_names(self) -> list[str]:
@@ -637,7 +673,9 @@ class ApplicationService:
     def get_display_markdown(self, uri: str, obj) -> str:
         base_uri = uri.rsplit("/", 1)[0]
         record = self.repository.resolve_record(base_uri)
-        return insert_json_as_frontmatter(record.model_dump(mode="json"), self.to_markdown(obj))
+        return insert_json_as_frontmatter(
+            record.model_dump(mode="json"), self.to_markdown(obj)
+        )
 
     def get_job_posting_record(self, identifier: str):
         return self.repository.get_job_posting_record(identifier)
@@ -646,13 +684,17 @@ class ApplicationService:
         return self.repository.get_cv_record(identifier)
 
     def get_optimized_cv_record(self, job_posting_identifier: str, identifier: str):
-        return self.repository.get_optimized_cv_record(job_posting_identifier, identifier)
+        return self.repository.get_optimized_cv_record(
+            job_posting_identifier, identifier
+        )
 
     def get_optimized_cv(self, job_posting_identifier: str, identifier: str):
         """Retrieve an optimized CV domain object by job posting and CV identifier."""
         return self.repository.get_optimized_cv(job_posting_identifier, identifier)
 
-    def generate_pdf_file(self, data_path: str, template_name: str, stem: str = "output") -> str:
+    def generate_pdf_file(
+        self, data_path: str, template_name: str, stem: str = "output"
+    ) -> str:
         tex = render_tex(load_data(data_path), template_name)
         output_pdf = str(Path(tempfile.mkdtemp()) / f"{stem}.pdf")
         return tex_to_pdf(tex, output_pdf)

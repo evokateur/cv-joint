@@ -246,7 +246,9 @@ def _emit_render(data, doc_type, fmt, output, default_stem, template):
         if output == "-":
             with tempfile.TemporaryDirectory() as tmp:
                 tmp_out = str(Path(tmp) / f"artifact.{ext}")
-                render_document(data, doc_type, fmt=fmt, output_path=tmp_out, template=template)
+                render_document(
+                    data, doc_type, fmt=fmt, output_path=tmp_out, template=template
+                )
                 sys.stdout.buffer.write(Path(tmp_out).read_bytes())
         else:
             if output:
@@ -254,8 +256,12 @@ def _emit_render(data, doc_type, fmt, output, default_stem, template):
             elif default_stem:
                 dest = f"{default_stem}.{ext}"
             else:
-                raise click.UsageError("reading from stdin (-) requires -o <path> or -o -")
-            path = render_document(data, doc_type, fmt=fmt, output_path=dest, template=template)
+                raise click.UsageError(
+                    "reading from stdin (-) requires -o <path> or -o -"
+                )
+            path = render_document(
+                data, doc_type, fmt=fmt, output_path=dest, template=template
+            )
             click.echo(f"Wrote {path}", err=True)
     except ValueError as e:
         raise click.ClickException(str(e))
