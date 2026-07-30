@@ -148,6 +148,63 @@ def export_schema(path):
         click.echo(f"Wrote {written}")
 
 
+@main.command("render")
+@click.argument("doc_type", metavar="TYPE")
+@click.argument(
+    "input_path", metavar="INPUT", type=click.Path(exists=True, dir_okay=False, allow_dash=True)
+)
+@click.option(
+    "-f",
+    "--format",
+    "fmt",
+    type=click.Choice(["pdf", "tex"]),
+    default="pdf",
+    show_default=True,
+    help="Output format.",
+)
+@click.option(
+    "-o",
+    "--output",
+    metavar="PATH",
+    help="Output path, or '-' for stdout. Default: current directory, named from INPUT.",
+)
+@click.option("--template", metavar="NAME", help="Override the type's default template.")
+def render(doc_type, input_path, fmt, output, template):
+    """Render a document to PDF or TeX.
+
+    \b
+    TYPE   a registered document type (e.g. cv, cover-letter)
+    INPUT  a JSON/YAML data file, or '-' for stdin
+    """
+    from renderers.latex import load_data, render_document
+
+    if input_path == "-":
+        data = yaml.safe_load(sys.stdin.read())
+        default_stem = None
+    else:
+        data = load_data(input_path)
+        default_stem = Path(input_path).stem
+
+    ext = "tex" if fmt == "tex" else "pdf"
+    try:
+        if output == "-":
+            with tempfile.TemporaryDirectory() as tmp:
+                tmp_out = str(Path(tmp) / f"artifact.{ext}")
+                render_document(data, doc_type, fmt=fmt, output_path=tmp_out, template=template)
+                sys.stdout.buffer.write(Path(tmp_out).read_bytes())
+        else:
+            if output:
+                dest = output
+            elif default_stem:
+                dest = f"{default_stem}.{ext}"
+            else:
+                raise click.UsageError("reading from stdin (-) requires -o <path> or -o -")
+            path = render_document(data, doc_type, fmt=fmt, output_path=dest, template=template)
+            click.echo(f"Wrote {path}", err=True)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+
 @main.command("remove")
 @click.argument("uri", shell_complete=_complete_uri)
 def remove(uri):
