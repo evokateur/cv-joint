@@ -1,4 +1,4 @@
-.PHONY: install reinstall uninstall test test-all clean cv upwork-cv cover-letter
+.PHONY: install reinstall uninstall test test-all cv upwork-cv cover-letter
 
 OPEN =
 ifeq ($(shell uname), Darwin)
@@ -27,15 +27,6 @@ upwork-cv:
 cover-letter:
 	uv run cv-joint render cover-letter data/cover-letter.json -o output/cover-letter.pdf
 	@if [ -n "$(OPEN)" ]; then $(OPEN) output/cover-letter.pdf; fi
-
-clean:
-	echo "Cleaning up pdflatex build artifacts..."
-	rm -f output/*.aux
-	rm -f output/*.fdb_latexmk
-	rm -f output/*.fls
-	rm -f output/*.log
-	rm -f output/*.out
-	rm -f output/*.synctex.gz
 
 test:
 	uv run pytest tests/ --tb=short
