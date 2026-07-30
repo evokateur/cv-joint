@@ -648,6 +648,10 @@ class ApplicationService:
     def get_optimized_cv_record(self, job_posting_identifier: str, identifier: str):
         return self.repository.get_optimized_cv_record(job_posting_identifier, identifier)
 
+    def get_optimized_cv(self, job_posting_identifier: str, identifier: str):
+        """Retrieve an optimized CV domain object by job posting and CV identifier."""
+        return self.repository.get_optimized_cv(job_posting_identifier, identifier)
+
     def generate_pdf_file(self, data_path: str, template_name: str, stem: str = "output") -> str:
         tex = render_tex(load_data(data_path), template_name)
         output_pdf = str(Path(tempfile.mkdtemp()) / f"{stem}.pdf")

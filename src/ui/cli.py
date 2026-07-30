@@ -148,42 +148,55 @@ def export_schema(path):
         click.echo(f"Wrote {written}")
 
 
-@main.command("render")
-@click.argument("doc_type", metavar="TYPE")
-@click.argument(
-    "input_path", metavar="INPUT", type=click.Path(exists=True, dir_okay=False, allow_dash=True)
-)
-@click.option(
-    "-f",
-    "--format",
-    "fmt",
-    type=click.Choice(["pdf", "tex"]),
-    default="pdf",
-    show_default=True,
-    help="Output format.",
-)
-@click.option(
-    "-o",
-    "--output",
-    metavar="PATH",
-    help="Output path, or '-' for stdout. Default: current directory, named from INPUT.",
-)
-@click.option("--template", metavar="NAME", help="Override the type's default template.")
-def render(doc_type, input_path, fmt, output, template):
-    """Render a document to PDF or TeX.
-
-    \b
-    TYPE   a registered document type (e.g. cv, cover-letter)
-    INPUT  a JSON/YAML data file, or '-' for stdin
-    """
-    from renderers.latex import load_data, render_document
+def _render_target_from_file(doc_type: str, input_path: str):
+    """Resolve file mode to (data, type, default_stem). INPUT '-' reads stdin."""
+    from renderers.latex import load_data
 
     if input_path == "-":
-        data = yaml.safe_load(sys.stdin.read())
-        default_stem = None
+        return yaml.safe_load(sys.stdin.read()), doc_type, None
+    path = Path(input_path)
+    if not path.is_file():
+        raise click.UsageError(f"no such file: {input_path}")
+    return load_data(input_path), doc_type, path.stem
+
+
+def _render_target_from_uri(uri: str):
+    """Resolve a stored CV URI to (data, type, default_stem)."""
+    from services.application import ApplicationService
+
+    try:
+        parsed = parse_uri(uri)
+    except ValueError:
+        raise click.UsageError(
+            f"unrecognised URI '{uri}'\n"
+            "Expected a CV (cvs/{{id}} or job-postings/{{id}}/cvs/{{id}}), "
+            "or file mode: render <type> <input>"
+        )
+
+    service = ApplicationService()
+    if parsed["collection"] == "cvs":
+        obj = service.get_cv(parsed["identifier"])
+        stem = parsed["identifier"]
+    elif parsed["collection"] == "optimized-cvs":
+        obj = service.get_optimized_cv(
+            parsed["job_posting_identifier"], parsed["identifier"]
+        )
+        stem = f"{parsed['job_posting_identifier']}-{parsed['identifier']}"
     else:
-        data = load_data(input_path)
-        default_stem = Path(input_path).stem
+        raise click.UsageError(
+            f"not a renderable CV target: {uri}\n"
+            "Expected cvs/{{id}} or job-postings/{{id}}/cvs/{{id}}"
+        )
+
+    if obj is None:
+        click.echo(f"Not found: {uri}", err=True)
+        sys.exit(1)
+    return obj.model_dump(), "cv", stem
+
+
+def _emit_render(data, doc_type, fmt, output, default_stem, template):
+    """Render `data` and write it per the -o convention (path, '-' stdout, or CWD)."""
+    from renderers.latex import render_document
 
     ext = "tex" if fmt == "tex" else "pdf"
     try:
@@ -203,6 +216,40 @@ def render(doc_type, input_path, fmt, output, template):
             click.echo(f"Wrote {path}", err=True)
     except ValueError as e:
         raise click.ClickException(str(e))
+
+
+@main.command("render")
+@click.argument("args", nargs=-1, required=True, metavar="TARGET [INPUT]")
+@click.option(
+    "-f",
+    "--format",
+    "fmt",
+    type=click.Choice(["pdf", "tex"]),
+    default="pdf",
+    show_default=True,
+    help="Output format.",
+)
+@click.option(
+    "-o",
+    "--output",
+    metavar="PATH",
+    help="Output path, or '-' for stdout. Default: current directory.",
+)
+@click.option("--template", metavar="NAME", help="Override the type's default template.")
+def render(args, fmt, output, template):
+    """Render a document to PDF or TeX.
+
+    \b
+    cv-joint render <uri>            a stored CV, e.g. cvs/my-cv
+    cv-joint render <type> <input>   a data file or '-' (stdin), e.g. cv data/cv.yaml
+    """
+    if len(args) == 1:
+        data, doc_type, stem = _render_target_from_uri(args[0])
+    elif len(args) == 2:
+        data, doc_type, stem = _render_target_from_file(args[0], args[1])
+    else:
+        raise click.UsageError("render takes <uri> or <type> <input>")
+    _emit_render(data, doc_type, fmt, output, stem, template)
 
 
 @main.command("remove")

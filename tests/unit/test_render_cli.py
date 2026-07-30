@@ -62,3 +62,16 @@ def test_render_stdin_without_output_errors(tmp_path):
     )
     assert result.exit_code != 0
     assert "stdin" in result.output.lower()
+
+
+def test_render_unrecognised_uri_errors():
+    result = CliRunner().invoke(main, ["render", "not-a-uri"])
+    assert result.exit_code != 0
+    assert "unrecognised URI" in result.output
+
+
+def test_render_too_many_args_errors(tmp_path):
+    result = CliRunner().invoke(
+        main, ["render", "cv", str(tmp_path / "a"), "extra"]
+    )
+    assert result.exit_code != 0
