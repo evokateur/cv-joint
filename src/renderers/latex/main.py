@@ -1,75 +1,108 @@
-import yaml
 import json
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
-from pydantic import BaseModel
-from typing import Optional, Type
+from typing import Optional
 
+import yaml
+
+from renderers.latex.registry import RENDERERS
 from renderers.latex.template_env import get_tex_env
 
+TEMPLATES_DIR = str(Path(__file__).parents[3] / "templates")
 
-def render_latex(
-    input_file: str,
-    output_file: str,
-    template_name: str,
-    schema_class: Optional[Type[BaseModel]] = None,
-):
-    """
-    Render LaTeX from JSON/YAML data and template.
 
-    Args:
-        input_file: Path to input JSON or YAML file containing data
-        output_file: Path to output LaTeX file
-        template_name: Name of the template file in the templates directory
-        schema_class: Optional Pydantic model class for validation
-    """
+def load_data(input_file: str) -> dict:
+    """Load a data dict from a JSON or YAML file."""
     path = Path(input_file)
     with open(input_file) as f:
         if path.suffix.lower() == ".json":
-            data = json.load(f)
-        else:
-            data = yaml.safe_load(f)
-
-    if schema_class is not None:
-        obj_data = schema_class(**data).model_dump()
-    else:
-        obj_data = data
-
-    templates_dir = str(Path(__file__).parents[3] / "templates")
-    env = get_tex_env(templates_dir)
-    template = env.get_template(template_name)
-    rendered_tex = template.render(obj_data)
-
-    with open(output_file, "w") as f:
-        f.write(rendered_tex)
+            return json.load(f)
+        return yaml.safe_load(f)
 
 
-def latex_to_pdf(tex_path: str) -> str:
-    """Compile a .tex file to PDF using pdflatex.
+def render_tex(data: dict, template_name: str) -> str:
+    """Render a template to a TeX string from a prepared data dict."""
+    env = get_tex_env(TEMPLATES_DIR)
+    return env.get_template(template_name).render(data)
+
+
+def tex_to_pdf(tex_source: str, output_pdf: str) -> str:
+    """Compile TeX source to a PDF, compiling in a temp dir so only the .pdf surfaces.
+
+    pdflatex writes .tex/.aux/.log alongside the .pdf; running it in a throwaway
+    directory keeps those intermediates out of the destination.
 
     Args:
-        tex_path: Path to the .tex file
+        tex_source: The full TeX document to compile
+        output_pdf: Destination path for the compiled PDF
 
     Returns:
-        Path to the generated .pdf file
+        The destination path.
     """
-    tex_file = Path(tex_path)
-    output_directory = str(tex_file.parent)
+    destination = Path(output_pdf)
+    jobname = destination.stem
 
-    subprocess.run(
-        [
-            "pdflatex",
-            "-interaction=nonstopmode",
-            "-output-directory",
-            output_directory,
-            tex_path,
-        ],
-        capture_output=True,
-        check=True,
-    )
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / f"{jobname}.tex").write_text(tex_source)
+        subprocess.run(
+            [
+                "pdflatex",
+                "-interaction=nonstopmode",
+                "-output-directory",
+                tmp,
+                "-jobname",
+                jobname,
+                str(Path(tmp) / f"{jobname}.tex"),
+            ],
+            capture_output=True,
+            check=True,
+        )
+        produced = Path(tmp) / f"{jobname}.pdf"
+        if not produced.exists():
+            raise FileNotFoundError(f"pdflatex did not produce {produced}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(produced), str(destination))
 
-    pdf_path = tex_file.with_suffix(".pdf")
-    if not pdf_path.exists():
-        raise FileNotFoundError(f"pdflatex did not produce {pdf_path}")
+    return str(destination)
 
-    return str(pdf_path)
+
+def render_document(
+    data: dict,
+    type_name: str,
+    fmt: str = "pdf",
+    output_path: Optional[str] = None,
+    template: Optional[str] = None,
+) -> str:
+    """Render a registered document type to a file, in the given format.
+
+    Validates `data` against the type's schema, renders its template to TeX, then
+    writes the .tex (fmt="tex") or compiles a .pdf in a temp dir (fmt="pdf").
+
+    Args:
+        data: Raw data dict for the document
+        type_name: A key in the renderer registry (e.g. "cv")
+        fmt: "pdf" or "tex"
+        output_path: Destination file path
+        template: Optional template name overriding the type's default
+
+    Returns:
+        The destination path.
+    """
+    try:
+        spec = RENDERERS[type_name]
+    except KeyError:
+        raise ValueError(f"unknown type: {type_name!r}") from None
+
+    obj_data = spec.schema(**data).model_dump()
+    tex_source = render_tex(obj_data, template or spec.template)
+
+    if fmt == "tex":
+        destination = Path(output_path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(tex_source)
+        return str(destination)
+    if fmt == "pdf":
+        return tex_to_pdf(tex_source, output_path)
+    raise ValueError(f"unknown format: {fmt!r}")
