@@ -1,39 +1,90 @@
-\documentclass[10pt]{letter}
+\documentclass[10pt, letterpaper]{article}
 
-\usepackage{geometry}
+\usepackage[
+    ignoreheadfoot,
+    top=2 cm,
+    bottom=2 cm,
+    left=2 cm,
+    right=2 cm,
+    footskip=1.0 cm,
+]{geometry}
+\usepackage[dvipsnames]{xcolor}
+\definecolor{primaryColor}{RGB}{0, 79, 144}
+\usepackage{fontawesome5}
+\usepackage[
+    pdftitle={Cover Letter - (( name ))},
+    pdfauthor={(( name ))},
+    pdfcreator={LaTeX},
+    colorlinks=true,
+    urlcolor=primaryColor
+]{hyperref}
+\usepackage{ifthen}
+\usepackage{iftex}
 
-\geometry{
-	paper=a4paper, % Paper size, change to letterpaper for US letter size
-	top=2cm, % Top margin
-	bottom=2.5cm, % Bottom margin
-	left=3.25cm, % Left margin
-	right=3.25cm, % Right margin
-	%showframe, % Uncomment to show how the type block is set on the page
+\ifPDFTeX
+    \input{glyphtounicode}
+    \pdfgentounicode=1
+    \usepackage[T1]{fontenc}
+    \usepackage[utf8]{inputenc}
+    \usepackage{lmodern}
+\fi
+
+\pagestyle{empty}
+\setcounter{secnumdepth}{0}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.65\baselineskip}
+\setlength{\topskip}{0pt}
+
+\newenvironment{header}{
+    \setlength{\topsep}{0pt}\par\kern\topsep\centering\color{primaryColor}\linespread{1.5}
+}{
+    \par\kern\topsep
 }
 
+\let\hrefWithoutArrow\href
+\renewcommand{\href}[2]{\hrefWithoutArrow{#1}{\ifthenelse{\equal{#2}{}}{ }{#2 }\raisebox{.15ex}{\footnotesize \faExternalLink*}}}
+
 \begin{document}
+    \newcommand{\AND}{\unskip
+        \cleaders\copy\ANDbox\hskip\wd\ANDbox
+        \ignorespaces
+    }
+    \newsavebox\ANDbox
+    \sbox\ANDbox{}
 
-\begin{letter}{}
+    \begin{header}
+        \fontsize{30 pt}{30 pt}
+        \textbf{(( name ))}
 
-\begin{center}
-\large\bfseries % Font size and styling
-    (( name )) \\
-    (( contact.city )) (( contact.state )) \\
-    (( contact.phone ))  \\
-    (( contact.email )) \\
-\end{center}
+        \vspace{0.3 cm}
 
-\date{\raggedright\today} % Left-aligned date of the letter, use \today for the current date
-\vspace{1cm} % Vertical whitespace
+        \normalsize
+        \mbox{{\footnotesize\faMapMarker*}\hspace*{0.13cm}(( contact.city ~ ', ' ~ contact.state ))}%
+        \kern 0.25 cm%
+        \AND%
+        \kern 0.25 cm%
+        \mbox{\hrefWithoutArrow{mailto:(( contact.email ))}{{\footnotesize\faEnvelope[regular]}\hspace*{0.13cm}(( contact.email ))}}%
+        \kern 0.25 cm%
+        \AND%
+        \kern 0.25 cm%
+        \mbox{\hrefWithoutArrow{tel:(( contact.phone ))}{{\footnotesize\faPhone*}\hspace*{0.13cm}(( contact.phone ))}}%
+    \end{header}
 
-\signature{ (( name )) } % Your name for the signature at the bottom
+    \vspace{0.7 cm}
 
-\opening{Dear Hiring Manager,}
+    {\color{primaryColor}\today}
+
+    \vspace{0.5 cm}
+
+    \textbf{Dear Hiring Manager,}
+
     (# for paragraph in paragraphs #)
     (( paragraph | replace("xXcompany", company) | replace("xXposition", position) ))
+
     (# endfor #)
-\closing{Sincerely,}
+    Sincerely,
 
-\end{letter}
+    \vspace{0.6 cm}
 
+    \textbf{(( name ))}
 \end{document}

@@ -9,9 +9,9 @@
 # all output
 /output/*
 
-# except the cv output
-!/output/cv.tex
+# except the example cv and cover letter output
 !/output/cv.pdf
+!/output/cover-letter.pdf
 
 /uploads/*
 
