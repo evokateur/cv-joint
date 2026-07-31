@@ -133,7 +133,7 @@ Chunking, embedding, and search are implemented in a separate [MCP project](http
 make install
 ```
 
-→ Runs `uv tool install --editable .`
+↪︎ runs `uv tool install --editable .`
 
 ## Configuration
 
@@ -204,7 +204,7 @@ repositories:
 make test
 ```
 
-→ Runs `uv run pytest tests/ --tb=short`
+↪︎ runs `uv run pytest tests/ --tb=short`
 
 ## Usage
 
@@ -214,7 +214,7 @@ make test
 cv-joint open
 ```
 
-→ Starts server and opens <http://localhost:7860> in browser
+↪︎ starts server and opens <http://localhost:7860> in browser
 
 ### CLI examples
 
@@ -222,22 +222,36 @@ cv-joint open
 cv-joint analyze job-posting 'https://www.linkedin.com/jobs/view/4426565782/'
 ```
 
-→ Analyzes job posting and persists result
+↪︎ analyzes job posting and persists result
 
 ```sh
 cv-joint list job-postings
 ```
 
-→ Lists top level (active) job postings
+↪︎ lists top level (active) job postings
 
 ```sh
 cv-joint transition job-postings/wordpress-security-static-site-export-specialist archived
 ```
 
-→ Transitions to `archived/`
+↪︎ transitions to `archived/`
 
 ```sh
 cv-joint apply job-postings/grow-therapy-senior-software-engineer-backend cvs/software-engineer-3-2026-07-08
 ```
 
-→ Transitions to `applied/` with CV
+↪︎ transitions to `applied/` with CV
+
+```sh
+cv-joint render cvs/lets-eat-grandma
+```
+
+↪︎ renders with LaTeX and writes `lets-eat-grandma.pdf` to `CWD`
+
+```sh
+cv-joint render job-postings/pinterest-software-engineer/cvs/software-engineer-4-2026-07-27 -o ~/Desktop/pinterest-cv.pdf
+```
+
+↪︎ renders and writes `pinterest-cv.pdf` to desktop
+
+Autocomplete lists CVs after `cv-joint render cvs/` and optimized CVs after `cv-joint render job-postings/`
