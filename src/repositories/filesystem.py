@@ -20,9 +20,9 @@ from models import (
 T = TypeVar("T", bound=BaseModel)
 
 RECORD_DOCUMENTS: dict[type, set[str]] = {
-    JobPostingRecord:      {"job-posting"},
+    JobPostingRecord: {"job-posting"},
     CurriculumVitaeRecord: {"curriculum-vitae"},
-    OptimizedCvRecord:     {"curriculum-vitae", "cv-transformation-plan"},
+    OptimizedCvRecord: {"curriculum-vitae", "cv-transformation-plan"},
 }
 
 
@@ -43,7 +43,11 @@ def parse_uri(uri: str) -> dict[str, str]:
     if parts[0] == "cvs" and len(parts) == 2:
         return {"collection": "cvs", "identifier": parts[1]}
     if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
-        return {"collection": "optimized-cvs", "job_posting_identifier": parts[1], "identifier": parts[3]}
+        return {
+            "collection": "optimized-cvs",
+            "job_posting_identifier": parts[1],
+            "identifier": parts[3],
+        }
     raise ValueError(f"Unrecognised URI: {uri}")
 
 
@@ -58,7 +62,7 @@ def normalize_new_identifier(source_uri: str, new_id: str) -> str:
     Raises ValueError if the result is empty or still contains a '/'.
     """
     prefix = source_uri.strip("/").rsplit("/", 1)[0] + "/"
-    identifier = new_id[len(prefix):] if new_id.startswith(prefix) else new_id
+    identifier = new_id[len(prefix) :] if new_id.startswith(prefix) else new_id
     if not identifier or "/" in identifier:
         raise ValueError(f"Illegal identifier: {new_id}")
     return identifier
@@ -220,7 +224,9 @@ class FileSystemRepository:
 
         return JobPostingRecord(**data)
 
-    def list_job_postings(self, location: str | None = None, all: bool = False) -> list[dict[str, Any]]:
+    def list_job_postings(
+        self, location: str | None = None, all: bool = False
+    ) -> list[dict[str, Any]]:
         """
         List job postings in the collection.
 
@@ -238,11 +244,15 @@ class FileSystemRepository:
 
     def archive_job_posting(self, identifier: str) -> JobPostingRecord:
         """Mark a job posting as archived."""
-        return self.transition_job_posting(identifier, "archived", record_fields={"is_archived": True})
+        return self.transition_job_posting(
+            identifier, "archived", record_fields={"is_archived": True}
+        )
 
     def unarchive_job_posting(self, identifier: str) -> JobPostingRecord:
         """Return a job posting to the root (active/unfiled)."""
-        return self.transition_job_posting(identifier, ".", record_fields={"is_archived": False})
+        return self.transition_job_posting(
+            identifier, ".", record_fields={"is_archived": False}
+        )
 
     def mark_applied(
         self,
@@ -252,8 +262,13 @@ class FileSystemRepository:
     ) -> JobPostingRecord:
         """Record that a job posting was applied to."""
         applied_at_dt = applied_at or datetime.now()
-        denorm = {"applied_with": cv_identifier, "applied_at": applied_at_dt.isoformat()}
-        return self.transition_job_posting(identifier, "applied", fields=denorm, record_fields=denorm)
+        denorm = {
+            "applied_with": cv_identifier,
+            "applied_at": applied_at_dt.isoformat(),
+        }
+        return self.transition_job_posting(
+            identifier, "applied", fields=denorm, record_fields=denorm
+        )
 
     def transition_job_posting(
         self,
@@ -314,7 +329,9 @@ class FileSystemRepository:
             True if removed, False if not found
         """
         collection = self._load_collection(self.job_postings_collection)
-        removed = next((item for item in collection if item["identifier"] == identifier), None)
+        removed = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
 
         if removed is None:
             return False
@@ -324,7 +341,8 @@ class FileSystemRepository:
 
         opt_collection = self._load_collection(self.optimized_cvs_collection)
         opt_collection = [
-            item for item in opt_collection
+            item
+            for item in opt_collection
             if item.get("job_posting_identifier") != identifier
         ]
         self._save_collection(self.optimized_cvs_collection, opt_collection)
@@ -444,7 +462,9 @@ class FileSystemRepository:
             True if removed, False if not found
         """
         collection = self._load_collection(self.cvs_collection)
-        removed = next((item for item in collection if item["identifier"] == identifier), None)
+        removed = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
 
         if removed is None:
             return False
@@ -604,17 +624,25 @@ class FileSystemRepository:
                 raise ValueError(f"Not found: {uri}")
             return _cv_canonical_path(record)
 
-        return self.optimized_cv_base_uri(parsed['job_posting_identifier'], parsed['identifier'])
+        return self.optimized_cv_base_uri(
+            parsed["job_posting_identifier"], parsed["identifier"]
+        )
 
-    def optimized_cv_base_uri(self, job_posting_identifier: str, cv_identifier: str) -> str:
+    def optimized_cv_base_uri(
+        self, job_posting_identifier: str, cv_identifier: str
+    ) -> str:
         record = self.get_job_posting_record(job_posting_identifier)
-        parent_path = record.path if record else f"job-postings/{job_posting_identifier}"
+        parent_path = (
+            record.path if record else f"job-postings/{job_posting_identifier}"
+        )
         return f"{parent_path}/cvs/{cv_identifier}"
 
     def _cv_optimization_dir(
         self, job_posting_identifier: str, identifier: str
     ) -> Path:
-        return self._resolve_path(self.optimized_cv_base_uri(job_posting_identifier, identifier))
+        return self._resolve_path(
+            self.optimized_cv_base_uri(job_posting_identifier, identifier)
+        )
 
     # -------------------------------------------------------------------------
     # Generic object storage (URI-addressed, self-describing JSON)
@@ -685,7 +713,7 @@ class FileSystemRepository:
             if end == -1:
                 continue
             existing = yaml.safe_load(content[4:end]) or {}
-            body = content[end + 5:]
+            body = content[end + 5 :]
             existing.update(record.model_dump(mode="json"))
             new_fm = f"---\n{yaml.dump(existing, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
             path.write_text(new_fm + body)
@@ -723,7 +751,8 @@ class FileSystemRepository:
 
         existing = next(
             (
-                item for item in collection
+                item
+                for item in collection
                 if item["identifier"] == identifier
                 and item["job_posting_identifier"] == job_posting_identifier
             ),
@@ -731,7 +760,9 @@ class FileSystemRepository:
         )
 
         if existing is not None:
-            raise ValueError(f"Optimized CV already exists: job-postings/{job_posting_identifier}/cvs/{identifier}")
+            raise ValueError(
+                f"Optimized CV already exists: job-postings/{job_posting_identifier}/cvs/{identifier}"
+            )
 
         base_uri = self.optimized_cv_base_uri(job_posting_identifier, identifier)
         self.save_object(base_uri, cv)
@@ -739,7 +770,11 @@ class FileSystemRepository:
         job_posting_record = self.get_job_posting_record(job_posting_identifier)
         job_title = job_posting_record.title if job_posting_record else None
         company = job_posting_record.company if job_posting_record else None
-        path = f"{job_posting_record.path}/cvs/{identifier}" if job_posting_record else f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        path = (
+            f"{job_posting_record.path}/cvs/{identifier}"
+            if job_posting_record
+            else f"job-postings/{job_posting_identifier}/cvs/{identifier}"
+        )
 
         now = datetime.now()
         record = OptimizedCvRecord(
@@ -764,7 +799,8 @@ class FileSystemRepository:
         collection = self._load_collection(self.optimized_cvs_collection)
         data = next(
             (
-                item for item in collection
+                item
+                for item in collection
                 if item["identifier"] == identifier
                 and item["job_posting_identifier"] == job_posting_identifier
             ),
@@ -786,18 +822,18 @@ class FileSystemRepository:
         collection = self._load_collection(self.optimized_cvs_collection)
         if job_posting_identifier is not None:
             collection = [
-                item for item in collection
+                item
+                for item in collection
                 if item["job_posting_identifier"] == job_posting_identifier
             ]
         return collection
 
-    def remove_optimized_cv(
-        self, job_posting_identifier: str, identifier: str
-    ) -> bool:
+    def remove_optimized_cv(self, job_posting_identifier: str, identifier: str) -> bool:
         collection = self._load_collection(self.optimized_cvs_collection)
         original_length = len(collection)
         collection = [
-            item for item in collection
+            item
+            for item in collection
             if not (
                 item["identifier"] == identifier
                 and item["job_posting_identifier"] == job_posting_identifier
@@ -818,7 +854,10 @@ class FileSystemRepository:
             raise ValueError(
                 f"Optimized CV not found: job-postings/{job_posting_identifier}/cvs/{identifier}"
             )
-        if self.get_optimized_cv_record(job_posting_identifier, new_identifier) is not None:
+        if (
+            self.get_optimized_cv_record(job_posting_identifier, new_identifier)
+            is not None
+        ):
             raise ValueError(
                 f"Optimized CV already exists: job-postings/{job_posting_identifier}/cvs/{new_identifier}"
             )
@@ -843,9 +882,7 @@ class FileSystemRepository:
         assert new_record_data is not None
         return OptimizedCvRecord(**new_record_data)
 
-    def purge_optimized_cv(
-        self, job_posting_identifier: str, identifier: str
-    ) -> bool:
+    def purge_optimized_cv(self, job_posting_identifier: str, identifier: str) -> bool:
         opt_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
         if not opt_dir.exists():
             return False
