@@ -258,12 +258,6 @@ def create_app():
                 def on_url_change(url):
                     if not is_valid_url(url):
                         return gr.update(interactive=False), ""
-                    existing = service.find_job_posting_by_url(url)
-                    if existing:
-                        return (
-                            gr.update(interactive=False),
-                            f"⚠ Already analyzed as: {existing.identifier}",
-                        )
                     return gr.update(interactive=True), ""
 
                 job_url.change(

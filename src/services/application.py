@@ -134,10 +134,6 @@ class ApplicationService:
             return slugify(title)
         return f"{slugify(company)}-{slugify(title)}"
 
-    def find_job_posting_by_url(self, url: str):
-        """Find a job posting record by URL, or None if not found."""
-        return self.repository.get_job_posting_record_by_url(url)
-
     def get_job_posting(self, identifier: str):
         """Retrieve a job posting by identifier."""
         return self.repository.get_job_posting(identifier)

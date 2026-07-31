@@ -79,17 +79,6 @@ def test_generate_pdf_file_renders_data_to_explicit_output(service, sample_cv_da
     tex_to_pdf.assert_called_once_with("tex source", output_path)
 
 
-class TestFindJobPostingByUrl:
-    def test_returns_record_when_url_exists(self, service, sample_job_posting_data):
-        service.save_job_posting(sample_job_posting_data, "acme-job")
-        record = service.find_job_posting_by_url("https://example.com/job/123")
-        assert record is not None
-        assert record.identifier == "acme-job"
-
-    def test_returns_none_when_url_not_found(self, service):
-        assert service.find_job_posting_by_url("https://example.com/nope") is None
-
-
 class TestSaveJobPostingMarkdown:
     def test_creates_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.save_job_posting(sample_job_posting_data, "test-job")
