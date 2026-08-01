@@ -114,7 +114,7 @@ Chunking, embedding, and search are implemented in a separate [MCP project](http
 
 - Pydantic for defining domain objects/structured outputs
 
-- Click CLI
+- Click CLI, with completions
 
 - Gradio tabbed UI
 
