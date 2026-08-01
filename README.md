@@ -62,7 +62,7 @@ Structured outputs from analysis are persisted as JSON files by a repository ser
 
 </details>
 
-Alongside the JSON, the repository writes a Markdown representation of each object with its *record* as front matter.
+Markdown representation of each object, its record as front matter, is given to the repository to add alongside the JSON.
 
 <details>
 <summary>Job posting record front matter example</summary>
