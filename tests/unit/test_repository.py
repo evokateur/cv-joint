@@ -673,6 +673,13 @@ class TestParseUri:
             "identifier": "jane-v2",
         }
 
+    def test_cover_letter_uri(self):
+        result = parse_uri("cover-letters/frobozzco-magic-gunk")
+        assert result == {
+            "collection": "cover-letters",
+            "identifier": "frobozzco-magic-gunk",
+        }
+
     def test_strips_leading_slash(self):
         assert parse_uri("/job-postings/acme-swe") == parse_uri("job-postings/acme-swe")
 
@@ -690,6 +697,11 @@ class TestNormalizeNewIdentifier:
 
     def test_strips_matching_cv_prefix(self):
         assert normalize_new_identifier("cvs/foo", "cvs/bar") == "bar"
+
+    def test_strips_matching_cover_letter_prefix(self):
+        assert (
+            normalize_new_identifier("cover-letters/foo", "cover-letters/bar") == "bar"
+        )
 
     def test_strips_matching_optimized_cv_prefix(self):
         result = normalize_new_identifier(
@@ -737,6 +749,13 @@ class TestResolveRecord:
         assert isinstance(record, OptimizedCvRecord)
         assert record.identifier == "jane-v2"
 
+    def test_resolves_cover_letter(self, repository, sample_cover_letter):
+        from models import CoverLetterRecord
+        repository.add_cover_letter(sample_cover_letter, "frobozzco-magic-gunk")
+        record = repository.resolve_record("cover-letters/frobozzco-magic-gunk")
+        assert isinstance(record, CoverLetterRecord)
+        assert record.identifier == "frobozzco-magic-gunk"
+
     def test_raises_when_not_found(self, repository):
         with pytest.raises(ValueError, match="Not found"):
             repository.resolve_record("job-postings/nonexistent")
@@ -755,6 +774,13 @@ class TestCanonicalPath:
         repository.add_job_posting(sample_job_posting, "acme-swe")
         repository.add_optimized_cv("acme-swe", "jane-v2", "jane-doe", sample_cv)
         assert repository.canonical_path("job-postings/acme-swe/cvs/jane-v2") == "job-postings/acme-swe/cvs/jane-v2"
+
+    def test_cover_letter_default_path(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "frobozzco-magic-gunk")
+        assert (
+            repository.canonical_path("cover-letters/frobozzco-magic-gunk")
+            == "cover-letters/frobozzco-magic-gunk"
+        )
 
     def test_raises_when_not_found(self, repository):
         with pytest.raises(ValueError, match="Not found"):
