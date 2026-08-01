@@ -73,8 +73,11 @@ class CoverLetterContact(BaseModel):
 class CoverLetter(BaseModel):
     name: str
     contact: CoverLetterContact
-    company: str
-    position: str
+    company: Optional[str] = None
+    position: Optional[str] = None
+    salutation: str
+    closing: str
+    date: Optional[str] = None
     paragraphs: List[str]
     alternate_paragraphs: Optional[List[str]] = None
 

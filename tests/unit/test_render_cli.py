@@ -14,6 +14,8 @@ COVER_LETTER = {
     },
     "company": "FrobozzCo",
     "position": "Developer",
+    "salutation": "Dear Hiring Manager,",
+    "closing": "Sincerely,",
     "paragraphs": ["Interested in the xXposition role at xXcompany."],
 }
 

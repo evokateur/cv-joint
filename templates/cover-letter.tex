@@ -72,17 +72,17 @@
 
     \vspace{0.7 cm}
 
-    {\color{primaryColor}\today}
+    (# if date #)(( date ))(# else #)\today(# endif #)
 
     \vspace{0.5 cm}
 
-    \textbf{Dear Hiring Manager,}
+    \textbf{(( salutation ))}
 
     (# for paragraph in paragraphs #)
     (( paragraph | replace("xXcompany", company) | replace("xXposition", position) ))
 
     (# endfor #)
-    Sincerely,
+    (( closing ))
 
     \vspace{0.6 cm}
 
