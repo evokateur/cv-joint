@@ -9,7 +9,7 @@ from pathlib import Path
 
 from repositories import FileSystemRepository
 from repositories.filesystem import normalize_new_identifier, parse_uri
-from models import JobPosting, CurriculumVitae
+from models import JobPosting, CurriculumVitae, CoverLetter
 
 
 @pytest.fixture
@@ -59,6 +59,26 @@ def sample_cv():
         additional_experience=[],
         areas_of_expertise=[],
         languages=[],
+    )
+
+
+@pytest.fixture
+def sample_cover_letter():
+    from models import CoverLetterContact
+
+    return CoverLetter(
+        name="Wesley Hinkle",
+        contact=CoverLetterContact(
+            city="Oakland",
+            state="CA",
+            phone="+1-510-384-8010",
+            email="wesley@evokateur.net",
+        ),
+        company="FrobozzCo",
+        position="Sr. Magic Gunk Developer",
+        salutation="Dear Hiring Manager,",
+        closing="Sincerely,",
+        paragraphs=["Interested in the xXposition role at xXcompany."],
     )
 
 
@@ -341,6 +361,130 @@ class TestRenameCv:
         record = repository.rename_cv("old-id", "new-id")
         assert record.identifier == "new-id"
 
+
+
+class TestCoverLetterOperations:
+    def test_add_and_get_cover_letter(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "test-letter")
+        retrieved = repository.get_cover_letter("test-letter")
+
+        assert retrieved is not None
+        assert retrieved.name == "Wesley Hinkle"
+        assert retrieved.company == "FrobozzCo"
+        assert retrieved.position == "Sr. Magic Gunk Developer"
+        assert retrieved.salutation == "Dear Hiring Manager,"
+        assert retrieved.closing == "Sincerely,"
+
+    def test_list_cover_letters(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "letter-1")
+        repository.add_cover_letter(sample_cover_letter, "letter-2")
+
+        listings = repository.list_cover_letters()
+        assert len(listings) == 2
+        identifiers = [item["identifier"] for item in listings]
+        assert "letter-1" in identifiers
+        assert "letter-2" in identifiers
+
+    def test_list_cover_letters_empty(self, repository):
+        assert repository.list_cover_letters() == []
+
+    def test_remove_cover_letter(self, repository, sample_cover_letter, temp_data_dir):
+        repository.add_cover_letter(sample_cover_letter, "to-delete")
+        assert repository.remove_cover_letter("to-delete") is True
+        assert repository.get_cover_letter("to-delete") is None
+        assert not (Path(temp_data_dir) / "cover-letters" / "to-delete").exists()
+
+    def test_remove_cover_letter_not_in_listing(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "to-delete")
+        repository.remove_cover_letter("to-delete")
+        assert all(
+            item["identifier"] != "to-delete"
+            for item in repository.list_cover_letters()
+        )
+
+    def test_remove_nonexistent_cover_letter(self, repository):
+        assert repository.remove_cover_letter("nonexistent") is False
+
+    def test_add_cover_letter_raises_if_exists(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "dupe")
+        with pytest.raises(ValueError, match="already exists"):
+            repository.add_cover_letter(sample_cover_letter, "dupe")
+
+    def test_cover_letter_stored_in_correct_location(
+        self, repository, sample_cover_letter, temp_data_dir
+    ):
+        repository.add_cover_letter(sample_cover_letter, "location-test")
+        expected_path = (
+            Path(temp_data_dir)
+            / "cover-letters"
+            / "location-test"
+            / "cover-letter.json"
+        )
+        assert expected_path.exists()
+
+    def test_get_cover_letter_record(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "test-letter")
+        record = repository.get_cover_letter_record("test-letter")
+
+        assert record is not None
+        assert record.identifier == "test-letter"
+        assert record.path == "cover-letters/test-letter"
+        assert record.name == "Wesley Hinkle"
+        assert record.company == "FrobozzCo"
+        assert record.position == "Sr. Magic Gunk Developer"
+        assert record.created_at is not None
+
+    def test_get_cover_letter_record_not_found(self, repository):
+        assert repository.get_cover_letter_record("nonexistent") is None
+
+    def test_draft_record_allows_optional_company_position(
+        self, repository, sample_cover_letter
+    ):
+        draft = sample_cover_letter.model_copy(update={"company": None, "position": None})
+        repository.add_cover_letter(draft, "draft-letter")
+        record = repository.get_cover_letter_record("draft-letter")
+
+        assert record is not None
+        assert record.company is None
+        assert record.position is None
+
+
+class TestRenameCoverLetter:
+    def test_raises_when_not_found(self, repository):
+        with pytest.raises(ValueError, match="not found"):
+            repository.rename_cover_letter("nonexistent", "new-id")
+
+    def test_raises_on_collision(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "letter-1")
+        repository.add_cover_letter(sample_cover_letter, "letter-2")
+        with pytest.raises(ValueError, match="already exists"):
+            repository.rename_cover_letter("letter-1", "letter-2")
+
+    def test_renames_directory(self, repository, sample_cover_letter, temp_data_dir):
+        repository.add_cover_letter(sample_cover_letter, "old-id")
+        repository.rename_cover_letter("old-id", "new-id")
+        assert not (Path(temp_data_dir) / "cover-letters" / "old-id").exists()
+        assert (Path(temp_data_dir) / "cover-letters" / "new-id").exists()
+
+    def test_updates_collection(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "old-id")
+        repository.rename_cover_letter("old-id", "new-id")
+        assert repository.get_cover_letter_record("old-id") is None
+        record = repository.get_cover_letter_record("new-id")
+        assert record is not None
+        assert record.identifier == "new-id"
+        assert record.path == "cover-letters/new-id"
+
+    def test_returns_new_record(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "old-id")
+        record = repository.rename_cover_letter("old-id", "new-id")
+        assert record.identifier == "new-id"
+
+    def test_preserves_created_at(self, repository, sample_cover_letter):
+        repository.add_cover_letter(sample_cover_letter, "old-id")
+        original = repository.get_cover_letter_record("old-id")
+        record = repository.rename_cover_letter("old-id", "new-id")
+        assert record.created_at == original.created_at
 
 
 class TestOptimizedCvRecord:
