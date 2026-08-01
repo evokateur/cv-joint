@@ -62,7 +62,7 @@ Structured outputs from analysis are persisted as JSON files by a repository ser
 
 </details>
 
-Markdown representation of each object, its record as front matter, is given to the repository to add alongside the JSON.
+A markdown representation of each object, with its record as front matter, is given to the repository to add alongside the JSON.
 
 <details>
 <summary>Job posting record front matter example</summary>
@@ -246,7 +246,7 @@ cv-joint apply job-postings/grow-therapy-senior-software-engineer-backend cvs/so
 cv-joint render cvs/lets-eat-grandma
 ```
 
-↪︎ renders with LaTeX and writes `lets-eat-grandma.pdf` to `CWD`
+↪︎ renders with LaTeX template and writes `lets-eat-grandma.pdf` to `CWD`
 
 ```sh
 cv-joint render job-postings/pinterest-software-engineer/cvs/software-engineer-4-2026-07-27 -o ~/Desktop/pinterest-cv.pdf
