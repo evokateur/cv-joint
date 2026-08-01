@@ -44,6 +44,8 @@ def parse_uri(uri: str) -> dict[str, str]:
         return {"collection": "job-postings", "identifier": parts[1]}
     if parts[0] == "cvs" and len(parts) == 2:
         return {"collection": "cvs", "identifier": parts[1]}
+    if parts[0] == "cover-letters" and len(parts) == 2:
+        return {"collection": "cover-letters", "identifier": parts[1]}
     if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
         return {
             "collection": "optimized-cvs",
@@ -78,6 +80,10 @@ def _job_posting_canonical_path(record: JobPostingRecord) -> str:
 
 def _cv_canonical_path(record: CurriculumVitaeRecord) -> str:
     return f"cvs/{record.identifier}"
+
+
+def _cover_letter_canonical_path(record: CoverLetterRecord) -> str:
+    return f"cover-letters/{record.identifier}"
 
 
 class FileSystemRepository:
@@ -743,7 +749,9 @@ class FileSystemRepository:
 
     def resolve_record(
         self, uri: str
-    ) -> JobPostingRecord | CurriculumVitaeRecord | OptimizedCvRecord:
+    ) -> (
+        JobPostingRecord | CurriculumVitaeRecord | OptimizedCvRecord | CoverLetterRecord
+    ):
         """Return the governing record for a URI. Raises ValueError if not found."""
         parsed = parse_uri(uri)
         collection = parsed["collection"]
@@ -756,6 +764,12 @@ class FileSystemRepository:
 
         if collection == "cvs":
             record = self.get_cv_record(parsed["identifier"])
+            if record is None:
+                raise ValueError(f"Not found: {uri}")
+            return record
+
+        if collection == "cover-letters":
+            record = self.get_cover_letter_record(parsed["identifier"])
             if record is None:
                 raise ValueError(f"Not found: {uri}")
             return record
@@ -783,6 +797,12 @@ class FileSystemRepository:
             if record is None:
                 raise ValueError(f"Not found: {uri}")
             return _cv_canonical_path(record)
+
+        if collection == "cover-letters":
+            record = self.get_cover_letter_record(parsed["identifier"])
+            if record is None:
+                raise ValueError(f"Not found: {uri}")
+            return _cover_letter_canonical_path(record)
 
         return self.optimized_cv_base_uri(
             parsed["job_posting_identifier"], parsed["identifier"]
