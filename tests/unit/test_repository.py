@@ -64,11 +64,11 @@ def sample_cv():
 
 @pytest.fixture
 def sample_cover_letter():
-    from models import CoverLetterContact
+    from models import Contact
 
     return CoverLetter(
         name="Wesley Hinkle",
-        contact=CoverLetterContact(
+        contact=Contact(
             city="Oakland",
             state="CA",
             phone="+1-510-384-8010",

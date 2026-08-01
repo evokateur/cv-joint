@@ -8,8 +8,8 @@ class Contact(BaseModel):
     state: str
     email: str
     phone: str
-    linkedin: str
-    github: str
+    linkedin: Optional[str] = None
+    github: Optional[str] = None
 
 
 class Education(BaseModel):
@@ -63,16 +63,9 @@ class CurriculumVitae(BaseModel):
     languages: List[Language]
 
 
-class CoverLetterContact(BaseModel):
-    city: str
-    state: str
-    phone: str
-    email: str
-
-
 class CoverLetter(BaseModel):
     name: str
-    contact: CoverLetterContact
+    contact: Contact
     company: Optional[str] = None
     position: Optional[str] = None
     salutation: str
