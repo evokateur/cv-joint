@@ -255,6 +255,26 @@ class OptimizedCvRecord(BaseModel):
     updated_at: datetime = Field(description="When this optimization was last updated")
 
 
+class CoverLetterRecord(BaseModel):
+    """
+    Cover letter persistence record.
+
+    Tracks identity and key fields needed for listing display.
+    """
+
+    identifier: str = Field(description="Unique identifier of the cover letter")
+    path: str = Field(description="Directory path relative to data dir")
+    name: str = Field(description="Person's name (for listing display)")
+    company: Optional[str] = Field(
+        default=None, description="Company (for listing display)"
+    )
+    position: Optional[str] = Field(
+        default=None, description="Position (for listing display)"
+    )
+    created_at: datetime = Field(description="When this record was created")
+    updated_at: datetime = Field(description="When this record was last updated")
+
+
 class CvOptimizationRecord(BaseModel):
     """
     CV optimization persistence record.
@@ -286,5 +306,6 @@ DOMAIN_OBJECT_REGISTRY.update(
         "CurriculumVitae": CurriculumVitae,
         "CvTransformationPlan": CvTransformationPlan,
         "JobPosting": JobPosting,
+        "CoverLetter": CoverLetter,
     }
 )
