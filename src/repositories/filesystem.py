@@ -25,6 +25,7 @@ RECORD_DOCUMENTS: dict[type, set[str]] = {
     JobPostingRecord: {"job-posting"},
     CurriculumVitaeRecord: {"curriculum-vitae"},
     OptimizedCvRecord: {"curriculum-vitae", "cv-transformation-plan"},
+    CoverLetterRecord: {"cover-letter"},
 }
 
 

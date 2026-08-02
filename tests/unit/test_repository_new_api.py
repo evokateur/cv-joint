@@ -13,6 +13,7 @@ from pathlib import Path
 
 from repositories import FileSystemRepository
 from models import (
+    CoverLetter,
     CurriculumVitae,
     Contact,
     CvTransformationPlan,
@@ -74,6 +75,28 @@ def sample_plan():
 @pytest.fixture
 def repository_with_job_posting(repository, sample_job_posting):
     repository.add_job_posting(sample_job_posting, "acme-swe")
+    return repository
+
+
+@pytest.fixture
+def sample_cover_letter():
+    return CoverLetter(
+        name="Jane Doe",
+        contact=Contact(
+            city="San Francisco", state="CA",
+            email="jane@example.com", phone="555-1234",
+        ),
+        company="Acme Corp",
+        position="Software Engineer",
+        salutation="Dear Hiring Manager,",
+        closing="Sincerely,",
+        paragraphs=["I am writing to apply."],
+    )
+
+
+@pytest.fixture
+def repository_with_cover_letter(repository, sample_cover_letter):
+    repository.add_cover_letter(sample_cover_letter, "jane-acme")
     return repository
 
 
@@ -155,6 +178,14 @@ class TestSaveDocument:
         assert content.startswith("---\n")
         assert "identifier: acme-swe" in content
         assert "# Acme" in content
+
+    def test_prepends_frontmatter_for_cover_letter(self, repository_with_cover_letter, temp_data_dir):
+        repository_with_cover_letter.save_document("cover-letters/jane-acme/cover-letter.md", "# Letter\n")
+        path = Path(temp_data_dir) / "cover-letters" / "jane-acme" / "cover-letter.md"
+        content = path.read_text()
+        assert content.startswith("---\n")
+        assert "identifier: jane-acme" in content
+        assert "# Letter" in content
 
     def test_no_frontmatter_for_unowned_stem(self, repository_with_job_posting, temp_data_dir):
         repository_with_job_posting.save_document("job-postings/acme-swe/readme.md", "# Notes\n")
