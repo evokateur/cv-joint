@@ -8,8 +8,8 @@ class Contact(BaseModel):
     state: str
     email: str
     phone: str
-    linkedin: str
-    github: str
+    linkedin: Optional[str] = None
+    github: Optional[str] = None
 
 
 class Education(BaseModel):
@@ -63,18 +63,14 @@ class CurriculumVitae(BaseModel):
     languages: List[Language]
 
 
-class CoverLetterContact(BaseModel):
-    city: str
-    state: str
-    phone: str
-    email: str
-
-
 class CoverLetter(BaseModel):
     name: str
-    contact: CoverLetterContact
-    company: str
-    position: str
+    contact: Contact
+    company: Optional[str] = None
+    position: Optional[str] = None
+    salutation: str
+    closing: str
+    date: Optional[str] = None
     paragraphs: List[str]
     alternate_paragraphs: Optional[List[str]] = None
 
@@ -252,6 +248,26 @@ class OptimizedCvRecord(BaseModel):
     updated_at: datetime = Field(description="When this optimization was last updated")
 
 
+class CoverLetterRecord(BaseModel):
+    """
+    Cover letter persistence record.
+
+    Tracks identity and key fields needed for listing display.
+    """
+
+    identifier: str = Field(description="Unique identifier of the cover letter")
+    path: str = Field(description="Directory path relative to data dir")
+    name: str = Field(description="Person's name (for listing display)")
+    company: Optional[str] = Field(
+        default=None, description="Company (for listing display)"
+    )
+    position: Optional[str] = Field(
+        default=None, description="Position (for listing display)"
+    )
+    created_at: datetime = Field(description="When this record was created")
+    updated_at: datetime = Field(description="When this record was last updated")
+
+
 class CvOptimizationRecord(BaseModel):
     """
     CV optimization persistence record.
@@ -283,5 +299,6 @@ DOMAIN_OBJECT_REGISTRY.update(
         "CurriculumVitae": CurriculumVitae,
         "CvTransformationPlan": CvTransformationPlan,
         "JobPosting": JobPosting,
+        "CoverLetter": CoverLetter,
     }
 )

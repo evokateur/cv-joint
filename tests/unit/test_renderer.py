@@ -14,6 +14,8 @@ COVER_LETTER = {
     },
     "company": "FrobozzCo",
     "position": "Developer",
+    "salutation": "Dear Hiring Manager,",
+    "closing": "Sincerely,",
     "paragraphs": ["Interested in the xXposition role at xXcompany."],
 }
 
@@ -42,6 +44,29 @@ def test_render_document_tex_writes_source(tmp_path):
     text = out.read_text()
     assert "FrobozzCo" in text and "xXcompany" not in text
     assert "Developer" in text and "xXposition" not in text
+
+
+def test_render_document_includes_salutation_and_closing(tmp_path):
+    out = tmp_path / "cover-letter.tex"
+    render_document(COVER_LETTER, "cover-letter", fmt="tex", output_path=str(out))
+    text = out.read_text()
+    assert "Dear Hiring Manager," in text
+    assert "Sincerely," in text
+
+
+def test_render_document_date_defaults_to_today(tmp_path):
+    out = tmp_path / "cover-letter.tex"
+    render_document(COVER_LETTER, "cover-letter", fmt="tex", output_path=str(out))
+    assert r"\today" in out.read_text()
+
+
+def test_render_document_uses_explicit_date(tmp_path):
+    out = tmp_path / "cover-letter.tex"
+    data = {**COVER_LETTER, "date": "July 31, 2026"}
+    render_document(data, "cover-letter", fmt="tex", output_path=str(out))
+    text = out.read_text()
+    assert "July 31, 2026" in text
+    assert r"\today" not in text
 
 
 def test_render_document_unknown_type():

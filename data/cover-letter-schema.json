@@ -39,6 +39,18 @@
             "type": "string",
             "description": "Title of the position being applied for"
         },
+        "salutation": {
+            "type": "string",
+            "description": "Opening greeting, e.g. 'Dear Hiring Manager,'"
+        },
+        "closing": {
+            "type": "string",
+            "description": "Closing valediction, e.g. 'Sincerely,'"
+        },
+        "date": {
+            "type": "string",
+            "description": "Date the letter was sent; defaults to the render date when omitted"
+        },
         "paragraphs": {
             "type": "array",
             "items": {
@@ -55,6 +67,6 @@
             "description": "Alternative paragraphs that can be used in place of main paragraphs"
         }
     },
-    "required": ["name", "contact", "company", "position", "paragraphs"],
+    "required": ["name", "contact", "salutation", "closing", "paragraphs"],
     "additionalProperties": false
 }

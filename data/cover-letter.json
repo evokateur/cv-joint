@@ -8,6 +8,8 @@
     },
     "company": "FrobozzCo",
     "position": "Sr. Magic Gunk Developer",
+    "salutation": "Dear Hiring Manager,",
+    "closing": "Sincerely,",
     "paragraphs": [
         "I am writing to express my interest in the xXposition position at xXcompany. With over 20 years of experience as a software developer, I have developed a strong foundation in building software, web, and mobile applications, with a special focus on creating solutions for workers' unions across the U.S. I have worked with a variety of users, from union members to contractors, helping them manage complex operations like reciprocity, benefits tracking, and pension estimation.",
         "My most recent role involved implementing crucial development infrastructure improvements, such as establishing version control and enhancing the team’s collaborative practices. Initially, there was no system in place to track the source code, which led to inefficiencies and \"in-place\" fixes that made it difficult to maintain the codebase. I took the initiative to build and configure a GitLab server from the ground up, migrating it to Omnibus to streamline development workflows. This change allowed for a smooth transition to remote work for the team and helped manage dependencies effectively, ensuring that deployments were consistent and error-free. My commitment to improving team processes not only improved code management but also enhanced the overall developer experience by making the codebase more understandable, maintainable, and easier to track.",

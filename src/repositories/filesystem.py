@@ -13,6 +13,8 @@ from models import (
     JobPostingRecord,
     CurriculumVitae,
     CurriculumVitaeRecord,
+    CoverLetter,
+    CoverLetterRecord,
     DOMAIN_OBJECT_REGISTRY,
     OptimizedCvRecord,
 )
@@ -42,6 +44,8 @@ def parse_uri(uri: str) -> dict[str, str]:
         return {"collection": "job-postings", "identifier": parts[1]}
     if parts[0] == "cvs" and len(parts) == 2:
         return {"collection": "cvs", "identifier": parts[1]}
+    if parts[0] == "cover-letters" and len(parts) == 2:
+        return {"collection": "cover-letters", "identifier": parts[1]}
     if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
         return {
             "collection": "optimized-cvs",
@@ -78,6 +82,10 @@ def _cv_canonical_path(record: CurriculumVitaeRecord) -> str:
     return f"cvs/{record.identifier}"
 
 
+def _cover_letter_canonical_path(record: CoverLetterRecord) -> str:
+    return f"cover-letters/{record.identifier}"
+
+
 class FileSystemRepository:
     """
     Repository that stores domain objects in the filesystem with metadata records.
@@ -103,6 +111,7 @@ class FileSystemRepository:
             self.collections_dir / "optimization-plans.json"
         )
         self.optimized_cvs_collection = self.collections_dir / "optimized-cvs.json"
+        self.cover_letters_collection = self.collections_dir / "cover-letters.json"
 
     def _load_collection(self, collection_file: Path) -> list[dict[str, Any]]:
         """Load collection metadata from JSON file."""
@@ -568,9 +577,181 @@ class FileSystemRepository:
         assert new_record_data is not None
         return CurriculumVitaeRecord(**new_record_data)
 
+    def add_cover_letter(
+        self, cover_letter: CoverLetter, identifier: str
+    ) -> CoverLetterRecord:
+        """
+        Add a cover letter and update collection metadata.
+
+        Args:
+            cover_letter: CoverLetter
+            identifier: Unique identifier for this cover letter
+
+        Returns:
+            The persisted CoverLetterRecord
+        """
+        collection = self._load_collection(self.cover_letters_collection)
+
+        existing = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+
+        if existing is not None:
+            raise ValueError(f"Cover letter already exists: {identifier}")
+
+        directory = f"cover-letters/{identifier}"
+        absolute_path = self._resolve_path(directory) / "cover-letter.json"
+        absolute_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(absolute_path, "w") as f:
+            json.dump(cover_letter.model_dump(mode="json"), f, indent=2)
+
+        now = datetime.now()
+        record = CoverLetterRecord(
+            identifier=identifier,
+            path=directory,
+            name=cover_letter.name,
+            company=cover_letter.company,
+            position=cover_letter.position,
+            created_at=now,
+            updated_at=now,
+        )
+
+        collection.append(record.model_dump(mode="json", exclude_none=True))
+        self._save_collection(self.cover_letters_collection, collection)
+
+        return record
+
+    def get_cover_letter(self, identifier: str) -> Optional[CoverLetter]:
+        """
+        Load a cover letter from the filesystem.
+
+        Args:
+            identifier: Unique identifier for the cover letter
+
+        Returns:
+            CoverLetter or None if not found
+        """
+        collection = self._load_collection(self.cover_letters_collection)
+        metadata = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+
+        if not metadata:
+            return None
+
+        absolute_path = self._resolve_path(metadata["path"]) / "cover-letter.json"
+        with open(absolute_path, "r") as f:
+            data = json.load(f)
+
+        return CoverLetter(**data)
+
+    def get_cover_letter_record(
+        self, identifier: str
+    ) -> Optional[CoverLetterRecord]:
+        """
+        Load a cover letter record from the collection index.
+
+        Args:
+            identifier: Unique identifier for the cover letter
+
+        Returns:
+            CoverLetterRecord or None if not found
+        """
+        collection = self._load_collection(self.cover_letters_collection)
+        data = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+
+        if not data:
+            return None
+
+        return CoverLetterRecord(**data)
+
+    def list_cover_letters(self) -> list[dict[str, Any]]:
+        """
+        List cover letters in the collection.
+
+        Returns:
+            List of collection metadata dicts
+        """
+        return self._load_collection(self.cover_letters_collection)
+
+    def remove_cover_letter(self, identifier: str) -> bool:
+        """
+        Remove a cover letter from the collection and delete its data directory.
+
+        Args:
+            identifier: Unique identifier for the cover letter
+
+        Returns:
+            True if removed, False if not found
+        """
+        collection = self._load_collection(self.cover_letters_collection)
+        removed = next(
+            (item for item in collection if item["identifier"] == identifier), None
+        )
+
+        if removed is None:
+            return False
+
+        collection = [item for item in collection if item["identifier"] != identifier]
+        self._save_collection(self.cover_letters_collection, collection)
+
+        letter_dir = self._resolve_path(removed["path"])
+        if letter_dir.exists():
+            shutil.rmtree(letter_dir)
+
+        return True
+
+    def rename_cover_letter(
+        self, identifier: str, new_identifier: str
+    ) -> CoverLetterRecord:
+        """
+        Rename a cover letter, updating its directory and collection entry.
+
+        Args:
+            identifier: Current identifier
+            new_identifier: New identifier
+
+        Returns:
+            Updated CoverLetterRecord
+
+        Raises:
+            ValueError: If not found or new identifier already exists
+        """
+        old_record = self.get_cover_letter_record(identifier)
+        if old_record is None:
+            raise ValueError(f"Cover letter not found: {identifier}")
+        if self.get_cover_letter_record(new_identifier) is not None:
+            raise ValueError(f"Cover letter already exists: {new_identifier}")
+
+        new_path = str(Path(old_record.path).parent / new_identifier)
+        old_dir = self._resolve_path(old_record.path)
+        new_dir = self._resolve_path(new_path)
+        new_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old_dir), str(new_dir))
+
+        collection = self._load_collection(self.cover_letters_collection)
+        new_record_data = None
+        for i, item in enumerate(collection):
+            if item["identifier"] == identifier:
+                item = dict(item)
+                item["identifier"] = new_identifier
+                item["path"] = new_path
+                item["updated_at"] = datetime.now().isoformat()
+                collection[i] = item
+                new_record_data = item
+                break
+        self._save_collection(self.cover_letters_collection, collection)
+        assert new_record_data is not None
+        return CoverLetterRecord(**new_record_data)
+
     def resolve_record(
         self, uri: str
-    ) -> JobPostingRecord | CurriculumVitaeRecord | OptimizedCvRecord:
+    ) -> (
+        JobPostingRecord | CurriculumVitaeRecord | OptimizedCvRecord | CoverLetterRecord
+    ):
         """Return the governing record for a URI. Raises ValueError if not found."""
         parsed = parse_uri(uri)
         collection = parsed["collection"]
@@ -583,6 +764,12 @@ class FileSystemRepository:
 
         if collection == "cvs":
             record = self.get_cv_record(parsed["identifier"])
+            if record is None:
+                raise ValueError(f"Not found: {uri}")
+            return record
+
+        if collection == "cover-letters":
+            record = self.get_cover_letter_record(parsed["identifier"])
             if record is None:
                 raise ValueError(f"Not found: {uri}")
             return record
@@ -610,6 +797,12 @@ class FileSystemRepository:
             if record is None:
                 raise ValueError(f"Not found: {uri}")
             return _cv_canonical_path(record)
+
+        if collection == "cover-letters":
+            record = self.get_cover_letter_record(parsed["identifier"])
+            if record is None:
+                raise ValueError(f"Not found: {uri}")
+            return _cover_letter_canonical_path(record)
 
         return self.optimized_cv_base_uri(
             parsed["job_posting_identifier"], parsed["identifier"]
