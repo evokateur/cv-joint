@@ -56,23 +56,6 @@ def parse_uri(uri: str) -> dict[str, str]:
     raise ValueError(f"Unrecognised URI: {uri}")
 
 
-def normalize_new_identifier(source_uri: str, new_id: str) -> str:
-    """
-    Interpret NEW_ID for a rename of source_uri.
-
-    Strips an optional leading prefix matching the source URI's container
-    (everything up to and including its last '/'), then validates the
-    remainder as a bare identifier.
-
-    Raises ValueError if the result is empty or still contains a '/'.
-    """
-    prefix = source_uri.strip("/").rsplit("/", 1)[0] + "/"
-    identifier = new_id[len(prefix) :] if new_id.startswith(prefix) else new_id
-    if not identifier or "/" in identifier:
-        raise ValueError(f"Illegal identifier: {new_id}")
-    return identifier
-
-
 def _job_posting_canonical_path(record: JobPostingRecord) -> str:
     if record.location:
         return f"job-postings/{record.location}/{record.identifier}"
@@ -278,7 +261,7 @@ class FileSystemRepository:
         File a job posting into a named location, recording the transition.
 
         ``location`` may be ``"."`` to return to root; it is stored verbatim in
-        the transition log but normalised to ``None`` in the record.
+        the transition log but normalized to ``None`` in the record.
 
         ``record_fields`` are merged into the collection entry in the same write,
         so callers do not need a second load/save cycle for denormalized fields.
@@ -292,9 +275,9 @@ class FileSystemRepository:
 
         now = datetime.now()
         entry = {"date": now.isoformat(), "location": location, **(fields or {})}
-        normalised = None if location == "." else location
+        normalized = None if location == "." else location
 
-        record_data["location"] = normalised
+        record_data["location"] = normalized
         record_data["transitions"] = record_data.get("transitions", []) + [entry]
         record_data["updated_at"] = now.isoformat()
         if record_fields:

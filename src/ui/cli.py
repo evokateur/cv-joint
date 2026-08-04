@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 import yaml
 
-from repositories.filesystem import normalize_new_identifier, parse_uri
+from repositories.filesystem import parse_uri
 
 
 def _load_collection(name: str) -> list[dict]:
@@ -72,7 +72,7 @@ def _complete_cv_identifier(ctx, _param, incomplete):
     return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
 
 
-def _normalise_cv_identifier(value: str) -> str:
+def _normalize_cv_identifier(value: str) -> str:
     try:
         parsed = parse_uri(value)
     except ValueError:
@@ -395,6 +395,23 @@ def reanalyze(uri, content_file):
     click.echo(f"Reanalyzed as {new_uri}")
 
 
+def _normalize_new_identifier(old_uri: str, old_identifier: str, new_value: str) -> str:
+    """
+    Interpret new_value as a bare identifier for renaming old_uri.
+
+    Strips an optional leading prefix matching old_uri's container (old_uri
+    minus its trailing old_identifier), then validates the remainder as a
+    bare identifier.
+
+    Raises ValueError if the result is empty or still contains a '/'.
+    """
+    prefix = old_uri.strip("/")[: -len(old_identifier)]
+    identifier = new_value[len(prefix) :] if new_value.startswith(prefix) else new_value
+    if not identifier or "/" in identifier:
+        raise ValueError(f"Illegal identifier: {new_value}")
+    return identifier
+
+
 @main.command("rename")
 @click.argument("uri", shell_complete=_complete_uri)
 @click.argument("new_id")
@@ -412,7 +429,7 @@ def rename(uri, new_id):
         )
 
     try:
-        new_id = normalize_new_identifier(uri, new_id)
+        new_id = _normalize_new_identifier(uri, parsed["identifier"], new_id)
     except ValueError:
         raise click.UsageError(
             f"illegal new identifier '{new_id}'\n"
@@ -584,7 +601,7 @@ def apply(uri, cv_identifier, date):
     """Mark a job posting as applied to and exit."""
     identifier = _require_job_posting_uri(uri)
     applied_at = datetime.strptime(date, "%Y-%m-%d") if date else None
-    cv_identifier = _normalise_cv_identifier(cv_identifier)
+    cv_identifier = _normalize_cv_identifier(cv_identifier)
     from services.application import ApplicationService
 
     ApplicationService().mark_applied(identifier, cv_identifier, applied_at=applied_at)

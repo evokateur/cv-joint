@@ -136,14 +136,14 @@ class TestApplyCommand:
         assert result.exit_code == 0
         mock_service.mark_applied.assert_called_once_with("acme-swe", "acme-swe/my-cv", applied_at=None)
 
-    def test_normalises_base_cv_uri(self, runner):
+    def test_normalizes_base_cv_uri(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
             result = runner.invoke(main, ["apply", "job-postings/acme-swe", "cvs/my-cv"])
         assert result.exit_code == 0
         mock_service.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
 
-    def test_normalises_optimized_cv_uri(self, runner):
+    def test_normalizes_optimized_cv_uri(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
             result = runner.invoke(main, ["apply", "job-postings/acme-swe", "job-postings/acme-swe/cvs/my-cv"])
@@ -325,7 +325,18 @@ class TestReanalyzeCommand:
 
 
 class TestRenameCommand:
-    def test_normalises_matching_collection_prefix(self, runner):
+    def test_bare_identifier_passes_through(self, runner):
+        with patch("services.application.ApplicationService") as MockService:
+            mock_service = MockService.return_value
+            result = runner.invoke(
+                main, ["rename", "job-postings/acme-swe", "acme-swe-2"]
+            )
+        assert result.exit_code == 0, result.output
+        mock_service.rename_job_posting.assert_called_once_with(
+            "acme-swe", "acme-swe-2"
+        )
+
+    def test_normalizes_matching_collection_prefix(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
             result = runner.invoke(
@@ -334,6 +345,25 @@ class TestRenameCommand:
         assert result.exit_code == 0, result.output
         mock_service.rename_job_posting.assert_called_once_with(
             "acme-swe", "acme-swe-2"
+        )
+
+    def test_normalizes_matching_cv_prefix(self, runner):
+        with patch("services.application.ApplicationService") as MockService:
+            mock_service = MockService.return_value
+            result = runner.invoke(main, ["rename", "cvs/acme-swe", "cvs/acme-swe-2"])
+        assert result.exit_code == 0, result.output
+        mock_service.rename_cv.assert_called_once_with("acme-swe", "acme-swe-2")
+
+    def test_normalizes_matching_optimized_cv_prefix(self, runner):
+        with patch("services.application.ApplicationService") as MockService:
+            mock_service = MockService.return_value
+            result = runner.invoke(
+                main,
+                ["rename", "job-postings/acme/cvs/foo", "job-postings/acme/cvs/bar"],
+            )
+        assert result.exit_code == 0, result.output
+        mock_service.rename_cv_optimization.assert_called_once_with(
+            "acme", "foo", "bar"
         )
 
     def test_rejects_wrong_collection_prefix(self, runner):
