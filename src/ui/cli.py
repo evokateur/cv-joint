@@ -348,53 +348,6 @@ def remove(uri):
         sys.exit(1)
 
 
-@main.command("reanalyze")
-@click.argument("uri", shell_complete=_complete_uri)
-@click.argument(
-    "content_file", required=False, type=click.Path(dir_okay=False, allow_dash=True)
-)
-def reanalyze(uri, content_file):
-    """Re-analyze an object by URI and overwrite the existing record."""
-    from services.application import ApplicationService
-
-    service = ApplicationService()
-    try:
-        parsed = parse_uri(uri)
-    except ValueError:
-        raise click.UsageError(
-            f"unrecognised URI '{uri}'\n"
-            "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
-        )
-
-    content_file, is_temp = _resolve_content(content_file)
-    try:
-        if parsed["collection"] == "job-postings":
-            record = service.reanalyze_job_posting(parsed["identifier"], content_file)
-            new_uri = f"job-postings/{record.identifier}"
-        elif parsed["collection"] == "cvs":
-            if not content_file:
-                raise click.UsageError("reanalyze cvs/{id} requires CONTENT_FILE")
-            record = service.reanalyze_cv(parsed["identifier"], content_file)
-            new_uri = f"cvs/{record.identifier}"
-        else:
-            record = service.reanalyze_cv_optimization(
-                parsed["job_posting_identifier"], parsed["identifier"]
-            )
-            new_uri = (
-                f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
-            )
-    except click.UsageError:
-        raise
-    except ValueError as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
-    finally:
-        if is_temp and content_file:
-            os.unlink(content_file)
-
-    click.echo(f"Reanalyzed as {new_uri}")
-
-
 def _normalize_new_identifier(old_uri: str, old_identifier: str, new_value: str) -> str:
     """
     Interpret new_value as a bare identifier for renaming old_uri.
