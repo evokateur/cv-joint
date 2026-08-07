@@ -396,19 +396,6 @@ class TestRenameCvOptimizationNew:
         assert service.repository.get_optimized_cv_record("acme-swe", "new-id") is not None
 
 
-class TestPurgeCvOptimization:
-    def test_deletes_directory_without_removing_record(
-        self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
-    ):
-        from pathlib import Path
-        service.save_job_posting(sample_job_posting_data, "acme-swe")
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
-        service.purge_cv_optimization("acme-swe", "opt-1")
-        opt_dir = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1"
-        assert not opt_dir.exists()
-        assert service.repository.get_optimized_cv_record("acme-swe", "opt-1") is not None
-
-
 # ---------------------------------------------------------------------------
 # CJ-17 regression tests: service and exporter must use parent stored path
 # ---------------------------------------------------------------------------

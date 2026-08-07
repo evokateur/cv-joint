@@ -478,17 +478,6 @@ class ApplicationService:
             cv.model_dump() if cv else {},
         )
 
-    def purge_cv_optimization(
-        self, job_posting_identifier: str, identifier: str
-    ) -> bool:
-        """
-        Delete an unsaved CV optimization from disk without removing the collection record.
-
-        Returns:
-            True if deleted, False if not found
-        """
-        return self.repository.purge_optimized_cv(job_posting_identifier, identifier)
-
     def get_cv_data_filepaths(self) -> list[dict[str, Any]]:
         active_job_ids = {
             item["identifier"] for item in self.repository.list_job_postings()

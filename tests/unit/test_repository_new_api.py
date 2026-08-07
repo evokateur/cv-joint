@@ -2,7 +2,7 @@
 Tests for new repository API introduced in step 2:
 save_object, load_object, load_all_objects, save_document, load_document,
 document_exists, add_optimized_cv, get_optimized_cv_record, get_optimized_cv,
-list_optimized_cvs, remove_optimized_cv, rename_optimized_cv, purge_optimized_cv.
+list_optimized_cvs, remove_optimized_cv, rename_optimized_cv.
 """
 
 import json
@@ -398,27 +398,6 @@ class TestRenameOptimizedCv:
             repository_with_job_posting.rename_optimized_cv("acme-swe", "opt-1", "opt-2")
 
 
-class TestPurgeOptimizedCv:
-    def test_deletes_directory(
-        self, repository_with_job_posting, sample_cv, temp_data_dir
-    ):
-        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
-        result = repository_with_job_posting.purge_optimized_cv("acme-swe", "opt-1")
-        assert result is True
-        opt_dir = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1"
-        assert not opt_dir.exists()
-
-    def test_does_not_remove_collection_entry(
-        self, repository_with_job_posting, sample_cv
-    ):
-        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
-        repository_with_job_posting.purge_optimized_cv("acme-swe", "opt-1")
-        assert repository_with_job_posting.get_optimized_cv_record("acme-swe", "opt-1") is not None
-
-    def test_returns_false_when_directory_not_found(self, repository_with_job_posting):
-        assert repository_with_job_posting.purge_optimized_cv("acme-swe", "nonexistent") is False
-
-
 class TestOptimizedCvUsesParentPath:
     """Optimized CV path operations must use the stored JobPostingRecord.path, not reconstruct from identifiers.
 
@@ -480,20 +459,6 @@ class TestOptimizedCvUsesParentPath:
         repository_with_job_posting.rename_optimized_cv("acme-swe", "old-id", "new-id")
         assert not (Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/old-id").exists()
         assert (Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/new-id").exists()
-
-    def test_purge_optimized_cv_deletes_from_parent_stored_path(
-        self, repository_with_job_posting, sample_cv, temp_data_dir
-    ):
-        repository_with_job_posting.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
-        self._move_job_posting(
-            repository_with_job_posting, "acme-swe", "job-postings/archived/acme-swe"
-        )
-        cv_dir = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1"
-        assert cv_dir.exists()
-        result = repository_with_job_posting.purge_optimized_cv("acme-swe", "opt-1")
-        assert result is True
-        assert not cv_dir.exists()
-
 
 class TestTransitionAuditLog:
     def test_appends_entry_with_required_keys(self, repository_with_job_posting):

@@ -714,13 +714,9 @@ def create_app():
                         opt_identifier = gr.Textbox(
                             label="Identifier", interactive=True
                         )
-                        with gr.Row():
-                            save_opt_btn = gr.Button(
-                                "Save Optimization", variant="primary"
-                            )
-                            purge_opt_btn = gr.Button(
-                                "Discard Optimization", variant="stop"
-                            )
+                        save_opt_btn = gr.Button(
+                            "Save Optimization", variant="primary"
+                        )
                         opt_status = gr.Textbox(label="Status", interactive=False)
 
                 with gr.Group():
@@ -910,48 +906,6 @@ def create_app():
                             gr.update(),
                         )
 
-                def purge_optimization(identifiers, is_saved):
-                    if is_saved:
-                        return (
-                            "ℹ Cannot discard a saved optimization",
-                            None,
-                            "",
-                            None,
-                            "",
-                            True,
-                            {},
-                            gr.update(visible=False),
-                            gr.update(),
-                            "",
-                        )
-
-                    if not identifiers:
-                        return (
-                            "⚠ No optimization to discard",
-                            None,
-                            "",
-                            None,
-                            "",
-                            False,
-                            {},
-                            gr.update(visible=False),
-                            gr.update(),
-                            "",
-                        )
-
-                    return (
-                        "✓ Optimization discarded",
-                        None,
-                        "",
-                        None,
-                        "",
-                        False,
-                        {},
-                        gr.update(visible=False),
-                        gr.update(value="", visible=False),
-                        "",
-                    )
-
                 def load_cv_optimizations():
                     opts = service.get_cv_optimizations()
                     return [
@@ -1033,23 +987,6 @@ def create_app():
                         opt_save_controls,
                         optimization_list,
                         opt_uri,
-                    ],
-                )
-
-                purge_opt_btn.click(
-                    fn=purge_optimization,
-                    inputs=[opt_identifiers, opt_is_saved],
-                    outputs=[
-                        opt_status,
-                        opt_plan_json,
-                        opt_plan_md,
-                        opt_cv_json,
-                        opt_cv_md,
-                        opt_is_saved,
-                        opt_identifiers,
-                        opt_save_controls,
-                        opt_uri,
-                        opt_identifier,
                     ],
                 )
 

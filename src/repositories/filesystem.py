@@ -1046,9 +1046,3 @@ class FileSystemRepository:
         assert new_record_data is not None
         return OptimizedCvRecord(**new_record_data)
 
-    def purge_optimized_cv(self, job_posting_identifier: str, identifier: str) -> bool:
-        opt_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
-        if not opt_dir.exists():
-            return False
-        shutil.rmtree(opt_dir)
-        return True
