@@ -851,7 +851,7 @@ class FileSystemRepository:
     # Document storage (URI-addressed, raw text)
     # -------------------------------------------------------------------------
 
-    def save_document(self, uri: str, content: str) -> None:
+    def add_or_replace_document(self, uri: str, content: str) -> None:
         base_uri, filename = uri.rsplit("/", 1)
         directory = self._resolve_path(self.canonical_path(base_uri))
         directory.mkdir(parents=True, exist_ok=True)
@@ -864,6 +864,13 @@ class FileSystemRepository:
                 content = _render_frontmatter(record) + content
 
         path.write_text(content)
+
+    def add_document(self, uri: str, content: str) -> None:
+        base_uri, filename = uri.rsplit("/", 1)
+        path = self._resolve_path(self.canonical_path(base_uri)) / filename
+        if path.exists():
+            raise ValueError(f"Document already exists: {uri}")
+        self.add_or_replace_document(uri, content)
 
     def _patch_document_frontmatter(self, record: BaseModel) -> None:
         for stem in RECORD_DOCUMENTS.get(type(record), set()):

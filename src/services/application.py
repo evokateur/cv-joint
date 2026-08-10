@@ -362,7 +362,7 @@ class ApplicationService:
             doc_uri = uri
 
         self.repository.resolve_record(base_uri)
-        self.repository.save_document(doc_uri, Path(file_path).read_text())
+        self.repository.add_document(doc_uri, Path(file_path).read_text())
         return doc_uri
 
     def create_cv_optimization(

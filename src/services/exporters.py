@@ -31,7 +31,7 @@ class MarkdownExporter:
         if markdown is None:
             return
         uri = f"{base_uri}/{_to_kebab_case(type(obj).__name__)}.md"
-        self.repository.save_document(uri, markdown)
+        self.repository.add_or_replace_document(uri, markdown)
 
     def export_job_posting(self, record: JobPostingRecord, job_posting: JobPosting):
         self._save(f"job-postings/{record.identifier}", job_posting)
