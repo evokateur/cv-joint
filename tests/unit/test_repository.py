@@ -1175,3 +1175,19 @@ class TestTransitionAuditLog:
         record = repository_with_job_posting.transition_job_posting("acme-swe", ".")
         assert record.location is None
         assert record.transitions[-1]["location"] == "."
+
+
+class TestLocationRules:
+    def test_archive_rejects_posting_not_at_root(self, repository_with_job_posting):
+        repository_with_job_posting.mark_applied("acme-swe", "my-cv")
+        with pytest.raises(ValueError, match="is applied"):
+            repository_with_job_posting.archive_job_posting("acme-swe")
+
+    def test_unarchive_rejects_posting_not_archived(self, repository_with_job_posting):
+        with pytest.raises(ValueError, match="not archived"):
+            repository_with_job_posting.unarchive_job_posting("acme-swe")
+
+    def test_apply_rejects_posting_already_applied(self, repository_with_job_posting):
+        repository_with_job_posting.mark_applied("acme-swe", "my-cv")
+        with pytest.raises(ValueError, match="is applied"):
+            repository_with_job_posting.mark_applied("acme-swe", "other-cv")

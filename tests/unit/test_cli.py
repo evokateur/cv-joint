@@ -35,6 +35,15 @@ class TestArchiveCommand:
             result = runner.invoke(main, ["archive", "cvs/my-cv"])
         assert result.exit_code != 0
 
+    def test_rejected_location_reports_message(self, runner):
+        with patch("services.application.ApplicationService") as MockService:
+            MockService.return_value.archive_job_posting.side_effect = ValueError(
+                "Job posting is applied: acme-swe"
+            )
+            result = runner.invoke(main, ["archive", "job-postings/acme-swe"])
+        assert result.exit_code != 0
+        assert "Job posting is applied: acme-swe" in result.output
+
 
 class TestListCommand:
     def test_lists_active_job_postings(self, runner):
@@ -155,6 +164,15 @@ class TestApplyCommand:
             result = runner.invoke(main, ["apply", "cvs/my-cv", "my-cv"])
         assert result.exit_code != 0
 
+    def test_rejected_location_reports_message(self, runner):
+        with patch("services.application.ApplicationService") as MockService:
+            MockService.return_value.mark_applied.side_effect = ValueError(
+                "Job posting is applied: acme-swe"
+            )
+            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "my-cv"])
+        assert result.exit_code != 0
+        assert "Job posting is applied: acme-swe" in result.output
+
 
 class TestTransitionCommand:
     def test_calls_service(self, runner):
@@ -186,6 +204,15 @@ class TestTransitionCommand:
             result = runner.invoke(main, ["transition", "cvs/my-cv", "applied"])
         assert result.exit_code != 0
 
+    def test_rejected_location_reports_message(self, runner):
+        with patch("services.application.ApplicationService") as MockService:
+            MockService.return_value.transition_job_posting.side_effect = ValueError(
+                "Job posting already in location: applied"
+            )
+            result = runner.invoke(main, ["transition", "job-postings/acme-swe", "applied"])
+        assert result.exit_code != 0
+        assert "Job posting already in location: applied" in result.output
+
 
 class TestUnarchiveCommand:
     def test_calls_service(self, runner):
@@ -205,6 +232,15 @@ class TestUnarchiveCommand:
         with patch("services.application.ApplicationService"):
             result = runner.invoke(main, ["unarchive", "cvs/my-cv"])
         assert result.exit_code != 0
+
+    def test_rejected_location_reports_message(self, runner):
+        with patch("services.application.ApplicationService") as MockService:
+            MockService.return_value.unarchive_job_posting.side_effect = ValueError(
+                "Job posting is not archived: acme-swe"
+            )
+            result = runner.invoke(main, ["unarchive", "job-postings/acme-swe"])
+        assert result.exit_code != 0
+        assert "Job posting is not archived: acme-swe" in result.output
 
 
 class TestAnalyzeJobPostingCommand:

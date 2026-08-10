@@ -518,7 +518,10 @@ def transition(uri, location, field):
         fields = dict(pairs)
     else:
         fields = None
-    ApplicationService().transition_job_posting(identifier, location, fields)
+    try:
+        ApplicationService().transition_job_posting(identifier, location, fields)
+    except ValueError as e:
+        raise click.UsageError(str(e))
     click.echo(f"Transitioned {uri} to {location!r}")
 
 
@@ -529,7 +532,10 @@ def archive(uri):
     identifier = _require_job_posting_uri(uri)
     from services.application import ApplicationService
 
-    ApplicationService().archive_job_posting(identifier)
+    try:
+        ApplicationService().archive_job_posting(identifier)
+    except ValueError as e:
+        raise click.UsageError(str(e))
     click.echo(f"Archived {uri}")
 
 
@@ -540,7 +546,10 @@ def unarchive(uri):
     identifier = _require_job_posting_uri(uri)
     from services.application import ApplicationService
 
-    ApplicationService().unarchive_job_posting(identifier)
+    try:
+        ApplicationService().unarchive_job_posting(identifier)
+    except ValueError as e:
+        raise click.UsageError(str(e))
     click.echo(f"Unarchived {uri}")
 
 
@@ -557,7 +566,10 @@ def apply(uri, cv_identifier, date):
     cv_identifier = _normalize_cv_identifier(cv_identifier)
     from services.application import ApplicationService
 
-    ApplicationService().mark_applied(identifier, cv_identifier, applied_at=applied_at)
+    try:
+        ApplicationService().mark_applied(identifier, cv_identifier, applied_at=applied_at)
+    except ValueError as e:
+        raise click.UsageError(str(e))
     click.echo(f"Marked {uri} as applied with {cv_identifier}")
 
 

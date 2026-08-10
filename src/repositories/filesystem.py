@@ -95,9 +95,6 @@ class FileSystemRepository:
 
         self.job_postings_collection = self.collections_dir / "job-postings.json"
         self.cvs_collection = self.collections_dir / "cvs.json"
-        self.optimization_plans_collection = (
-            self.collections_dir / "optimization-plans.json"
-        )
         self.optimized_cvs_collection = self.collections_dir / "optimized-cvs.json"
         self.cover_letters_collection = self.collections_dir / "cover-letters.json"
 
@@ -228,12 +225,22 @@ class FileSystemRepository:
 
     def archive_job_posting(self, identifier: str) -> JobPostingRecord:
         """Mark a job posting as archived."""
+        record = self.get_job_posting_record(identifier)
+        if record is None:
+            raise ValueError(f"Job posting not found: {identifier}")
+        if record.location is not None:
+            raise ValueError(f"Job posting is {record.location}: {identifier}")
         return self.transition_job_posting(
             identifier, "archived", record_fields={"is_archived": True}
         )
 
     def unarchive_job_posting(self, identifier: str) -> JobPostingRecord:
-        """Return a job posting to the root (active/unfiled)."""
+        """Return an archived job posting to the root (active/unfiled)."""
+        record = self.get_job_posting_record(identifier)
+        if record is None:
+            raise ValueError(f"Job posting not found: {identifier}")
+        if record.location != "archived":
+            raise ValueError(f"Job posting is not archived: {identifier}")
         return self.transition_job_posting(
             identifier, ".", record_fields={"is_archived": False}
         )
@@ -245,6 +252,11 @@ class FileSystemRepository:
         applied_at: Optional[datetime] = None,
     ) -> JobPostingRecord:
         """Record that a job posting was applied to."""
+        record = self.get_job_posting_record(identifier)
+        if record is None:
+            raise ValueError(f"Job posting not found: {identifier}")
+        if record.location == "applied":
+            raise ValueError(f"Job posting is applied: {identifier}")
         applied_at_dt = applied_at or datetime.now()
         denorm = {
             "applied_with": cv_identifier,
