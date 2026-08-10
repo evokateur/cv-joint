@@ -3,7 +3,6 @@ Unit tests for application service markdown generation.
 """
 
 import json
-import shutil
 import pytest
 import tempfile
 from pathlib import Path
@@ -400,16 +399,6 @@ class TestRenameCvOptimizationNew:
 # CJ-17 regression tests: service and exporter must use parent stored path
 # ---------------------------------------------------------------------------
 
-def _move_job_posting(repository, identifier, new_rel):
-    collection = repository._load_collection(repository.job_postings_collection)
-    item = next(i for i in collection if i["identifier"] == identifier)
-    old_abs = repository.data_dir / item["path"]
-    new_abs = repository.data_dir / new_rel
-    new_abs.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(old_abs), str(new_abs))
-    item["path"] = new_rel
-    repository._save_collection(repository.job_postings_collection, collection)
-
 
 class TestSaveCvOptimizationUsesParentPath:
     """add_cv_optimization must write to the parent's stored path and export markdown."""
@@ -418,7 +407,7 @@ class TestSaveCvOptimizationUsesParentPath:
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
-        _move_job_posting(service.repository, "acme-swe", "job-postings/archived/acme-swe")
+        service.archive_job_posting("acme-swe")
 
         cv = CurriculumVitae(**sample_cv_data)
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
@@ -447,7 +436,7 @@ class TestExportOptimizationsUsesParentPath:
         (cv_dir / "cv-transformation-plan.json").write_text(json.dumps(plan_data))
 
         # Moving the parent carries the nested cvs/ subdir with it.
-        _move_job_posting(service.repository, "acme-swe", "job-postings/archived/acme-swe")
+        service.archive_job_posting("acme-swe")
 
         count = service.export_markdown(collection_name="optimizations")
 
@@ -461,7 +450,7 @@ class TestExportOptimizationsUsesParentPath:
         cv = CurriculumVitae(**sample_cv_data)
         service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
 
-        _move_job_posting(service.repository, "acme-swe", "job-postings/archived/acme-swe")
+        service.archive_job_posting("acme-swe")
 
         service.export_markdown(collection_name="optimizations")
 
@@ -476,7 +465,7 @@ class TestGetCvOptimizationUsesParentPath:
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
-        _move_job_posting(service.repository, "acme-swe", "job-postings/archived/acme-swe")
+        service.archive_job_posting("acme-swe")
 
         cv = CurriculumVitae(**sample_cv_data)
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")

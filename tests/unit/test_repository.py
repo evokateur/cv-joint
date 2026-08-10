@@ -732,32 +732,6 @@ class TestResolveRecord:
             repository.resolve_record("job-postings/nonexistent")
 
 
-class TestCanonicalPath:
-    def test_job_posting_default_path(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "acme-swe")
-        assert repository.canonical_path("job-postings/acme-swe") == "job-postings/acme-swe"
-
-    def test_cv_default_path(self, repository, sample_cv):
-        repository.add_cv(sample_cv, "jane-doe")
-        assert repository.canonical_path("cvs/jane-doe") == "cvs/jane-doe"
-
-    def test_optimized_cv_follows_parent_path(self, repository, sample_job_posting, sample_cv):
-        repository.add_job_posting(sample_job_posting, "acme-swe")
-        repository.add_optimized_cv("acme-swe", "jane-v2", "jane-doe", sample_cv)
-        assert repository.canonical_path("job-postings/acme-swe/cvs/jane-v2") == "job-postings/acme-swe/cvs/jane-v2"
-
-    def test_cover_letter_default_path(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "frobozzco-magic-gunk")
-        assert (
-            repository.canonical_path("cover-letters/frobozzco-magic-gunk")
-            == "cover-letters/frobozzco-magic-gunk"
-        )
-
-    def test_raises_when_not_found(self, repository):
-        with pytest.raises(ValueError, match="Not found"):
-            repository.canonical_path("job-postings/nonexistent")
-
-
 class TestRenameUsesStoredPath:
     def _move_to_custom_path(self, repository, collection_file, identifier, old_rel, new_rel):
         old_abs = repository.data_dir / old_rel

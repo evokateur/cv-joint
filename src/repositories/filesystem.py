@@ -28,6 +28,10 @@ RECORD_DOCUMENTS: dict[type, set[str]] = {
     CoverLetterRecord: {"cover-letter"},
 }
 
+JOB_POSTINGS_DIR = "job-postings"
+CVS_DIR = "cvs"
+COVER_LETTERS_DIR = "cover-letters"
+
 
 def _render_frontmatter(record: BaseModel) -> str:
     data = record.model_dump(mode="json")
@@ -56,18 +60,18 @@ def parse_uri(uri: str) -> dict[str, str]:
     raise ValueError(f"Unrecognised URI: {uri}")
 
 
-def _job_posting_canonical_path(record: JobPostingRecord) -> str:
-    if record.location:
-        return f"job-postings/{record.location}/{record.identifier}"
-    return f"job-postings/{record.identifier}"
+def _job_posting_canonical_path(identifier: str, location: str | None = None) -> str:
+    if location:
+        return f"{JOB_POSTINGS_DIR}/{location}/{identifier}"
+    return f"{JOB_POSTINGS_DIR}/{identifier}"
 
 
-def _cv_canonical_path(record: CurriculumVitaeRecord) -> str:
-    return f"cvs/{record.identifier}"
+def _cv_canonical_path(identifier: str) -> str:
+    return f"{CVS_DIR}/{identifier}"
 
 
-def _cover_letter_canonical_path(record: CoverLetterRecord) -> str:
-    return f"cover-letters/{record.identifier}"
+def _cover_letter_canonical_path(identifier: str) -> str:
+    return f"{COVER_LETTERS_DIR}/{identifier}"
 
 
 class FileSystemRepository:
@@ -136,7 +140,7 @@ class FileSystemRepository:
         if existing is not None:
             raise ValueError(f"Job posting already exists: {identifier}")
 
-        directory = f"job-postings/{identifier}"
+        directory = _job_posting_canonical_path(identifier)
         absolute_path = self._resolve_path(directory) / "job-posting.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -253,18 +257,12 @@ class FileSystemRepository:
     def transition_job_posting(
         self,
         identifier: str,
-        location: str,
+        location: str | None,
         fields: dict[str, Any] | None = None,
         record_fields: dict[str, Any] | None = None,
     ) -> JobPostingRecord:
         """
-        File a job posting into a named location, recording the transition.
-
-        ``location`` may be ``"."`` to return to root; it is stored verbatim in
-        the transition log but normalized to ``None`` in the record.
-
-        ``record_fields`` are merged into the collection entry in the same write,
-        so callers do not need a second load/save cycle for denormalized fields.
+        Move a job posting to a named location subdirectory, recording the transition.
         """
         collection = self._load_collection(self.job_postings_collection)
         record_data = next(
@@ -273,28 +271,51 @@ class FileSystemRepository:
         if record_data is None:
             raise ValueError(f"Job posting not found: {identifier}")
 
-        now = datetime.now()
-        entry = {"date": now.isoformat(), "location": location, **(fields or {})}
-        normalized = None if location == "." else location
+        normalized_location = None if location == "." else location
+        target_path = _job_posting_canonical_path(identifier, normalized_location)
 
-        record_data["location"] = normalized
+        if target_path == record_data.get("path"):
+            raise ValueError(f"Job posting already in location: {location}")
+
+        now = datetime.now()
+        entry = {
+            "date": now.isoformat(),
+            "location": normalized_location if normalized_location is not None else ".",
+            **(fields or {}),
+        }
+
+        record_data["location"] = normalized_location
         record_data["transitions"] = record_data.get("transitions", []) + [entry]
         record_data["updated_at"] = now.isoformat()
         if record_fields:
             record_data.update(record_fields)
 
-        record = JobPostingRecord(**record_data)
-        target_path = _job_posting_canonical_path(record)
-        if target_path != record_data.get("path"):
-            new_abs = self._resolve_path(target_path)
-            new_abs.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(self._resolve_path(record_data["path"])), str(new_abs))
-            record_data["path"] = target_path
+        new_abs = self._resolve_path(target_path)
+        new_abs.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(self._resolve_path(record_data["path"])), str(new_abs))
+        record_data["path"] = target_path
+        self._update_optimized_cv_paths(identifier, target_path)
 
         self._save_collection(self.job_postings_collection, collection)
         result = JobPostingRecord(**record_data)
         self._patch_document_frontmatter(result)
         return result
+
+    def _update_optimized_cv_paths(
+        self,
+        job_posting_identifier: str,
+        new_parent_path: str,
+        new_job_posting_identifier: str | None = None,
+    ) -> None:
+        """Keep nested OptimizedCvRecord.path (and job_posting_identifier, if renamed) in sync with their parent."""
+        collection = self._load_collection(self.optimized_cvs_collection)
+        for item in collection:
+            if item.get("job_posting_identifier") != job_posting_identifier:
+                continue
+            if new_job_posting_identifier is not None:
+                item["job_posting_identifier"] = new_job_posting_identifier
+            item["path"] = f"{new_parent_path}/{CVS_DIR}/{item['identifier']}"
+        self._save_collection(self.optimized_cvs_collection, collection)
 
     def remove_job_posting(self, identifier: str) -> bool:
         """
@@ -353,7 +374,7 @@ class FileSystemRepository:
         if existing is not None:
             raise ValueError(f"CV already exists: {identifier}")
 
-        directory = f"cvs/{identifier}"
+        directory = _cv_canonical_path(identifier)
         absolute_path = self._resolve_path(directory) / "curriculum-vitae.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -486,14 +507,7 @@ class FileSystemRepository:
         new_dir.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(old_dir), str(new_dir))
 
-        opt_collection = self._load_collection(self.optimized_cvs_collection)
-        updated_opts = [
-            dict(item, job_posting_identifier=new_identifier)
-            if item.get("job_posting_identifier") == identifier
-            else item
-            for item in opt_collection
-        ]
-        self._save_collection(self.optimized_cvs_collection, updated_opts)
+        self._update_optimized_cv_paths(identifier, new_path, new_identifier)
 
         collection = self._load_collection(self.job_postings_collection)
         new_record_data = None
@@ -583,7 +597,7 @@ class FileSystemRepository:
         if existing is not None:
             raise ValueError(f"Cover letter already exists: {identifier}")
 
-        directory = f"cover-letters/{identifier}"
+        directory = _cover_letter_canonical_path(identifier)
         absolute_path = self._resolve_path(directory) / "cover-letter.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -630,9 +644,7 @@ class FileSystemRepository:
 
         return CoverLetter(**data)
 
-    def get_cover_letter_record(
-        self, identifier: str
-    ) -> Optional[CoverLetterRecord]:
+    def get_cover_letter_record(self, identifier: str) -> Optional[CoverLetterRecord]:
         """
         Load a cover letter record from the collection index.
 
@@ -765,33 +777,6 @@ class FileSystemRepository:
             raise ValueError(f"Not found: {uri}")
         return record
 
-    def canonical_path(self, uri: str) -> str:
-        """Return the canonical filesystem path for a URI based on current business rules."""
-        parsed = parse_uri(uri)
-        collection = parsed["collection"]
-
-        if collection == "job-postings":
-            record = self.get_job_posting_record(parsed["identifier"])
-            if record is None:
-                raise ValueError(f"Not found: {uri}")
-            return _job_posting_canonical_path(record)
-
-        if collection == "cvs":
-            record = self.get_cv_record(parsed["identifier"])
-            if record is None:
-                raise ValueError(f"Not found: {uri}")
-            return _cv_canonical_path(record)
-
-        if collection == "cover-letters":
-            record = self.get_cover_letter_record(parsed["identifier"])
-            if record is None:
-                raise ValueError(f"Not found: {uri}")
-            return _cover_letter_canonical_path(record)
-
-        return self.optimized_cv_base_uri(
-            parsed["job_posting_identifier"], parsed["identifier"]
-        )
-
     def optimized_cv_base_uri(
         self, job_posting_identifier: str, cv_identifier: str
     ) -> str:
@@ -853,12 +838,12 @@ class FileSystemRepository:
 
     def add_or_replace_document(self, uri: str, content: str) -> None:
         base_uri, filename = uri.rsplit("/", 1)
-        directory = self._resolve_path(self.canonical_path(base_uri))
+        record = self.resolve_record(base_uri)
+        directory = self._resolve_path(record.path)
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / filename
 
         if filename.endswith(".md"):
-            record = self.resolve_record(base_uri)
             stem = filename[:-3]
             if stem in RECORD_DOCUMENTS.get(type(record), set()):
                 content = _render_frontmatter(record) + content
@@ -867,7 +852,7 @@ class FileSystemRepository:
 
     def add_document(self, uri: str, content: str) -> None:
         base_uri, filename = uri.rsplit("/", 1)
-        path = self._resolve_path(self.canonical_path(base_uri)) / filename
+        path = self._resolve_path(self.resolve_record(base_uri).path) / filename
         if path.exists():
             raise ValueError(f"Document already exists: {uri}")
         self.add_or_replace_document(uri, content)
@@ -1052,4 +1037,3 @@ class FileSystemRepository:
         self._save_collection(self.optimized_cvs_collection, collection)
         assert new_record_data is not None
         return OptimizedCvRecord(**new_record_data)
-
