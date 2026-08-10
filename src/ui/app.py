@@ -126,7 +126,7 @@ def create_app():
                         _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
                         content_path = str(_UPLOADS_DIR / Path(content_file).name)
                         shutil.copy2(content_file, content_path)
-                    job_data, identifier = service.create_job_posting(url, content_path)
+                    job_data, identifier = service.analyze_job_posting(url, content_path)
                     job_posting = JobPosting(**job_data)
                     job_md = service.to_markdown(job_posting)
                     is_saved = False
@@ -208,7 +208,7 @@ def create_app():
                         )
 
                     try:
-                        metadata = service.save_job_posting(job_data, identifier)
+                        metadata = service.add_job_posting(job_data, identifier)
                         jobs = service.get_job_postings()
                         job_list_data = [
                             [
@@ -439,7 +439,7 @@ def create_app():
                             gr.update(value="", visible=False),
                         )
 
-                    cv_data, identifier = service.create_cv(file_path)
+                    cv_data, identifier = service.analyze_cv(file_path)
                     cv = CurriculumVitae(**cv_data)
                     cv_md = service.to_markdown(cv)
                     is_saved = False
@@ -518,7 +518,7 @@ def create_app():
                         )
 
                     try:
-                        metadata = service.save_cv(cv_data, identifier)
+                        metadata = service.add_cv(cv_data, identifier)
                         cvs = service.get_cvs()
                         cv_list_data = [
                             [
@@ -760,7 +760,7 @@ def create_app():
                             "",
                         )
 
-                    plan_data, cv_data, identifiers = service.create_cv_optimization(
+                    plan_data, cv_data, identifiers = service.analyze_cv_optimization(
                         job_id, cv_id
                     )
                     plan = CvTransformationPlan(**plan_data) if plan_data else None
@@ -867,7 +867,7 @@ def create_app():
                     try:
                         cv = CurriculumVitae(**cv_data)
                         plan = CvTransformationPlan(**plan_data) if plan_data else None
-                        record = service.save_cv_optimization(
+                        record = service.add_cv_optimization(
                             identifiers["job_posting_identifier"],
                             identifiers["identifier"],
                             identifiers["base_cv_identifier"],

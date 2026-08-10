@@ -214,11 +214,11 @@ class TestAnalyzeJobPostingCommand:
         mock_record.identifier = "acme-swe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.create_job_posting.return_value = ({}, "acme-swe")
-            svc.save_job_posting.return_value = mock_record
-            result = runner.invoke(main, ["analyze", "job-posting", url])
+            svc.analyze_job_posting.return_value = ({}, "acme-swe")
+            svc.add_job_posting.return_value = mock_record
+            result = runner.invoke(main, ["ingest", "job-posting", url])
         assert result.exit_code == 0, result.output
-        svc.create_job_posting.assert_called_once_with(url, None)
+        svc.analyze_job_posting.assert_called_once_with(url, None)
         assert "job-postings/acme-swe" in result.output
 
     def test_url_with_content_file(self, runner, tmp_path):
@@ -229,11 +229,11 @@ class TestAnalyzeJobPostingCommand:
         mock_record.identifier = "acme-swe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.create_job_posting.return_value = ({}, "acme-swe")
-            svc.save_job_posting.return_value = mock_record
-            result = runner.invoke(main, ["analyze", "job-posting", url, str(content)])
+            svc.analyze_job_posting.return_value = ({}, "acme-swe")
+            svc.add_job_posting.return_value = mock_record
+            result = runner.invoke(main, ["ingest", "job-posting", url, str(content)])
         assert result.exit_code == 0, result.output
-        svc.create_job_posting.assert_called_once_with(url, str(content))
+        svc.analyze_job_posting.assert_called_once_with(url, str(content))
         assert "job-postings/acme-swe" in result.output
 
     def test_stdin_content_buffers_to_tempfile(self, runner):
@@ -242,23 +242,23 @@ class TestAnalyzeJobPostingCommand:
         mock_record.identifier = "acme-swe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.create_job_posting.return_value = ({}, "acme-swe")
-            svc.save_job_posting.return_value = mock_record
-            result = runner.invoke(main, ["analyze", "job-posting", url, "-"], input="# Job Posting")
+            svc.analyze_job_posting.return_value = ({}, "acme-swe")
+            svc.add_job_posting.return_value = mock_record
+            result = runner.invoke(main, ["ingest", "job-posting", url, "-"], input="# Job Posting")
         assert result.exit_code == 0, result.output
-        args = svc.create_job_posting.call_args.args
+        args = svc.analyze_job_posting.call_args.args
         assert args[0] == url
         assert args[1] is not None
 
     def test_missing_url_exits_nonzero(self, runner):
         with patch("services.application.ApplicationService"):
-            result = runner.invoke(main, ["analyze", "job-posting"])
+            result = runner.invoke(main, ["ingest", "job-posting"])
         assert result.exit_code != 0
 
     def test_service_error_exits_nonzero(self, runner):
         with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.create_job_posting.side_effect = ValueError("analysis failed")
-            result = runner.invoke(main, ["analyze", "job-posting", "https://example.com"])
+            MockService.return_value.analyze_job_posting.side_effect = ValueError("analysis failed")
+            result = runner.invoke(main, ["ingest", "job-posting", "https://example.com"])
         assert result.exit_code != 0
         assert "analysis failed" in result.output
 
@@ -271,11 +271,11 @@ class TestAnalyzeCvCommand:
         mock_record.identifier = "jane-doe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.create_cv.return_value = ({}, "jane-doe")
-            svc.save_cv.return_value = mock_record
-            result = runner.invoke(main, ["analyze", "cv", str(content)])
+            svc.analyze_cv.return_value = ({}, "jane-doe")
+            svc.add_cv.return_value = mock_record
+            result = runner.invoke(main, ["ingest", "cv", str(content)])
         assert result.exit_code == 0, result.output
-        svc.create_cv.assert_called_once_with(str(content))
+        svc.analyze_cv.assert_called_once_with(str(content))
         assert "cvs/jane-doe" in result.output
 
     def test_stdin_buffers_to_tempfile(self, runner):
@@ -283,17 +283,17 @@ class TestAnalyzeCvCommand:
         mock_record.identifier = "jane-doe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.create_cv.return_value = ({}, "jane-doe")
-            svc.save_cv.return_value = mock_record
-            result = runner.invoke(main, ["analyze", "cv", "-"], input="name: Jane")
+            svc.analyze_cv.return_value = ({}, "jane-doe")
+            svc.add_cv.return_value = mock_record
+            result = runner.invoke(main, ["ingest", "cv", "-"], input="name: Jane")
         assert result.exit_code == 0, result.output
-        args = svc.create_cv.call_args.args
+        args = svc.analyze_cv.call_args.args
         assert args[0] is not None
 
     def test_service_error_exits_nonzero(self, runner):
         with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.create_cv.side_effect = ValueError("content_file must be provided")
-            result = runner.invoke(main, ["analyze", "cv", "-"], input="")
+            MockService.return_value.analyze_cv.side_effect = ValueError("content_file must be provided")
+            result = runner.invoke(main, ["ingest", "cv", "-"], input="")
         assert result.exit_code != 0
 
 

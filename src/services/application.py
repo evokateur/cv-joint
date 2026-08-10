@@ -65,13 +65,11 @@ class ApplicationService:
             tmp.flush()
             return self.job_posting_analyzer.analyze(tmp.name)
 
-    def create_job_posting(
+    def analyze_job_posting(
         self, url: str, content_file: Optional[str] = None
     ) -> tuple[dict[str, Any], str]:
         """
-        Analyze a job posting and create a structured JobPosting.
-
-        Note: This only analyzes, does not save. Use save_job_posting to persist.
+        Analyze a job posting into a structured JobPosting.
 
         Args:
             url: Job posting URL — stored as provenance. Content is fetched from
@@ -80,7 +78,7 @@ class ApplicationService:
             content_file: Local file path to analyze in lieu of fetching the URL
 
         Returns:
-            tuple of (job_posting_data, suggested_identifier)
+            tuple of (job_posting_data, suggested_identifier); pass to add_job_posting to persist.
         """
         if content_file is None:
             job_posting = self._analyze_job_posting_url(url)
@@ -93,9 +91,9 @@ class ApplicationService:
         )
         return job_posting.model_dump(), identifier
 
-    def save_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
+    def add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
-        Save a job posting to the repository.
+        Add a job posting to the repository.
 
         Handles identifier collisions by appending a number suffix if the
         identifier already exists. This allows re-analyzing the same job posting
@@ -103,7 +101,7 @@ class ApplicationService:
         overwriting the previous analysis.
 
         Args:
-            job_posting_data: Job posting data dict (from create_job_posting)
+            job_posting_data: Job posting data dict (from analyze_job_posting)
             identifier: Identifier to use for this job posting
 
         Returns:
@@ -193,19 +191,17 @@ class ApplicationService:
             identifier, cv_identifier, applied_at=applied_at
         )
 
-    def create_cv(
+    def analyze_cv(
         self, content_file: Optional[str] = None
     ) -> tuple[dict[str, Any], str]:
         """
-        Analyze a CV and create a structured CurriculumVitae.
-
-        Note: This only analyzes, does not save. Use save_cv to persist.
+        Analyze a CV into a structured CurriculumVitae.
 
         Args:
             content_file: Path to CV file (JSON, YAML, plain text, etc.)
 
         Returns:
-            tuple of (cv_data, suggested_identifier)
+            tuple of (cv_data, suggested_identifier); pass to add_cv to persist.
         """
         if content_file is None:
             raise ValueError("content_file must be provided")
@@ -213,15 +209,15 @@ class ApplicationService:
         identifier = self._generate_cv_identifier(cv.profession)
         return cv.model_dump(), identifier
 
-    def save_cv(self, cv_data: dict[str, Any], identifier: str):
+    def add_cv(self, cv_data: dict[str, Any], identifier: str):
         """
-        Save a CV to the repository.
+        Add a CV to the repository.
 
         Handles identifier collisions by appending a number suffix if the
         identifier already exists.
 
         Args:
-            cv_data: CV data dict (from create_cv)
+            cv_data: CV data dict (from analyze_cv)
             identifier: Identifier to use for this CV
 
         Returns:
@@ -365,19 +361,19 @@ class ApplicationService:
         self.repository.add_document(doc_uri, Path(file_path).read_text())
         return doc_uri
 
-    def create_cv_optimization(
+    def analyze_cv_optimization(
         self, job_posting_identifier: str, cv_identifier: str
     ) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
         """
-        Create a CV optimization for a job posting.
+        Analyze a CV optimization for a job posting.
 
         Args:
             job_posting_identifier: Identifier of the job posting
             cv_identifier: Identifier of the base CV
 
         Returns:
-            tuple of (plan_data, cv_data, identifiers_dict)
-            where identifiers_dict contains job_posting_identifier, identifier, base_cv_identifier
+            tuple of (plan_data, cv_data, identifiers_dict); pass to add_cv_optimization to persist.
+            identifiers_dict contains job_posting_identifier, identifier, base_cv_identifier
         """
         import datetime
 
@@ -406,7 +402,7 @@ class ApplicationService:
             identifiers,
         )
 
-    def save_cv_optimization(
+    def add_cv_optimization(
         self,
         job_posting_identifier: str,
         identifier: str,
@@ -415,7 +411,7 @@ class ApplicationService:
         plan: CvTransformationPlan | None = None,
     ):
         """
-        Save a CV optimization to the repository.
+        Add a CV optimization to the repository.
 
         Args:
             job_posting_identifier: Identifier of the job posting

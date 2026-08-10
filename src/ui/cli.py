@@ -593,18 +593,18 @@ def _resolve_content(content: str | None) -> tuple[str | None, bool]:
     return content, False
 
 
-@main.group("analyze")
-def analyze():
-    """Analyze and save a new object."""
+@main.group("ingest")
+def ingest():
+    """Analyze external content and persist it as a new object."""
 
 
-@analyze.command("job-posting")
+@ingest.command("job-posting")
 @click.argument("url")
 @click.argument(
     "content", required=False, type=click.Path(dir_okay=False, allow_dash=True)
 )
-def analyze_job_posting(url, content):
-    """Analyze a job posting.
+def ingest_job_posting(url, content):
+    """Analyze a job posting and persist it.
 
     URL is required and stored as the posting's identity. Content is fetched from
     the URL unless a file path or '-' (stdin) is given.
@@ -614,8 +614,8 @@ def analyze_job_posting(url, content):
     service = ApplicationService()
     content_file, is_temp = _resolve_content(content)
     try:
-        data, identifier = service.create_job_posting(url, content_file)
-        record = service.save_job_posting(data, identifier)
+        data, identifier = service.analyze_job_posting(url, content_file)
+        record = service.add_job_posting(data, identifier)
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -625,19 +625,19 @@ def analyze_job_posting(url, content):
     click.echo(f"job-postings/{record.identifier}")
 
 
-@analyze.command("cv")
+@ingest.command("cv")
 @click.argument(
     "content", default="-", type=click.Path(dir_okay=False, allow_dash=True)
 )
-def analyze_cv(content):
-    """Analyze a CV from a file path or stdin (-)."""
+def ingest_cv(content):
+    """Analyze a CV from a file path or stdin (-) and persist it."""
     from services.application import ApplicationService
 
     service = ApplicationService()
     content_file, is_temp = _resolve_content(content)
     try:
-        data, identifier = service.create_cv(content_file)
-        record = service.save_cv(data, identifier)
+        data, identifier = service.analyze_cv(content_file)
+        record = service.add_cv(data, identifier)
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)

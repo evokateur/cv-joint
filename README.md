@@ -219,7 +219,7 @@ cv-joint open
 ### CLI examples
 
 ```sh
-cv-joint analyze job-posting 'https://www.linkedin.com/jobs/view/4426565782/'
+cv-joint ingest job-posting 'https://www.linkedin.com/jobs/view/4426565782/'
 ```
 
 ↪︎ analyzes job posting and persists result
