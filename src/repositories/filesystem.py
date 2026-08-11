@@ -95,9 +95,6 @@ class FileSystemRepository:
 
         self.job_postings_collection = self.collections_dir / "job-postings.json"
         self.cvs_collection = self.collections_dir / "cvs.json"
-        self.optimization_plans_collection = (
-            self.collections_dir / "optimization-plans.json"
-        )
         self.optimized_cvs_collection = self.collections_dir / "optimized-cvs.json"
         self.cover_letters_collection = self.collections_dir / "cover-letters.json"
 
