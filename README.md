@@ -246,7 +246,7 @@ cv-joint apply job-postings/grow-therapy-senior-software-engineer-backend cvs/so
 cv-joint render cvs/lets-eat-grandma
 ```
 
-↪︎ renders with LaTeX template and writes `lets-eat-grandma.pdf` to `CWD`
+↪︎ renders with LaTeX template and writes `lets-eat-grandma.pdf` to `CWD`[^2]
 
 ```sh
 cv-joint render job-postings/pinterest-software-engineer/cvs/software-engineer-4-2026-07-27 -o ~/Desktop/pinterest-cv.pdf
@@ -254,4 +254,4 @@ cv-joint render job-postings/pinterest-software-engineer/cvs/software-engineer-4
 
 ↪︎ renders and writes `pinterest-cv.pdf` to desktop
 
-Autocomplete lists CVs after `cv-joint render cvs/` and optimized CVs after `cv-joint render job-postings/`
+[^2]: Completion works for CVs after `cv-joint render cvs/`, *optimized* CVs after `cv-joint render job-postings/`
