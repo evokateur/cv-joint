@@ -177,18 +177,27 @@ class ApplicationService:
 
     def archive_job_posting(self, identifier: str):
         """Mark a job posting as archived."""
-        return self.repository.archive_job_posting(identifier)
+        return self.repository.transition_job_posting(
+            identifier, "archived", record_fields={"is_archived": True}
+        )
 
     def unarchive_job_posting(self, identifier: str):
         """Return a job posting to the root (active/unfiled)."""
-        return self.repository.unarchive_job_posting(identifier)
+        return self.repository.transition_job_posting(
+            identifier, ".", record_fields={"is_archived": False}
+        )
 
     def mark_applied(
         self, identifier: str, cv_identifier: str, applied_at: Optional[datetime] = None
     ):
         """Record that a job posting was applied to with a given CV."""
-        return self.repository.mark_applied(
-            identifier, cv_identifier, applied_at=applied_at
+        applied_at_dt = applied_at or datetime.now()
+        denorm = {
+            "applied_with": cv_identifier,
+            "applied_at": applied_at_dt.isoformat(),
+        }
+        return self.repository.transition_job_posting(
+            identifier, "applied", fields=denorm, record_fields=denorm
         )
 
     def analyze_cv(

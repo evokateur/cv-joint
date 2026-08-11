@@ -305,7 +305,9 @@ class TestArchiveJobPosting:
         service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = MagicMock()
         service.archive_job_posting("acme-swe")
-        mock_repo.archive_job_posting.assert_called_once_with("acme-swe")
+        mock_repo.transition_job_posting.assert_called_once_with(
+            "acme-swe", "archived", record_fields={"is_archived": True}
+        )
 
     def test_does_not_call_exporter(self):
         mock_repo = MagicMock()
@@ -322,7 +324,11 @@ class TestMarkApplied:
         service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = MagicMock()
         service.mark_applied("acme-swe", "my-cv")
-        mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
+        args, kwargs = mock_repo.transition_job_posting.call_args
+        assert args[0] == "acme-swe"
+        assert args[1] == "applied"
+        assert kwargs["fields"]["applied_with"] == "my-cv"
+        assert kwargs["record_fields"]["applied_with"] == "my-cv"
 
     def test_forwards_applied_at(self):
         from datetime import datetime
@@ -331,7 +337,9 @@ class TestMarkApplied:
         service.markdown_exporter = MagicMock()
         date = datetime(2025, 1, 15)
         service.mark_applied("acme-swe", "my-cv", applied_at=date)
-        mock_repo.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=date)
+        _, kwargs = mock_repo.transition_job_posting.call_args
+        assert kwargs["fields"]["applied_at"] == date.isoformat()
+        assert kwargs["record_fields"]["applied_at"] == date.isoformat()
 
     def test_does_not_call_exporter(self):
         mock_repo = MagicMock()
