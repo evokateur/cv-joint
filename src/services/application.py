@@ -109,6 +109,8 @@ class ApplicationService:
             slug = _slugify_job(data["company"], data["title"])
         elif kind == "cvs":
             slug = _slugify(data["profession"])
+        elif kind == "cover-letters":
+            slug = "cover-letter"
         else:
             raise ValueError(f"no default identifier for {kind!r}")
         return self.unique_new_identifier(f"{kind}/{slug}")
