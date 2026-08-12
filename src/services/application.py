@@ -103,17 +103,17 @@ class ApplicationService:
             return terminal
         return _next_identifier(terminal, exists)
 
-    def generate_default_identifier(self, kind: str, data: dict[str, Any]) -> str:
+    def generate_default_identifier(self, collection: str, data: dict[str, Any]) -> str:
         """A collision-free default identifier derived from an object's fields."""
-        if kind == "job-postings":
+        if collection == "job-postings":
             slug = _slugify_job(data["company"], data["title"])
-        elif kind == "cvs":
+        elif collection == "cvs":
             slug = _slugify(data["profession"])
-        elif kind == "cover-letters":
+        elif collection == "cover-letters":
             slug = "cover-letter"
         else:
-            raise ValueError(f"no default identifier for {kind!r}")
-        return self.unique_new_identifier(f"{kind}/{slug}")
+            raise ValueError(f"no default identifier for {collection!r}")
+        return self.unique_new_identifier(f"{collection}/{slug}")
 
     def _analyze_job_posting_url(self, url: str) -> JobPosting:
         """Fetch a URL and analyze its content as a job posting.
