@@ -626,7 +626,8 @@ def ingest_job_posting(url, content):
     service = ApplicationService()
     content_file, is_temp = _resolve_content(content)
     try:
-        data, identifier = service.analyze_job_posting(url, content_file)
+        data = service.analyze_job_posting(url, content_file)
+        identifier = service.generate_default_identifier("job-postings", data)
         record = service.add_job_posting(data, identifier)
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
@@ -648,7 +649,8 @@ def ingest_cv(content):
     service = ApplicationService()
     content_file, is_temp = _resolve_content(content)
     try:
-        data, identifier = service.analyze_cv(content_file)
+        data = service.analyze_cv(content_file)
+        identifier = service.generate_default_identifier("cvs", data)
         record = service.add_cv(data, identifier)
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)

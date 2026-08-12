@@ -214,7 +214,8 @@ class TestAnalyzeJobPostingCommand:
         mock_record.identifier = "acme-swe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.analyze_job_posting.return_value = ({}, "acme-swe")
+            svc.analyze_job_posting.return_value = {}
+            svc.generate_default_identifier.return_value = "acme-swe"
             svc.add_job_posting.return_value = mock_record
             result = runner.invoke(main, ["ingest", "job-posting", url])
         assert result.exit_code == 0, result.output
@@ -229,7 +230,8 @@ class TestAnalyzeJobPostingCommand:
         mock_record.identifier = "acme-swe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.analyze_job_posting.return_value = ({}, "acme-swe")
+            svc.analyze_job_posting.return_value = {}
+            svc.generate_default_identifier.return_value = "acme-swe"
             svc.add_job_posting.return_value = mock_record
             result = runner.invoke(main, ["ingest", "job-posting", url, str(content)])
         assert result.exit_code == 0, result.output
@@ -242,7 +244,8 @@ class TestAnalyzeJobPostingCommand:
         mock_record.identifier = "acme-swe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.analyze_job_posting.return_value = ({}, "acme-swe")
+            svc.analyze_job_posting.return_value = {}
+            svc.generate_default_identifier.return_value = "acme-swe"
             svc.add_job_posting.return_value = mock_record
             result = runner.invoke(main, ["ingest", "job-posting", url, "-"], input="# Job Posting")
         assert result.exit_code == 0, result.output
@@ -271,7 +274,8 @@ class TestAnalyzeCvCommand:
         mock_record.identifier = "jane-doe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.analyze_cv.return_value = ({}, "jane-doe")
+            svc.analyze_cv.return_value = {}
+            svc.generate_default_identifier.return_value = "jane-doe"
             svc.add_cv.return_value = mock_record
             result = runner.invoke(main, ["ingest", "cv", str(content)])
         assert result.exit_code == 0, result.output
@@ -283,7 +287,8 @@ class TestAnalyzeCvCommand:
         mock_record.identifier = "jane-doe"
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
-            svc.analyze_cv.return_value = ({}, "jane-doe")
+            svc.analyze_cv.return_value = {}
+            svc.generate_default_identifier.return_value = "jane-doe"
             svc.add_cv.return_value = mock_record
             result = runner.invoke(main, ["ingest", "cv", "-"], input="name: Jane")
         assert result.exit_code == 0, result.output

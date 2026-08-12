@@ -27,6 +27,20 @@ def _next_identifier(identifier: str, exists: Callable[[str], Any]) -> str:
     return candidate
 
 
+def _slugify(text: str) -> str:
+    """Lowercase, drop punctuation, and hyphenate whitespace."""
+    text = text.lower()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[-\s]+", "-", text)
+    return text.strip("-")
+
+
+def _slugify_job(company: str, title: str) -> str:
+    if company.lower() == "not specified":
+        return _slugify(title)
+    return f"{_slugify(company)}-{_slugify(title)}"
+
+
 class ApplicationService:
     """
     Application service for CV Joint operations.
@@ -50,6 +64,55 @@ class ApplicationService:
             self.repository, self.markdown_converter
         )
 
+    def object_exists(self, uri: str) -> bool:
+        """Whether an object exists at uri. The collision check, keyed on the URI.
+
+        Handles object URIs only (job-postings/{id}, cvs/{id},
+        cover-letters/{id}, job-postings/{id}/cvs/{id}). Anything else — an
+        unparseable or document URI — is reported as not existing.
+        """
+        try:
+            parsed = parse_uri(uri)
+        except ValueError:
+            return False
+        collection = parsed["collection"]
+        if collection == "job-postings":
+            return self.repository.get_job_posting(parsed["identifier"]) is not None
+        if collection == "cvs":
+            return self.repository.get_cv(parsed["identifier"]) is not None
+        if collection == "cover-letters":
+            return self.repository.get_cover_letter(parsed["identifier"]) is not None
+        if collection == "optimized-cvs":
+            return (
+                self.repository.get_optimized_cv(
+                    parsed["job_posting_identifier"], parsed["identifier"]
+                )
+                is not None
+            )
+        return False
+
+    def unique_new_identifier(self, uri: str) -> str:
+        """A free identifier in uri's namespace: its terminal segment, or a
+        -N variant when that collides."""
+        prefix, terminal = uri.rsplit("/", 1)
+
+        def exists(identifier: str) -> bool:
+            return self.object_exists(f"{prefix}/{identifier}")
+
+        if not exists(terminal):
+            return terminal
+        return _next_identifier(terminal, exists)
+
+    def generate_default_identifier(self, kind: str, data: dict[str, Any]) -> str:
+        """A collision-free default identifier derived from an object's fields."""
+        if kind == "job-postings":
+            slug = _slugify_job(data["company"], data["title"])
+        elif kind == "cvs":
+            slug = _slugify(data["profession"])
+        else:
+            raise ValueError(f"no default identifier for {kind!r}")
+        return self.unique_new_identifier(f"{kind}/{slug}")
+
     def _analyze_job_posting_url(self, url: str) -> JobPosting:
         """Fetch a URL and analyze its content as a job posting.
 
@@ -67,7 +130,7 @@ class ApplicationService:
 
     def analyze_job_posting(
         self, url: str, content_file: Optional[str] = None
-    ) -> tuple[dict[str, Any], str]:
+    ) -> dict[str, Any]:
         """
         Analyze a job posting into a structured JobPosting.
 
@@ -78,7 +141,7 @@ class ApplicationService:
             content_file: Local file path to analyze in lieu of fetching the URL
 
         Returns:
-            tuple of (job_posting_data, suggested_identifier); pass to add_job_posting to persist.
+            job_posting_data; pass to add_job_posting (with an identifier) to persist.
         """
         if content_file is None:
             job_posting = self._analyze_job_posting_url(url)
@@ -86,19 +149,11 @@ class ApplicationService:
             job_posting = self.job_posting_analyzer.analyze(content_file)
 
         job_posting = job_posting.model_copy(update={"url": url})
-        identifier = self._generate_job_identifier(
-            job_posting.company, job_posting.title
-        )
-        return job_posting.model_dump(), identifier
+        return job_posting.model_dump()
 
     def add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
-        Add a job posting to the repository.
-
-        Handles identifier collisions by appending a number suffix if the
-        identifier already exists. This allows re-analyzing the same job posting
-        (e.g., after KB changes, prompt updates, or job posting changes) without
-        overwriting the previous analysis.
+        Add a job posting to the repository under identifier.
 
         Args:
             job_posting_data: Job posting data dict (from analyze_job_posting)
@@ -106,31 +161,16 @@ class ApplicationService:
 
         Returns:
             JobPostingRecord
+
+        Raises:
+            ValueError: if identifier already exists
         """
         from models import JobPosting
 
         job_posting = JobPosting(**job_posting_data)
-
-        if self.repository.get_job_posting(identifier):
-            identifier = _next_identifier(identifier, self.repository.get_job_posting)
-
         record = self.repository.add_job_posting(job_posting, identifier)
         self.markdown_exporter.export_job_posting(record, job_posting)
         return record
-
-    def _generate_job_identifier(self, company: str, title: str) -> str:
-        """Generate a URL-safe identifier from company and title."""
-        import re
-
-        def slugify(text: str) -> str:
-            text = text.lower()
-            text = re.sub(r"[^\w\s-]", "", text)
-            text = re.sub(r"[-\s]+", "-", text)
-            return text.strip("-")
-
-        if company.lower() == "not specified":
-            return slugify(title)
-        return f"{slugify(company)}-{slugify(title)}"
 
     def get_job_posting(self, identifier: str):
         """Retrieve a job posting by identifier."""
@@ -202,7 +242,7 @@ class ApplicationService:
 
     def analyze_cv(
         self, content_file: Optional[str] = None
-    ) -> tuple[dict[str, Any], str]:
+    ) -> dict[str, Any]:
         """
         Analyze a CV into a structured CurriculumVitae.
 
@@ -210,20 +250,16 @@ class ApplicationService:
             content_file: Path to CV file (JSON, YAML, plain text, etc.)
 
         Returns:
-            tuple of (cv_data, suggested_identifier); pass to add_cv to persist.
+            cv_data; pass to add_cv (with an identifier) to persist.
         """
         if content_file is None:
             raise ValueError("content_file must be provided")
         cv = self.cv_analyzer.analyze(content_file)
-        identifier = self._generate_cv_identifier(cv.profession)
-        return cv.model_dump(), identifier
+        return cv.model_dump()
 
     def add_cv(self, cv_data: dict[str, Any], identifier: str):
         """
-        Add a CV to the repository.
-
-        Handles identifier collisions by appending a number suffix if the
-        identifier already exists.
+        Add a CV to the repository under identifier.
 
         Args:
             cv_data: CV data dict (from analyze_cv)
@@ -231,29 +267,16 @@ class ApplicationService:
 
         Returns:
             CurriculumVitaeRecord
+
+        Raises:
+            ValueError: if identifier already exists
         """
         from models import CurriculumVitae
 
         cv = CurriculumVitae(**cv_data)
-
-        if self.repository.get_cv(identifier):
-            identifier = _next_identifier(identifier, self.repository.get_cv)
-
         record = self.repository.add_cv(cv, identifier)
         self.markdown_exporter.export_cv(record, cv)
         return record
-
-    def _generate_cv_identifier(self, profession: str) -> str:
-        """Generate a URL-safe identifier from profession."""
-        import re
-
-        def slugify(text: str) -> str:
-            text = text.lower()
-            text = re.sub(r"[^\w\s-]", "", text)
-            text = re.sub(r"[-\s]+", "-", text)
-            return text.strip("-")
-
-        return slugify(profession)
 
     def get_cv(self, identifier: str):
         """Retrieve a CV by identifier."""

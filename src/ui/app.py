@@ -126,7 +126,10 @@ def create_app():
                         _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
                         content_path = str(_UPLOADS_DIR / Path(content_file).name)
                         shutil.copy2(content_file, content_path)
-                    job_data, identifier = service.analyze_job_posting(url, content_path)
+                    job_data = service.analyze_job_posting(url, content_path)
+                    identifier = service.generate_default_identifier(
+                        "job-postings", job_data
+                    )
                     job_posting = JobPosting(**job_data)
                     job_md = service.to_markdown(job_posting)
                     is_saved = False
@@ -208,6 +211,9 @@ def create_app():
                         )
 
                     try:
+                        identifier = service.unique_new_identifier(
+                            f"job-postings/{identifier}"
+                        )
                         metadata = service.add_job_posting(job_data, identifier)
                         jobs = service.get_job_postings()
                         job_list_data = [
@@ -439,7 +445,8 @@ def create_app():
                             gr.update(value="", visible=False),
                         )
 
-                    cv_data, identifier = service.analyze_cv(file_path)
+                    cv_data = service.analyze_cv(file_path)
+                    identifier = service.generate_default_identifier("cvs", cv_data)
                     cv = CurriculumVitae(**cv_data)
                     cv_md = service.to_markdown(cv)
                     is_saved = False
@@ -518,6 +525,7 @@ def create_app():
                         )
 
                     try:
+                        identifier = service.unique_new_identifier(f"cvs/{identifier}")
                         metadata = service.add_cv(cv_data, identifier)
                         cvs = service.get_cvs()
                         cv_list_data = [

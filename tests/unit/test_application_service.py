@@ -505,7 +505,7 @@ class TestCreateJobPostingFromUrl:
             return_value=JobPosting(**{**sample_job_posting_data, "url": "Not specified"})
         )
 
-        data, _ = service.analyze_job_posting(url="https://example.com/job/new")
+        data = service.analyze_job_posting(url="https://example.com/job/new")
 
         assert data["url"] == "https://example.com/job/new"
 
@@ -567,3 +567,90 @@ class TestAddDocument:
         source.write_text("# Notes")
         with pytest.raises(ValueError, match="Not found"):
             service.add_document("job-postings/nonexistent", str(source))
+
+
+class TestObjectExists:
+    def test_true_for_existing_job_posting(self, service, sample_job_posting_data):
+        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        assert service.object_exists("job-postings/acme-swe") is True
+
+    def test_true_for_existing_cv(self, service, sample_cv_data):
+        service.add_cv(sample_cv_data, "jane-doe")
+        assert service.object_exists("cvs/jane-doe") is True
+
+    def test_false_for_missing(self, service):
+        assert service.object_exists("cvs/nope") is False
+
+    def test_false_for_unparseable_uri(self, service):
+        assert service.object_exists("not a uri") is False
+
+    def test_false_for_document_uri(self, service, sample_cv_data):
+        service.add_cv(sample_cv_data, "jane-doe")
+        assert service.object_exists("cvs/jane-doe/resume.pdf") is False
+
+
+class TestUniqueNewIdentifier:
+    def test_returns_terminal_when_free(self, service):
+        assert service.unique_new_identifier("cvs/jane-doe") == "jane-doe"
+
+    def test_bumps_to_2_on_collision(self, service, sample_cv_data):
+        service.add_cv(sample_cv_data, "jane-doe")
+        assert service.unique_new_identifier("cvs/jane-doe") == "jane-doe-2"
+
+    def test_bumps_past_existing_suffix(self, service, sample_cv_data):
+        service.add_cv(sample_cv_data, "jane-doe")
+        service.add_cv(sample_cv_data, "jane-doe-2")
+        assert service.unique_new_identifier("cvs/jane-doe") == "jane-doe-3"
+
+    def test_scoped_per_namespace(self, service, sample_job_posting_data, sample_cv_data):
+        service.add_cv(sample_cv_data, "shared")
+        # same identifier in a different namespace does not collide
+        assert service.unique_new_identifier("job-postings/shared") == "shared"
+
+
+class TestGenerateDefaultIdentifier:
+    def test_job_posting_slugifies_company_and_title(self, service, sample_job_posting_data):
+        assert (
+            service.generate_default_identifier("job-postings", sample_job_posting_data)
+            == "acme-corp-software-engineer"
+        )
+
+    def test_cv_slugifies_profession(self, service, sample_cv_data):
+        assert (
+            service.generate_default_identifier("cvs", sample_cv_data)
+            == "software-engineer"
+        )
+
+    def test_avoids_collision(self, service, sample_cv_data):
+        service.add_cv(sample_cv_data, "software-engineer")
+        assert (
+            service.generate_default_identifier("cvs", sample_cv_data)
+            == "software-engineer-2"
+        )
+
+    def test_not_specified_company_omitted(self, service):
+        data = JobPosting(
+            url="https://example.com/job/456",
+            company="Not specified",
+            title="Developer",
+            industry="Tech",
+            description="A job",
+            experience_level="Senior",
+        ).model_dump()
+        assert service.generate_default_identifier("job-postings", data) == "developer"
+
+    def test_unknown_kind_raises(self, service):
+        with pytest.raises(ValueError, match="no default identifier"):
+            service.generate_default_identifier("widgets", {})
+
+
+class TestAddRaisesOnCollision:
+    def test_job_posting(self, service, sample_job_posting_data):
+        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        with pytest.raises(ValueError, match="already exists"):
+            service.add_job_posting(sample_job_posting_data, "acme-swe")
+
+    def test_cv(self, service, sample_cv_data):
+        service.add_cv(sample_cv_data, "jane-doe")
+        with pytest.raises(ValueError, match="already exists"):
+            service.add_cv(sample_cv_data, "jane-doe")
