@@ -9,6 +9,7 @@ import click
 import yaml
 
 from repositories.filesystem import parse_uri
+from ui.identifier import validate_identifier
 
 
 def _load_collection(name: str) -> list[dict]:
@@ -348,21 +349,14 @@ def remove(uri):
         sys.exit(1)
 
 
-def _normalize_new_identifier(old_uri: str, old_identifier: str, new_value: str) -> str:
-    """
-    Interpret new_value as a bare identifier for renaming old_uri.
+def _strip_uri_prefix(old_uri: str, old_identifier: str, new_value: str) -> str:
+    """Strip old_uri's container prefix from new_value when it carries it.
 
-    Strips an optional leading prefix matching old_uri's container (old_uri
-    minus its trailing old_identifier), then validates the remainder as a
-    bare identifier.
-
-    Raises ValueError if the result is empty or still contains a '/'.
+    Lets shell completion fill in a full URI (e.g. cvs/bar) while rename reads
+    the trailing segment as the new identifier. Extraction only, no validation.
     """
     prefix = old_uri.strip("/")[: -len(old_identifier)]
-    identifier = new_value[len(prefix) :] if new_value.startswith(prefix) else new_value
-    if not identifier or "/" in identifier:
-        raise ValueError(f"Illegal identifier: {new_value}")
-    return identifier
+    return new_value[len(prefix) :] if new_value.startswith(prefix) else new_value
 
 
 @main.command("rename")
@@ -381,12 +375,13 @@ def rename(uri, new_id):
             "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
         )
 
+    new_id = _strip_uri_prefix(uri, parsed["identifier"], new_id)
     try:
-        new_id = _normalize_new_identifier(uri, parsed["identifier"], new_id)
-    except ValueError:
+        validate_identifier(new_id)
+    except click.UsageError:
         raise click.UsageError(
             f"illegal new identifier '{new_id}'\n"
-            "Expected a bare identifier (no '/'), optionally prefixed with the source collection"
+            "Expected a bare identifier (no '/' or spaces), optionally prefixed with the source collection"
         )
 
     try:
