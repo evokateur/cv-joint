@@ -109,10 +109,8 @@ class ApplicationService:
             slug = _slugify_job(data["company"], data["title"])
         elif collection == "cvs":
             slug = _slugify(data["profession"])
-        elif collection == "cover-letters":
-            slug = "cover-letter"
         else:
-            raise ValueError(f"no default identifier for {collection!r}")
+            raise ValueError(f"unrecognized collection: {collection!r}")
         return self.unique_new_identifier(f"{collection}/{slug}")
 
     def _analyze_job_posting_url(self, url: str) -> JobPosting:
