@@ -27,7 +27,7 @@ def identifier_option(f):
 
 def resolve_identifier(
     given: str | None,
-    default: str,
+    default: str | None,
     exists: Callable[[str], bool],
     *,
     interactive: bool,

@@ -93,6 +93,25 @@ class TestPrompt:
         assert "RESULT=good-value" in result.output
 
 
+class TestNoDefault:
+    def test_prompts_for_typed_value(self, runner):
+        result = runner.invoke(_make_command(set(), None, True), input="chosen-id\n")
+        assert result.exit_code == 0, result.output
+        assert "RESULT=chosen-id" in result.output
+
+    def test_reprompts_on_empty(self, runner):
+        result = runner.invoke(
+            _make_command(set(), None, True), input="\nchosen-id\n"
+        )
+        assert result.exit_code == 0, result.output
+        assert "RESULT=chosen-id" in result.output
+
+    def test_non_interactive_still_requires_identifier(self, runner):
+        result = runner.invoke(_make_command(set(), None, False), [])
+        assert result.exit_code != 0
+        assert "--identifier is required" in result.output
+
+
 class TestNonInteractive:
     def test_requires_identifier_when_no_tty(self, runner):
         result = runner.invoke(_make_command(set(), "d", False), [])

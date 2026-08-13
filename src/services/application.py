@@ -103,14 +103,19 @@ class ApplicationService:
             return terminal
         return _next_identifier(terminal, exists)
 
-    def generate_default_identifier(self, collection: str, data: dict[str, Any]) -> str:
-        """A collision-free default identifier derived from an object's fields."""
+    def generate_default_identifier(
+        self, collection: str, data: dict[str, Any]
+    ) -> str | None:
+        """A collision-free default identifier derived from an object's fields.
+
+        None when the collection has no default identifier defined.
+        """
         if collection == "job-postings":
             slug = _slugify_job(data["company"], data["title"])
         elif collection == "cvs":
             slug = _slugify(data["profession"])
         else:
-            raise ValueError(f"unrecognized collection: {collection!r}")
+            return None
         return self.unique_new_identifier(f"{collection}/{slug}")
 
     def _analyze_job_posting_url(self, url: str) -> JobPosting:

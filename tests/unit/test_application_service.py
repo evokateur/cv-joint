@@ -639,9 +639,8 @@ class TestGenerateDefaultIdentifier:
         ).model_dump()
         assert service.generate_default_identifier("job-postings", data) == "developer"
 
-    def test_unrecognized_collection_raises(self, service):
-        with pytest.raises(ValueError, match="unrecognized collection"):
-            service.generate_default_identifier("widgets", {})
+    def test_unrecognized_collection_returns_none(self, service):
+        assert service.generate_default_identifier("widgets", {}) is None
 
 
 class TestAddRaisesOnCollision:
