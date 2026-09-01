@@ -339,8 +339,12 @@ def remove(uri):
         )
     elif parsed["collection"] == "job-postings":
         removed = service.remove_job_posting(parsed["identifier"])
-    else:
+    elif parsed["collection"] == "cvs":
         removed = service.remove_cv(parsed["identifier"])
+    else:
+        raise click.UsageError(
+            f"remove is not implemented for {parsed['collection']}"
+        )
 
     if removed:
         click.echo(f"Removed {uri}")
@@ -389,9 +393,13 @@ def rename(uri, new_id):
             service.rename_job_posting(parsed["identifier"], new_id)
         elif parsed["collection"] == "cvs":
             service.rename_cv(parsed["identifier"], new_id)
-        else:
+        elif parsed["collection"] == "optimized-cvs":
             service.rename_cv_optimization(
                 parsed["job_posting_identifier"], parsed["identifier"], new_id
+            )
+        else:
+            raise click.UsageError(
+                f"rename is not implemented for {parsed['collection']}"
             )
     except click.UsageError:
         raise
