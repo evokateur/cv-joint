@@ -329,7 +329,7 @@ class ApplicationService:
         """
         return self.repository.remove_cv(identifier)
 
-    def remove_cv_optimization(
+    def remove_optimized_cv(
         self, job_posting_identifier: str, identifier: str
     ) -> bool:
         """
@@ -363,7 +363,7 @@ class ApplicationService:
         """
         return self.repository.rename_cv(identifier, new_identifier)
 
-    def rename_cv_optimization(
+    def rename_optimized_cv(
         self, job_posting_identifier: str, identifier: str, new_identifier: str
     ):
         """
@@ -398,7 +398,7 @@ class ApplicationService:
         self.repository.add_document(doc_uri, Path(file_path).read_text())
         return doc_uri
 
-    def analyze_cv_optimization(
+    def optimize_cv(
         self, job_posting_identifier: str, cv_identifier: str
     ) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
         """
@@ -409,7 +409,7 @@ class ApplicationService:
             cv_identifier: Identifier of the base CV
 
         Returns:
-            tuple of (plan_data, cv_data, identifiers_dict); pass to add_cv_optimization to persist.
+            tuple of (plan_data, cv_data, identifiers_dict); pass to add_optimized_cv to persist.
             identifiers_dict contains job_posting_identifier, identifier, base_cv_identifier
         """
         import datetime
@@ -439,7 +439,7 @@ class ApplicationService:
             identifiers,
         )
 
-    def add_cv_optimization(
+    def add_optimized_cv(
         self,
         job_posting_identifier: str,
         identifier: str,
@@ -474,7 +474,7 @@ class ApplicationService:
 
         return record
 
-    def get_cv_optimizations(self) -> list[dict[str, Any]]:
+    def get_optimized_cvs(self) -> list[dict[str, Any]]:
         """
         Retrieve saved cv optimizations, excluding those whose parent job posting is archived.
 

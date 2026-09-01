@@ -340,7 +340,7 @@ class TestRenameCommand:
                 ["rename", "job-postings/acme/cvs/foo", "job-postings/acme/cvs/bar"],
             )
         assert result.exit_code == 0, result.output
-        mock_service.rename_cv_optimization.assert_called_once_with(
+        mock_service.rename_optimized_cv.assert_called_once_with(
             "acme", "foo", "bar"
         )
 

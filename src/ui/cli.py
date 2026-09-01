@@ -334,7 +334,7 @@ def remove(uri):
         )
 
     if parsed["collection"] == "optimized-cvs":
-        removed = service.remove_cv_optimization(
+        removed = service.remove_optimized_cv(
             parsed["job_posting_identifier"], parsed["identifier"]
         )
     elif parsed["collection"] == "job-postings":
@@ -394,7 +394,7 @@ def rename(uri, new_id):
         elif parsed["collection"] == "cvs":
             service.rename_cv(parsed["identifier"], new_id)
         elif parsed["collection"] == "optimized-cvs":
-            service.rename_cv_optimization(
+            service.rename_optimized_cv(
                 parsed["job_posting_identifier"], parsed["identifier"], new_id
             )
         else:

@@ -354,7 +354,7 @@ class TestMarkApplied:
 # New tests for step 3 service method updates
 # ---------------------------------------------------------------------------
 
-class TestGetCvOptimizationsNew:
+class TestGetOptimizedCvs:
     def test_excludes_optimizations_from_archived_job_postings(
         self, service, sample_job_posting_data, sample_cv_data
     ):
@@ -362,7 +362,7 @@ class TestGetCvOptimizationsNew:
         service.add_cv(sample_cv_data, "jane-doe")
         service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
         service.archive_job_posting("acme-swe")
-        opts = service.get_cv_optimizations()
+        opts = service.get_optimized_cvs()
         assert not any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
 
     def test_includes_optimizations_from_active_job_postings(
@@ -371,34 +371,34 @@ class TestGetCvOptimizationsNew:
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "jane-doe")
         service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
-        opts = service.get_cv_optimizations()
+        opts = service.get_optimized_cvs()
         assert any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
 
 
-class TestRemoveCvOptimizationNew:
+class TestRemoveOptimizedCv:
     def test_returns_true_when_found(self, service, sample_job_posting_data, sample_cv_data):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
-        assert service.remove_cv_optimization("acme-swe", "opt-1") is True
+        assert service.remove_optimized_cv("acme-swe", "opt-1") is True
 
     def test_returns_false_when_not_found(self, service, sample_job_posting_data):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
-        assert service.remove_cv_optimization("acme-swe", "nonexistent") is False
+        assert service.remove_optimized_cv("acme-swe", "nonexistent") is False
 
     def test_removes_from_repository(self, service, sample_job_posting_data, sample_cv_data):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
-        service.remove_cv_optimization("acme-swe", "opt-1")
+        service.remove_optimized_cv("acme-swe", "opt-1")
         assert service.repository.get_optimized_cv_record("acme-swe", "opt-1") is None
 
 
-class TestRenameCvOptimizationNew:
+class TestRenameOptimizedCv:
     def test_data_accessible_at_new_identifier(
         self, service, sample_job_posting_data, sample_cv_data
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
-        service.rename_cv_optimization("acme-swe", "opt-1", "new-id")
+        service.rename_optimized_cv("acme-swe", "opt-1", "new-id")
         assert service.repository.get_optimized_cv_record("acme-swe", "opt-1") is None
         assert service.repository.get_optimized_cv_record("acme-swe", "new-id") is not None
 
@@ -408,8 +408,8 @@ class TestRenameCvOptimizationNew:
 # ---------------------------------------------------------------------------
 
 
-class TestSaveCvOptimizationUsesParentPath:
-    """add_cv_optimization must write to the parent's stored path and export markdown."""
+class TestSaveOptimizedCvUsesParentPath:
+    """add_optimized_cv must write to the parent's stored path and export markdown."""
 
     def test_saves_to_parent_stored_path(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
@@ -421,7 +421,7 @@ class TestSaveCvOptimizationUsesParentPath:
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
 
         service.markdown_exporter = MagicMock()
-        service.add_cv_optimization("acme-swe", "opt-1", "jane-doe", cv, plan)
+        service.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv, plan)
 
         service.markdown_exporter.export_cv_transformation_plan.assert_called_once()
 

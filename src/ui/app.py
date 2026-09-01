@@ -768,7 +768,7 @@ def create_app():
                             "",
                         )
 
-                    plan_data, cv_data, identifiers = service.analyze_cv_optimization(
+                    plan_data, cv_data, identifiers = service.optimize_cv(
                         job_id, cv_id
                     )
                     plan = CvTransformationPlan(**plan_data) if plan_data else None
@@ -875,14 +875,14 @@ def create_app():
                     try:
                         cv = CurriculumVitae(**cv_data)
                         plan = CvTransformationPlan(**plan_data) if plan_data else None
-                        record = service.add_cv_optimization(
+                        record = service.add_optimized_cv(
                             identifiers["job_posting_identifier"],
                             identifiers["identifier"],
                             identifiers["base_cv_identifier"],
                             cv,
                             plan,
                         )
-                        opts = service.get_cv_optimizations()
+                        opts = service.get_optimized_cvs()
                         opt_list_data = [
                             [
                                 o.get("created_at", "")[:10]
@@ -915,7 +915,7 @@ def create_app():
                         )
 
                 def load_cv_optimizations():
-                    opts = service.get_cv_optimizations()
+                    opts = service.get_optimized_cvs()
                     return [
                         [
                             o.get("created_at", "")[:10] if o.get("created_at") else "",
