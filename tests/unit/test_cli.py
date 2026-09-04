@@ -53,11 +53,40 @@ class TestListCommand:
         mock_service.get_job_postings.return_value = [
             {"identifier": "old-job", "company": "Gone", "title": "Dev", "created_at": "2025-01-15T00:00:00"},
         ]
-        with patch("services.application.ApplicationService", return_value=mock_service):
+        with patch("services.application.ApplicationService", return_value=mock_service), \
+             patch("ui.cli._load_collection", return_value=[{"location": "applied"}]):
             result = runner.invoke(main, ["list", "job-postings/applied"])
         assert result.exit_code == 0
         mock_service.get_job_postings.assert_called_once_with(location="applied", all=False, query=None)
         assert "job-postings/old-job" in result.output
+
+    def test_identifier_prefix_subpath_filters_unfiled(self, runner):
+        mock_service = MagicMock()
+        mock_service.get_job_postings.return_value = [
+            {"identifier": "pinterest-swe"},
+            {"identifier": "acme-swe"},
+        ]
+        with patch("services.application.ApplicationService", return_value=mock_service), \
+             patch("ui.cli._load_collection", return_value=[{"location": "applied"}]):
+            result = runner.invoke(main, ["list", "job-postings/pint"])
+        assert result.exit_code == 0
+        mock_service.get_job_postings.assert_called_once_with(location=None, all=False, query=None)
+        assert "job-postings/pinterest-swe" in result.output
+        assert "acme-swe" not in result.output
+
+    def test_location_and_identifier_prefix_subpath(self, runner):
+        mock_service = MagicMock()
+        mock_service.get_job_postings.return_value = [
+            {"identifier": "crossing-hurdles-dev"},
+            {"identifier": "acme-swe"},
+        ]
+        with patch("services.application.ApplicationService", return_value=mock_service), \
+             patch("ui.cli._load_collection", return_value=[{"location": "archived"}]):
+            result = runner.invoke(main, ["list", "job-postings/archived/cross"])
+        assert result.exit_code == 0
+        mock_service.get_job_postings.assert_called_once_with(location="archived", all=False, query=None)
+        assert "job-postings/crossing-hurdles-dev" in result.output
+        assert "acme-swe" not in result.output
 
     def test_all_flag_returns_all_locations(self, runner):
         mock_service = MagicMock()
@@ -70,7 +99,8 @@ class TestListCommand:
     def test_all_flag_no_op_with_location_subpath(self, runner):
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = []
-        with patch("services.application.ApplicationService", return_value=mock_service):
+        with patch("services.application.ApplicationService", return_value=mock_service), \
+             patch("ui.cli._load_collection", return_value=[{"location": "applied"}]):
             result = runner.invoke(main, ["list", "job-postings/applied", "--recursive"])
         assert result.exit_code == 0
         mock_service.get_job_postings.assert_called_once_with(location="applied", all=True, query=None)
@@ -96,6 +126,16 @@ class TestCompleteCollection:
             results = [item.value for item in _complete_collection(None, None, "job-postings/")]
         assert "job-postings/applied" in results
         assert "job-postings/archived" in results
+
+    def test_offers_unfiled_identifiers(self, runner):
+        records = [
+            {"location": None, "identifier": "pinterest-swe"},
+            {"location": "archived", "identifier": "crossing-hurdles-dev"},
+        ]
+        with patch("ui.cli._load_collection", return_value=records):
+            from ui.cli import _complete_collection
+            results = [item.value for item in _complete_collection(None, None, "job-postings/pint")]
+        assert results == ["job-postings/pinterest-swe"]
 
     def test_filters_by_incomplete_prefix(self, runner):
         records = [{"location": "applied"}, {"location": "archived"}]
