@@ -156,7 +156,7 @@ class FileSystemRepository:
             updated_at=now,
         )
 
-        collection.append(record.model_dump(mode="json", exclude_none=True))
+        collection.append(record.model_dump(mode="json"))
         self._save_collection(self.job_postings_collection, collection)
 
         return record
@@ -360,7 +360,7 @@ class FileSystemRepository:
             updated_at=now,
         )
 
-        collection.append(record.model_dump(mode="json", exclude_none=True))
+        collection.append(record.model_dump(mode="json"))
         self._save_collection(self.cvs_collection, collection)
 
         return record
@@ -584,7 +584,7 @@ class FileSystemRepository:
             updated_at=now,
         )
 
-        collection.append(record.model_dump(mode="json", exclude_none=True))
+        collection.append(record.model_dump(mode="json"))
         self._save_collection(self.cover_letters_collection, collection)
 
         return record
