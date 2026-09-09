@@ -443,7 +443,7 @@ class ApplicationService:
         self,
         job_posting_identifier: str,
         identifier: str,
-        base_cv_identifier: str,
+        base_cv_identifier: str | None,
         cv: CurriculumVitae,
         plan: CvTransformationPlan | None = None,
     ):
@@ -453,7 +453,7 @@ class ApplicationService:
         Args:
             job_posting_identifier: Identifier of the job posting
             identifier: Identifier for this optimization
-            base_cv_identifier: Identifier of the base CV
+            base_cv_identifier: Identifier of the base CV, or None if not recorded
             cv: The optimized CV
             plan: The transformation plan, if any
 

@@ -857,7 +857,7 @@ class FileSystemRepository:
         self,
         job_posting_identifier: str,
         identifier: str,
-        base_cv_identifier: str,
+        base_cv_identifier: str | None,
         cv: CurriculumVitae,
     ) -> OptimizedCvRecord:
         """
@@ -866,7 +866,7 @@ class FileSystemRepository:
         Args:
             job_posting_identifier: Identifier of the parent job posting
             identifier: Unique identifier for this optimization
-            base_cv_identifier: Identifier of the base CV
+            base_cv_identifier: Identifier of the base CV, or None if not recorded
             cv: The optimized CurriculumVitae
 
         Returns:

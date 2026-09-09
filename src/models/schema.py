@@ -228,13 +228,14 @@ class OptimizedCvRecord(BaseModel):
     Tracks identity, path, and key fields for listing display.
     """
 
-    identifier: str = Field(description="Unique identifier of the optimization")
+    identifier: str = Field(description="Unique identifier of the optimized CV")
     path: str = Field(description="Directory path relative to data dir")
     job_posting_identifier: str = Field(
         description="Identifier of the job posting this CV was optimized for"
     )
-    base_cv_identifier: str = Field(
-        description="Identifier of the CV this optimization transforms"
+    base_cv_identifier: Optional[str] = Field(
+        default=None,
+        description="Identifier of the source CV, or None when no base CV is recorded",
     )
     name: str = Field(description="Person's name (for listing display)")
     profession: str = Field(description="Profession (for listing display)")
@@ -244,8 +245,8 @@ class OptimizedCvRecord(BaseModel):
     company: Optional[str] = Field(
         default=None, description="Company (for listing display)"
     )
-    created_at: datetime = Field(description="When this optimization was created")
-    updated_at: datetime = Field(description="When this optimization was last updated")
+    created_at: datetime = Field(description="When this optimized CV was created")
+    updated_at: datetime = Field(description="When this optimized CV was last updated")
 
 
 class CoverLetterRecord(BaseModel):
