@@ -410,31 +410,6 @@ def rename(uri, new_id):
     click.echo(f"Renamed {uri} to {new_id}")
 
 
-def _job_posting_locations() -> set[str]:
-    """Location names currently in use by filed job postings."""
-    return {
-        item["location"]
-        for item in _load_collection("job-postings")
-        if item.get("location")
-    }
-
-
-def _split_job_posting_arg(collection: str) -> tuple[str | None, str | None]:
-    """Split ``job-postings[/location][/id-prefix]`` into (location, id_prefix).
-
-    A lone segment after the collection is a location only when it names one;
-    otherwise it is an identifier prefix over unfiled postings.
-    """
-    parts = collection.split("/", 2)[1:]
-    if not parts:
-        return None, None
-    if len(parts) == 2:
-        return parts[0], parts[1]
-    if parts[0] in _job_posting_locations():
-        return parts[0], None
-    return None, parts[0]
-
-
 def _complete_collection(_ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
 
@@ -448,10 +423,8 @@ def _complete_collection(_ctx, _param, incomplete):
         + [f"job-postings/{loc}" for loc in locations]
         + [
             f"job-postings/{item['location']}/{item['identifier']}"
-            if item.get("location")
-            else f"job-postings/{item['identifier']}"
             for item in job_postings
-            if item.get("identifier")
+            if item.get("location") and item.get("identifier")
         ]
     )
     return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
@@ -479,7 +452,12 @@ def list_objects(collection, all_locations, query):
     service = ApplicationService()
 
     if collection == "job-postings" or collection.startswith("job-postings/"):
-        location, id_prefix = _split_job_posting_arg(collection)
+        if collection == "job-postings":
+            location, id_prefix = None, None
+        else:
+            parts = collection.split("/", 2)
+            location = parts[1]
+            id_prefix = parts[2] if len(parts) > 2 else None
         results = service.get_job_postings(
             location=location, all=all_locations, query=query
         )
