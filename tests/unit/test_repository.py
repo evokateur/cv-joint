@@ -106,6 +106,14 @@ def repository_with_job_posting(repository, sample_job_posting):
 
 
 @pytest.fixture
+def repository_with_optimized_cv(repository_with_job_posting, sample_cv):
+    repository_with_job_posting.add_optimized_cv(
+        "acme-swe", "opt-1", "jane-doe", sample_cv
+    )
+    return repository_with_job_posting
+
+
+@pytest.fixture
 def repository_with_cover_letter(repository, sample_cover_letter):
     repository.add_cover_letter(sample_cover_letter, "jane-acme")
     return repository
@@ -934,6 +942,44 @@ class TestAddDocument:
 
 
 class TestLoadDocument:
+    @pytest.mark.parametrize(
+        "location", ["", "applied", "my-custom"], ids=["active", "applied", "custom"]
+    )
+    @pytest.mark.parametrize(
+        "uri",
+        ["job-postings/acme-swe/notes.md", "job-postings/acme-swe/cvs/opt-1/notes.md"],
+        ids=["job-posting", "optimized-cv"],
+    )
+    def test_reads_document_via_logical_uri(
+        self, repository_with_optimized_cv, location, uri
+    ):
+        repository_with_optimized_cv.add_document(uri, "# Notes\n")
+        if location:
+            repository_with_optimized_cv.transition_job_posting("acme-swe", location)
+
+        assert repository_with_optimized_cv.load_document(uri) == "# Notes\n"
+
+    @pytest.mark.parametrize(
+        "location", ["", "applied", "my-custom"], ids=["active", "applied", "custom"]
+    )
+    @pytest.mark.parametrize(
+        "uri",
+        ["job-postings/acme-swe/notes.md", "job-postings/acme-swe/cvs/opt-1/notes.md"],
+        ids=["job-posting", "optimized-cv"],
+    )
+    def test_raises_when_document_absent(
+        self, repository_with_optimized_cv, location, uri
+    ):
+        if location:
+            repository_with_optimized_cv.transition_job_posting("acme-swe", location)
+
+        with pytest.raises(FileNotFoundError):
+            repository_with_optimized_cv.load_document(uri)
+
+    def test_raises_for_unknown_job_posting(self, repository):
+        with pytest.raises(ValueError, match="Not found: job-postings/nonexistent"):
+            repository.load_document("job-postings/nonexistent/notes.md")
+
     def test_reads_text_from_uri_path(self, repository_with_job_posting):
         repository_with_job_posting.add_or_replace_document(
             "job-postings/acme-swe/job-posting.md", "# Hello\n"
@@ -945,6 +991,43 @@ class TestLoadDocument:
 
 
 class TestDocumentExists:
+    @pytest.mark.parametrize(
+        "location", ["", "applied", "my-custom"], ids=["active", "applied", "custom"]
+    )
+    @pytest.mark.parametrize(
+        "uri",
+        ["job-postings/acme-swe/notes.md", "job-postings/acme-swe/cvs/opt-1/notes.md"],
+        ids=["job-posting", "optimized-cv"],
+    )
+    def test_finds_document_via_logical_uri(
+        self, repository_with_optimized_cv, location, uri
+    ):
+        repository_with_optimized_cv.add_document(uri, "# Notes\n")
+        if location:
+            repository_with_optimized_cv.transition_job_posting("acme-swe", location)
+
+        assert repository_with_optimized_cv.document_exists(uri) is True
+
+    @pytest.mark.parametrize(
+        "location", ["", "applied", "my-custom"], ids=["active", "applied", "custom"]
+    )
+    @pytest.mark.parametrize(
+        "uri",
+        ["job-postings/acme-swe/notes.md", "job-postings/acme-swe/cvs/opt-1/notes.md"],
+        ids=["job-posting", "optimized-cv"],
+    )
+    def test_returns_false_for_missing_document_via_logical_uri(
+        self, repository_with_optimized_cv, location, uri
+    ):
+        if location:
+            repository_with_optimized_cv.transition_job_posting("acme-swe", location)
+
+        assert repository_with_optimized_cv.document_exists(uri) is False
+
+    def test_raises_for_unknown_job_posting(self, repository):
+        with pytest.raises(ValueError, match="Not found: job-postings/nonexistent"):
+            repository.document_exists("job-postings/nonexistent/notes.md")
+
     def test_returns_true_when_file_exists(self, repository_with_job_posting):
         repository_with_job_posting.add_or_replace_document(
             "job-postings/acme-swe/job-posting.md", "content"
