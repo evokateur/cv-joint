@@ -8,8 +8,9 @@ paths were kept in sync, or when an optimized CV was renamed (the rename
 moved the directory but kept the old path).
 
 For each drifted record whose expected directory exists, this sets the
-record's path to the expected value, and removes the stale directory at
-the old path (Markdown export artifacts), pruning empty parents.
+record's path to the expected value. All existing files and directories
+are preserved, including those at the old path. Missing expected
+directories are reported and skipped.
 
 Run `cv-joint export-markdown` afterwards to refresh front matter.
 
@@ -22,7 +23,6 @@ Usage:
 
 import argparse
 import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -31,18 +31,6 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from config.root import get_settings
 from models import OptimizedCvRecord
-
-
-def remove_stale_dir(data_dir: Path, stale_dir: Path, dry_run: bool) -> None:
-    print(f"  remove    {stale_dir.relative_to(data_dir)}")
-    if dry_run:
-        return
-    shutil.rmtree(stale_dir)
-    job_postings_dir = data_dir / "job-postings"
-    parent = stale_dir.parent
-    while parent != job_postings_dir and not any(parent.iterdir()):
-        parent.rmdir()
-        parent = parent.parent
 
 
 def migrate(data_dir: Path, dry_run: bool) -> None:
@@ -54,7 +42,7 @@ def migrate(data_dir: Path, dry_run: bool) -> None:
         item["identifier"]: item for item in json.loads(job_postings_path.read_text())
     }
 
-    repaired = removed = skipped = warnings = 0
+    repaired = skipped = warnings = 0
 
     for i, entry in enumerate(optimized_cvs):
         parent = job_postings.get(entry["job_posting_identifier"])
@@ -80,14 +68,9 @@ def migrate(data_dir: Path, dry_run: bool) -> None:
         ).model_dump(mode="json")
         repaired += 1
 
-        stale_dir = data_dir / stored
-        if stale_dir.exists():
-            remove_stale_dir(data_dir, stale_dir, dry_run)
-            removed += 1
-
     print()
     print(
-        f"Repaired: {repaired}, removed: {removed}, skipped: {skipped}, warnings: {warnings}"
+        f"Repaired: {repaired}, skipped: {skipped}, warnings: {warnings}"
     )
 
     if dry_run:
