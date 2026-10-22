@@ -1162,6 +1162,54 @@ class TestRemoveOptimizedCv:
 
 
 class TestRenameOptimizedCv:
+    @pytest.mark.parametrize("location", ["", "archived"], ids=["active", "archived"])
+    def test_updates_stored_path(
+        self, repository_with_job_posting, sample_cv, temp_data_dir, location
+    ):
+        repository_with_job_posting.add_optimized_cv(
+            "acme-swe", "old-id", "jane-doe", sample_cv
+        )
+        if location:
+            repository_with_job_posting.transition_job_posting("acme-swe", location)
+
+        record = repository_with_job_posting.rename_optimized_cv(
+            "acme-swe", "old-id", "new-id"
+        )
+        expected_path = Path("job-postings") / location / "acme-swe/cvs/new-id"
+        assert (Path(temp_data_dir) / expected_path).is_dir()
+        assert not (Path(temp_data_dir) / expected_path.parent / "old-id").exists()
+        assert record.identifier == "new-id"
+        assert record.path == str(expected_path)
+
+        reloaded_repository = FileSystemRepository(data_dir=temp_data_dir)
+        reloaded_record = reloaded_repository.get_optimized_cv_record(
+            "acme-swe", "new-id"
+        )
+        assert reloaded_record.identifier == "new-id"
+        assert reloaded_record.path == str(expected_path)
+        assert reloaded_repository.get_optimized_cv_record("acme-swe", "old-id") is None
+
+    @pytest.mark.parametrize("location", ["", "archived"], ids=["active", "archived"])
+    def test_document_write_after_rename_targets_new_dir(
+        self, repository_with_job_posting, sample_cv, temp_data_dir, location
+    ):
+        repository_with_job_posting.add_optimized_cv(
+            "acme-swe", "old-id", "jane-doe", sample_cv
+        )
+        if location:
+            repository_with_job_posting.transition_job_posting("acme-swe", location)
+        repository_with_job_posting.rename_optimized_cv("acme-swe", "old-id", "new-id")
+
+        repository_with_job_posting.add_or_replace_document(
+            "job-postings/acme-swe/cvs/new-id/curriculum-vitae.md", "# Updated CV\n"
+        )
+
+        directory = Path(temp_data_dir) / "job-postings" / location / "acme-swe/cvs"
+        assert not (directory / "old-id").exists()
+        assert "# Updated CV\n" in (
+            directory / "new-id/curriculum-vitae.md"
+        ).read_text()
+
     def test_renames_directory(
         self, repository_with_job_posting, sample_cv, temp_data_dir
     ):
