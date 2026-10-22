@@ -819,9 +819,12 @@ class FileSystemRepository:
 
         path.write_text(content)
 
-    def add_document(self, uri: str, content: str) -> None:
+    def _document_path(self, uri: str) -> Path:
         base_uri, filename = uri.rsplit("/", 1)
-        path = self._resolve_path(self.resolve_record(base_uri).path) / filename
+        return self._resolve_path(self.resolve_record(base_uri).path) / filename
+
+    def add_document(self, uri: str, content: str) -> None:
+        path = self._document_path(uri)
         if path.exists():
             raise ValueError(f"Document already exists: {uri}")
         self.add_or_replace_document(uri, content)
@@ -844,10 +847,10 @@ class FileSystemRepository:
             path.write_text(new_fm + body)
 
     def load_document(self, uri: str) -> str:
-        return self._resolve_path(uri).read_text()
+        return self._document_path(uri).read_text()
 
     def document_exists(self, uri: str) -> bool:
-        return self._resolve_path(uri).exists()
+        return self._document_path(uri).exists()
 
     # -------------------------------------------------------------------------
     # Optimized CVs collection
@@ -987,7 +990,8 @@ class FileSystemRepository:
                 f"Optimized CV already exists: job-postings/{job_posting_identifier}/cvs/{new_identifier}"
             )
         old_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
-        new_dir = self._cv_optimization_dir(job_posting_identifier, new_identifier)
+        new_path = self.optimized_cv_base_uri(job_posting_identifier, new_identifier)
+        new_dir = self._resolve_path(new_path)
         shutil.move(str(old_dir), str(new_dir))
 
         collection = self._load_collection(self.optimized_cvs_collection)
@@ -999,6 +1003,7 @@ class FileSystemRepository:
             ):
                 item = dict(item)
                 item["identifier"] = new_identifier
+                item["path"] = new_path
                 item["updated_at"] = datetime.now().isoformat()
                 collection[i] = item
                 new_record_data = item
