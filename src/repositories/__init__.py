@@ -1,3 +1,3 @@
-from .filesystem import FileSystemRepository
+from .filesystem import DocumentExistsError, FileSystemRepository
 
-__all__ = ["FileSystemRepository"]
+__all__ = ["DocumentExistsError", "FileSystemRepository"]
