@@ -246,9 +246,7 @@ class ApplicationService:
             identifier, "applied", fields=denorm, record_fields=denorm
         )
 
-    def analyze_cv(
-        self, content_file: Optional[str] = None
-    ) -> dict[str, Any]:
+    def analyze_cv(self, content_file: Optional[str] = None) -> dict[str, Any]:
         """
         Analyze a CV into a structured CurriculumVitae.
 
@@ -331,9 +329,7 @@ class ApplicationService:
         """
         return self.repository.remove_cv(identifier)
 
-    def remove_optimized_cv(
-        self, job_posting_identifier: str, identifier: str
-    ) -> bool:
+    def remove_optimized_cv(self, job_posting_identifier: str, identifier: str) -> bool:
         """
         Remove a saved cv optimization.
 
@@ -399,9 +395,7 @@ class ApplicationService:
         record = self.repository.resolve_record(base_uri)
         filename = doc_uri.rsplit("/", 1)[1]
         try:
-            self.repository.add_document(
-                record, filename, Path(file_path).read_text()
-            )
+            self.repository.add_document(record, filename, Path(file_path).read_text())
         except DocumentExistsError:
             raise ValueError(f"Document already exists: {doc_uri}") from None
         return doc_uri
@@ -533,9 +527,7 @@ class ApplicationService:
             results.append(
                 {
                     "identifier": record.identifier,
-                    "filepath": str(
-                        self.repository.file_for(record, CurriculumVitae)
-                    ),
+                    "filepath": str(self.repository.file_for(record, CurriculumVitae)),
                 }
             )
         for record in self.repository.get_optimized_cv_records():

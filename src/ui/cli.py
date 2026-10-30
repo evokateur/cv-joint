@@ -342,9 +342,7 @@ def remove(uri):
     elif parsed["collection"] == "cvs":
         removed = service.remove_cv(parsed["identifier"])
     else:
-        raise click.UsageError(
-            f"remove is not implemented for {parsed['collection']}"
-        )
+        raise click.UsageError(f"remove is not implemented for {parsed['collection']}")
 
     if removed:
         click.echo(f"Removed {uri}")
@@ -570,7 +568,9 @@ def apply(uri, cv_identifier, date):
     from services.application import ApplicationService
 
     try:
-        ApplicationService().mark_applied(identifier, cv_identifier, applied_at=applied_at)
+        ApplicationService().mark_applied(
+            identifier, cv_identifier, applied_at=applied_at
+        )
     except ValueError as e:
         raise click.UsageError(str(e))
     click.echo(f"Marked {uri} as applied with {cv_identifier}")

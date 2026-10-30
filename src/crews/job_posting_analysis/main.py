@@ -9,6 +9,7 @@ Usage:
 With crewai CLI (add entry point to pyproject.toml first):
     JOB_URL=<url> crewai run
 """
+
 import os
 import sys
 import warnings

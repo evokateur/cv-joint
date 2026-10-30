@@ -1,6 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel
-from config.settings import AgentSettings, CrewSettings
+from config.settings import CrewSettings
 
 
 class Config:

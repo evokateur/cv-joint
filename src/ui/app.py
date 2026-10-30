@@ -168,7 +168,7 @@ def create_app():
                             "",
                             True,
                             gr.update(visible=False),
-                            f"⚠ Job posting not found",
+                            "⚠ Job posting not found",
                             gr.update(value="", visible=False),
                         )
 
@@ -372,7 +372,7 @@ def create_app():
             with gr.Tab("Curriculum Vitae") as cv_tab:
                 with gr.Group():
                     gr.Markdown("### Import CV")
-                    with gr.Accordion("CV Source", open=False) as cv_source_accordion:
+                    with gr.Accordion("CV Source", open=False):
                         cv_file = gr.File(
                             label="CV File",
                             file_types=[".json", ".yaml", ".txt", ".md"],
@@ -722,9 +722,7 @@ def create_app():
                         opt_identifier = gr.Textbox(
                             label="Identifier", interactive=True
                         )
-                        save_opt_btn = gr.Button(
-                            "Save Optimization", variant="primary"
-                        )
+                        save_opt_btn = gr.Button("Save Optimization", variant="primary")
                         opt_status = gr.Textbox(label="Status", interactive=False)
 
                 with gr.Group():
@@ -768,9 +766,7 @@ def create_app():
                             "",
                         )
 
-                    plan_data, cv_data, identifiers = service.optimize_cv(
-                        job_id, cv_id
-                    )
+                    plan_data, cv_data, identifiers = service.optimize_cv(job_id, cv_id)
                     plan = CvTransformationPlan(**plan_data) if plan_data else None
                     cv = CurriculumVitae(**cv_data) if cv_data else None
 

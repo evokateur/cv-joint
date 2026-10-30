@@ -134,7 +134,7 @@ def repository_with_cover_letter(repository, sample_cover_letter):
 
 class TestFileSystemRepositoryInit:
     def test_creates_collections_directory(self, temp_data_dir):
-        repo = FileSystemRepository(data_dir=temp_data_dir)
+        FileSystemRepository(data_dir=temp_data_dir)
         assert (Path(temp_data_dir) / "collections").exists()
 
     def test_sets_data_dir(self, temp_data_dir):

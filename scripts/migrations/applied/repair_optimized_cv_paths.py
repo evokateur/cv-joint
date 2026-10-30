@@ -63,15 +63,13 @@ def migrate(data_dir: Path, dry_run: bool) -> None:
             continue
 
         print(f"  repair    {stored} → {expected}")
-        optimized_cvs[i] = OptimizedCvRecord(
-            **{**entry, "path": expected}
-        ).model_dump(mode="json")
+        optimized_cvs[i] = OptimizedCvRecord(**{**entry, "path": expected}).model_dump(
+            mode="json"
+        )
         repaired += 1
 
     print()
-    print(
-        f"Repaired: {repaired}, skipped: {skipped}, warnings: {warnings}"
-    )
+    print(f"Repaired: {repaired}, skipped: {skipped}, warnings: {warnings}")
 
     if dry_run:
         print("(dry run - no changes written)")

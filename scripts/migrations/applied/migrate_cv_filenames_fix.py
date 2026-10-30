@@ -4,6 +4,7 @@ Fix collection records written by migrate_cv_filenames.py:
   - normalize field order to match Pydantic model definition
   - remove null-valued optional fields
 """
+
 import json
 import sys
 from pathlib import Path

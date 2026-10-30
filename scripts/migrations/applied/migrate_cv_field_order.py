@@ -31,9 +31,7 @@ def migrate_file(path: Path, dry_run: bool) -> bool:
     raw = path.read_text()
     data = json.loads(raw)
 
-    reordered = json.dumps(
-        CurriculumVitae(**data).model_dump(mode="json"), indent=2
-    )
+    reordered = json.dumps(CurriculumVitae(**data).model_dump(mode="json"), indent=2)
 
     if reordered == raw.rstrip("\n"):
         print(f"  skip      {path} (already in order)")

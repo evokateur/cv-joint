@@ -26,9 +26,13 @@ class TestLinkify:
         assert result == "See [http://example.com](http://example.com)"
 
     def test_truncates_long_url_display(self):
-        long_url = "https://example.com/very/long/path/that/exceeds/sixty/characters/total"
+        long_url = (
+            "https://example.com/very/long/path/that/exceeds/sixty/characters/total"
+        )
         result = _linkify(long_url)
-        assert "[https://example.com/very/long/path/that/exceeds/sixty/cha...]" in result
+        assert (
+            "[https://example.com/very/long/path/that/exceeds/sixty/cha...]" in result
+        )
         assert result.endswith(f"]({long_url})")
 
     def test_preserves_text_without_urls(self):
@@ -196,21 +200,29 @@ class TestGenericConvert:
             name="Jane Doe",
             profession="Software Engineer",
             contact=Contact(
-                city="San Francisco", state="CA",
-                email="jane@example.com", phone="555-1234",
-                linkedin="linkedin.com/in/janedoe", github="github.com/janedoe",
+                city="San Francisco",
+                state="CA",
+                email="jane@example.com",
+                phone="555-1234",
+                linkedin="linkedin.com/in/janedoe",
+                github="github.com/janedoe",
             ),
             core_expertise=["Python"],
             qualifications=["10 years"],
-            education=[], experience=[], additional_experience=[],
-            areas_of_expertise=[], languages=[],
+            education=[],
+            experience=[],
+            additional_experience=[],
+            areas_of_expertise=[],
+            languages=[],
         )
 
     @pytest.fixture
     def sample_plan(self):
         return CvTransformationPlan(
-            job_title="Staff Engineer", company="Globex",
-            matching_skills=["Python"], missing_skills=[],
+            job_title="Staff Engineer",
+            company="Globex",
+            matching_skills=["Python"],
+            missing_skills=[],
         )
 
     def test_dispatches_job_posting_by_class_name(self, converter, sample_job_posting):
@@ -227,8 +239,10 @@ class TestGenericConvert:
 
     def test_returns_none_for_unknown_type(self, converter):
         from pydantic import BaseModel
+
         class Unknown(BaseModel):
             x: int = 1
+
         assert converter.convert(Unknown()) is None
 
     def test_no_frontmatter_in_output(self, converter, sample_plan):

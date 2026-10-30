@@ -60,7 +60,9 @@ def migrate(data_dir: str, dry_run: bool) -> None:
             continue
 
         path = f"{parent['path']}/cvs/{entry['identifier']}"
-        optimized_cvs[i] = OptimizedCvRecord(**{**entry, "path": path}).model_dump(mode="json")
+        optimized_cvs[i] = OptimizedCvRecord(**{**entry, "path": path}).model_dump(
+            mode="json"
+        )
         print(f"  backfill  {path}")
         updated += 1
 
@@ -80,7 +82,9 @@ def main():
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--data-dir", metavar="PATH", help="Path to data directory")
-    parser.add_argument("--dry-run", action="store_true", help="Print what would happen without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print what would happen without writing"
+    )
     args = parser.parse_args()
 
     migrate(args.data_dir or default_data_dir(), dry_run=args.dry_run)

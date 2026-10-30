@@ -89,8 +89,10 @@ def migrate(data_dir: Path, dry_run: bool):
 
     # Strip optimized CV entries from cvs.json
     base_cvs = [item for item in cvs if not item.get("job_posting_identifier")]
-    print(f"\nStripping {len(cvs) - len(base_cvs)} optimized entries from cvs.json "
-          f"({len(base_cvs)} base CVs remain)...")
+    print(
+        f"\nStripping {len(cvs) - len(base_cvs)} optimized entries from cvs.json "
+        f"({len(base_cvs)} base CVs remain)..."
+    )
     write_json(cvs_path, base_cvs, dry_run)
 
     # Delete optimization-plans.json
@@ -107,7 +109,10 @@ def migrate(data_dir: Path, dry_run: bool):
     artifact_map = {
         # old_filename: (new_filename, _type value)
         "cv.json": ("curriculum-vitae.json", "CurriculumVitae"),
-        "transformation-plan.json": ("cv-transformation-plan.json", "CvTransformationPlan"),
+        "transformation-plan.json": (
+            "cv-transformation-plan.json",
+            "CvTransformationPlan",
+        ),
     }
     for jp_dir in (data_dir / "job-postings").iterdir():
         cvs_dir = jp_dir / "cvs"
@@ -124,7 +129,9 @@ def migrate(data_dir: Path, dry_run: bool):
                 if old_name != new_name:
                     print(f"  renaming {artifact.relative_to(data_dir)} → {new_name}")
                 else:
-                    print(f"  backfilling _type={type_name!r} in {artifact.relative_to(data_dir)}")
+                    print(
+                        f"  backfilling _type={type_name!r} in {artifact.relative_to(data_dir)}"
+                    )
                 write_json(target, data, dry_run)
                 if old_name != new_name and not dry_run:
                     artifact.unlink()
@@ -136,7 +143,9 @@ def migrate(data_dir: Path, dry_run: bool):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", metavar="PATH", help="Path to data directory")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be done without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be done without writing"
+    )
     args = parser.parse_args()
 
     if args.data_dir:
@@ -144,6 +153,7 @@ def main():
     else:
         sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
         from repositories.config.settings import get_config
+
         data_dir = Path(get_config().data_dir).expanduser()
 
     if not data_dir.exists():

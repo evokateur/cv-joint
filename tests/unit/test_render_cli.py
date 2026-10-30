@@ -73,7 +73,5 @@ def test_render_unrecognised_uri_errors():
 
 
 def test_render_too_many_args_errors(tmp_path):
-    result = CliRunner().invoke(
-        main, ["render", "cv", str(tmp_path / "a"), "extra"]
-    )
+    result = CliRunner().invoke(main, ["render", "cv", str(tmp_path / "a"), "extra"])
     assert result.exit_code != 0

@@ -1,4 +1,4 @@
-.PHONY: install reinstall uninstall test test-all cv upwork-cv cover-letter
+.PHONY: install reinstall uninstall test test-all format lint cv upwork-cv cover-letter
 
 OPEN =
 ifeq ($(shell uname), Darwin)
@@ -33,3 +33,9 @@ test:
 
 test-all:
 	uv run pytest tests/ --tb=short -m ""
+
+format:
+	uv run ruff format .
+
+lint:
+	uv run ruff format --check . && uv run ruff check . --extend-exclude scripts

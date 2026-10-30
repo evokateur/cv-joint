@@ -47,7 +47,9 @@ def migrate(data_dir: str, dry_run: bool) -> None:
 
         existing = repo.get_cv_optimization_record(job_posting_id, opt_id)
         if existing is not None:
-            print(f"  skip  job-postings/{job_posting_id}/cvs/{opt_id} (already in collection)")
+            print(
+                f"  skip  job-postings/{job_posting_id}/cvs/{opt_id} (already in collection)"
+            )
             skipped += 1
         else:
             base_cv_id = record_data.get("base_cv_identifier", "")
@@ -61,7 +63,9 @@ def migrate(data_dir: str, dry_run: bool) -> None:
             deleted += 1
 
     print()
-    print(f"Migrated: {migrated}, skipped: {skipped}, record.json files deleted: {deleted}")
+    print(
+        f"Migrated: {migrated}, skipped: {skipped}, record.json files deleted: {deleted}"
+    )
     if dry_run:
         print("(dry run — no changes written)")
 
@@ -70,7 +74,9 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--dry-run", action="store_true", help="Print what would happen without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print what would happen without writing"
+    )
     args = parser.parse_args()
 
     migrate(get_data_dir(), dry_run=args.dry_run)

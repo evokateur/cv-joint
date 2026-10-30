@@ -12,6 +12,7 @@ With crewai CLI (add entry point to pyproject.toml first):
 Paths should point to JSON files containing serialized JobPosting and CurriculumVitae models.
 OUTPUT_DIR controls where output files are written (defaults to a temp directory).
 """
+
 import os
 import sys
 import tempfile
@@ -27,9 +28,7 @@ def run():
     job_posting_path = os.environ.get("JOB_POSTING_PATH") or (
         sys.argv[1] if len(sys.argv) > 1 else None
     )
-    cv_path = os.environ.get("CV_PATH") or (
-        sys.argv[2] if len(sys.argv) > 2 else None
-    )
+    cv_path = os.environ.get("CV_PATH") or (sys.argv[2] if len(sys.argv) > 2 else None)
 
     if not job_posting_path or not cv_path:
         print(__doc__)

@@ -14,8 +14,16 @@ from config.settings import (
     AgentSettings,
     CrewSettings,
 )
-from config.root import _load_merged_config, get_merged_config, get_settings, RootSettings
-from repositories.config.settings import RepositoriesSettings, FilesystemRepositorySettings
+from config.root import (
+    _load_merged_config,
+    get_merged_config,
+    get_settings,
+    RootSettings,
+)
+from repositories.config.settings import (
+    RepositoriesSettings,
+    FilesystemRepositorySettings,
+)
 
 
 class TestDeepMerge:
@@ -151,13 +159,13 @@ class TestRootConfigPipeline:
                 "filesystem:\n  data_dir: ./local-data\n"
             )
 
-            with patch("config.root.CONFIG_DIR", config_dir), patch(
-                "config.root.CREWS_DIR", crews_dir
-            ), patch("config.root.REPOSITORIES_DIR", repo_dir), patch(
-                "config.settings.USER_CONFIG_FILE", user_config_file
-            ), patch(
-                "config.root.load_dotenv"
-            ) as load_dotenv_mock:
+            with (
+                patch("config.root.CONFIG_DIR", config_dir),
+                patch("config.root.CREWS_DIR", crews_dir),
+                patch("config.root.REPOSITORIES_DIR", repo_dir),
+                patch("config.settings.USER_CONFIG_FILE", user_config_file),
+                patch("config.root.load_dotenv") as load_dotenv_mock,
+            ):
                 _load_merged_config.cache_clear()
                 config = get_merged_config()
 
@@ -175,10 +183,11 @@ class TestRootConfigPipeline:
             tmp = Path(tmpdir)
             empty_config_dir = tmp / "config"
             empty_config_dir.mkdir()
-            with patch("config.root.CONFIG_DIR", empty_config_dir), patch(
-                "config.root.CREWS_DIR", tmp / "crews"
-            ), patch("config.root.REPOSITORIES_DIR", tmp / "repositories"), patch(
-                "config.root.load_dotenv"
+            with (
+                patch("config.root.CONFIG_DIR", empty_config_dir),
+                patch("config.root.CREWS_DIR", tmp / "crews"),
+                patch("config.root.REPOSITORIES_DIR", tmp / "repositories"),
+                patch("config.root.load_dotenv"),
             ):
                 _load_merged_config.cache_clear()
                 with pytest.raises(FileNotFoundError):
@@ -194,12 +203,12 @@ class TestRootConfigPipeline:
             )
             user_config_file = tmp / "missing-user-settings.yaml"
 
-            with patch("config.root.CONFIG_DIR", config_dir), patch(
-                "config.root.CREWS_DIR", tmp / "crews"
-            ), patch("config.root.REPOSITORIES_DIR", tmp / "repositories"), patch(
-                "config.settings.USER_CONFIG_FILE", user_config_file
-            ), patch(
-                "config.root.load_dotenv"
+            with (
+                patch("config.root.CONFIG_DIR", config_dir),
+                patch("config.root.CREWS_DIR", tmp / "crews"),
+                patch("config.root.REPOSITORIES_DIR", tmp / "repositories"),
+                patch("config.settings.USER_CONFIG_FILE", user_config_file),
+                patch("config.root.load_dotenv"),
             ):
                 _load_merged_config.cache_clear()
                 config = get_merged_config()
@@ -225,12 +234,12 @@ class TestGetSettings:
         )
         crews_dir = tmp / "crews"
         repo_dir = tmp / "repositories"
-        return patch("config.root.CONFIG_DIR", config_dir), patch(
-            "config.root.CREWS_DIR", crews_dir
-        ), patch("config.root.REPOSITORIES_DIR", repo_dir), patch(
-            "config.settings.USER_CONFIG_FILE", tmp / "no-user-settings.yaml"
-        ), patch(
-            "config.root.load_dotenv"
+        return (
+            patch("config.root.CONFIG_DIR", config_dir),
+            patch("config.root.CREWS_DIR", crews_dir),
+            patch("config.root.REPOSITORIES_DIR", repo_dir),
+            patch("config.settings.USER_CONFIG_FILE", tmp / "no-user-settings.yaml"),
+            patch("config.root.load_dotenv"),
         )
 
     def test_returns_root_settings_instance(self):
