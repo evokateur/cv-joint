@@ -11,7 +11,7 @@ from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
-from repositories import FileSystemRepository
+from repositories import DocumentExistsError, FileSystemRepository
 from repositories.filesystem import parse_uri
 from renderers.latex import render_tex, tex_to_pdf
 
@@ -398,9 +398,12 @@ class ApplicationService:
 
         record = self.repository.resolve_record(base_uri)
         filename = doc_uri.rsplit("/", 1)[1]
-        if self.repository.document_exists(record, filename):
-            raise ValueError(f"Document already exists: {doc_uri}")
-        self.repository.add_document(record, filename, Path(file_path).read_text())
+        try:
+            self.repository.add_document(
+                record, filename, Path(file_path).read_text()
+            )
+        except DocumentExistsError:
+            raise ValueError(f"Document already exists: {doc_uri}") from None
         return doc_uri
 
     def optimize_cv(

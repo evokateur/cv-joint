@@ -8,7 +8,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from repositories import FileSystemRepository
+from repositories import DocumentExistsError, FileSystemRepository
 from repositories.filesystem import parse_uri
 from models import (
     CoverLetter,
@@ -1015,7 +1015,7 @@ class TestAddDocument:
         repository_with_job_posting.add_document(
             job_posting_record, "notes.md", "# Notes\n"
         )
-        with pytest.raises(ValueError, match="already exists"):
+        with pytest.raises(DocumentExistsError, match="already exists"):
             repository_with_job_posting.add_document(
                 job_posting_record, "notes.md", "# Overwrite\n"
             )

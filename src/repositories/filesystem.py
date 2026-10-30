@@ -32,6 +32,11 @@ Record = (
     JobPostingRecord | CurriculumVitaeRecord | OptimizedCvRecord | CoverLetterRecord
 )
 
+
+class DocumentExistsError(ValueError):
+    """Raised when adding a document that already exists."""
+
+
 JOB_POSTINGS_DIR = "job-postings"
 CVS_DIR = "cvs"
 COVER_LETTERS_DIR = "cover-letters"
@@ -838,7 +843,9 @@ class FileSystemRepository:
 
     def add_document(self, record: Record, filename: str, content: str) -> None:
         if self.document_exists(record, filename):
-            raise ValueError(f"Document already exists: {record.path}/{filename}")
+            raise DocumentExistsError(
+                f"Document already exists: {record.path}/{filename}"
+            )
         self.add_or_replace_document(record, filename, content)
 
     def _patch_document_frontmatter(self, record: BaseModel) -> None:
