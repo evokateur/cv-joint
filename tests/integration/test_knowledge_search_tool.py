@@ -9,7 +9,10 @@ def _make_tool():
     if settings is None:
         pytest.skip("MCP server 'rag-knowledge' not configured")
     from crews.tools.knowledge_search import KnowledgeSearchTool
-    return KnowledgeSearchTool(tool_name=settings.tool_name, manager=McpManager(settings))
+
+    return KnowledgeSearchTool(
+        tool_name=settings.tool_name, manager=McpManager(settings)
+    )
 
 
 @pytest.mark.slow

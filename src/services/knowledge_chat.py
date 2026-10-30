@@ -26,8 +26,7 @@ class KnowledgeChatService:
         self._tool_name = mcp_config.tool_name
 
         self.llm = ChatOpenAI(
-            temperature=settings.chat.temperature,
-            model_name=settings.chat.model
+            temperature=settings.chat.temperature, model_name=settings.chat.model
         )
 
         self.system_prompt_template = """
@@ -66,13 +65,10 @@ Retrieved Context:
         """
         session = await self._manager.get_session()
 
-        result = await session.call_tool(self._tool_name, {
-            "params": {
-                "query": question,
-                "top_k": top_k,
-                "response_format": "json"
-            }
-        })
+        result = await session.call_tool(
+            self._tool_name,
+            {"params": {"query": question, "top_k": top_k, "response_format": "json"}},
+        )
 
         if result.isError:
             error_text = result.content[0].text if result.content else "Unknown error"
@@ -90,8 +86,8 @@ Retrieved Context:
                 metadata={
                     "id": item["id"],
                     "score": item["score"],
-                    **item.get("metadata", {})
-                }
+                    **item.get("metadata", {}),
+                },
             )
             documents.append(doc)
 

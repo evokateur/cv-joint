@@ -38,7 +38,9 @@ async def test_get_session_cleans_up_partial_startup(monkeypatch):
     session_context = FakeSessionContext()
 
     monkeypatch.setattr(mcp_manager, "stdio_client", lambda params: client_context)
-    monkeypatch.setattr(mcp_manager, "ClientSession", lambda read, write: session_context)
+    monkeypatch.setattr(
+        mcp_manager, "ClientSession", lambda read, write: session_context
+    )
 
     manager = McpManager(
         McpServerSettings(

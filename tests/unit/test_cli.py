@@ -40,40 +40,68 @@ class TestListCommand:
     def test_lists_active_job_postings(self, runner):
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = [
-            {"identifier": "acme-swe", "company": "Acme", "title": "SWE", "created_at": "2025-01-15T00:00:00"},
+            {
+                "identifier": "acme-swe",
+                "company": "Acme",
+                "title": "SWE",
+                "created_at": "2025-01-15T00:00:00",
+            },
         ]
-        with patch("services.application.ApplicationService", return_value=mock_service):
+        with patch(
+            "services.application.ApplicationService", return_value=mock_service
+        ):
             result = runner.invoke(main, ["list", "job-postings"])
         assert result.exit_code == 0
-        mock_service.get_job_postings.assert_called_once_with(location=None, all=False, query=None)
+        mock_service.get_job_postings.assert_called_once_with(
+            location=None, all=False, query=None
+        )
         assert "job-postings/acme-swe" in result.output
 
     def test_location_subpath_filters_by_location(self, runner):
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = [
-            {"identifier": "old-job", "company": "Gone", "title": "Dev", "created_at": "2025-01-15T00:00:00"},
+            {
+                "identifier": "old-job",
+                "company": "Gone",
+                "title": "Dev",
+                "created_at": "2025-01-15T00:00:00",
+            },
         ]
-        with patch("services.application.ApplicationService", return_value=mock_service):
+        with patch(
+            "services.application.ApplicationService", return_value=mock_service
+        ):
             result = runner.invoke(main, ["list", "job-postings/applied"])
         assert result.exit_code == 0
-        mock_service.get_job_postings.assert_called_once_with(location="applied", all=False, query=None)
+        mock_service.get_job_postings.assert_called_once_with(
+            location="applied", all=False, query=None
+        )
         assert "job-postings/old-job" in result.output
 
     def test_all_flag_returns_all_locations(self, runner):
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = []
-        with patch("services.application.ApplicationService", return_value=mock_service):
+        with patch(
+            "services.application.ApplicationService", return_value=mock_service
+        ):
             result = runner.invoke(main, ["list", "job-postings", "--recursive"])
         assert result.exit_code == 0
-        mock_service.get_job_postings.assert_called_once_with(location=None, all=True, query=None)
+        mock_service.get_job_postings.assert_called_once_with(
+            location=None, all=True, query=None
+        )
 
     def test_all_flag_no_op_with_location_subpath(self, runner):
         mock_service = MagicMock()
         mock_service.get_job_postings.return_value = []
-        with patch("services.application.ApplicationService", return_value=mock_service):
-            result = runner.invoke(main, ["list", "job-postings/applied", "--recursive"])
+        with patch(
+            "services.application.ApplicationService", return_value=mock_service
+        ):
+            result = runner.invoke(
+                main, ["list", "job-postings/applied", "--recursive"]
+            )
         assert result.exit_code == 0
-        mock_service.get_job_postings.assert_called_once_with(location="applied", all=True, query=None)
+        mock_service.get_job_postings.assert_called_once_with(
+            location="applied", all=True, query=None
+        )
 
     def test_unknown_collection_exits(self, runner):
         result = runner.invoke(main, ["list", "dogs"])
@@ -84,16 +112,24 @@ class TestCompleteCollection:
     def test_offers_base_collections(self, runner):
         with patch("ui.cli._load_collection", return_value=[]):
             from ui.cli import _complete_collection
+
             results = [item.value for item in _complete_collection(None, None, "")]
         assert "job-postings" in results
         assert "cvs" in results
         assert "curriculum-vitae" in results
 
     def test_offers_location_subpaths_from_index(self, runner):
-        records = [{"location": "applied"}, {"location": "archived"}, {"location": None}]
+        records = [
+            {"location": "applied"},
+            {"location": "archived"},
+            {"location": None},
+        ]
         with patch("ui.cli._load_collection", return_value=records):
             from ui.cli import _complete_collection
-            results = [item.value for item in _complete_collection(None, None, "job-postings/")]
+
+            results = [
+                item.value for item in _complete_collection(None, None, "job-postings/")
+            ]
         assert "job-postings/applied" in results
         assert "job-postings/archived" in results
 
@@ -101,7 +137,11 @@ class TestCompleteCollection:
         records = [{"location": "applied"}, {"location": "archived"}]
         with patch("ui.cli._load_collection", return_value=records):
             from ui.cli import _complete_collection
-            results = [item.value for item in _complete_collection(None, None, "job-postings/app")]
+
+            results = [
+                item.value
+                for item in _complete_collection(None, None, "job-postings/app")
+            ]
         assert "job-postings/applied" in results
         assert "job-postings/archived" not in results
 
@@ -112,12 +152,17 @@ class TestApplyCommand:
             mock_service = MockService.return_value
             result = runner.invoke(main, ["apply", "job-postings/acme-swe", "my-cv"])
         assert result.exit_code == 0
-        mock_service.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
+        mock_service.mark_applied.assert_called_once_with(
+            "acme-swe", "my-cv", applied_at=None
+        )
 
     def test_with_date(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "my-cv", "--date", "2025-01-15"])
+            result = runner.invoke(
+                main,
+                ["apply", "job-postings/acme-swe", "my-cv", "--date", "2025-01-15"],
+            )
         assert result.exit_code == 0
         mock_service.mark_applied.assert_called_once_with(
             "acme-swe", "my-cv", applied_at=datetime(2025, 1, 15)
@@ -132,23 +177,36 @@ class TestApplyCommand:
     def test_full_composite_cv_identifier(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "acme-swe/my-cv"])
+            result = runner.invoke(
+                main, ["apply", "job-postings/acme-swe", "acme-swe/my-cv"]
+            )
         assert result.exit_code == 0
-        mock_service.mark_applied.assert_called_once_with("acme-swe", "acme-swe/my-cv", applied_at=None)
+        mock_service.mark_applied.assert_called_once_with(
+            "acme-swe", "acme-swe/my-cv", applied_at=None
+        )
 
     def test_normalizes_base_cv_uri(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "cvs/my-cv"])
+            result = runner.invoke(
+                main, ["apply", "job-postings/acme-swe", "cvs/my-cv"]
+            )
         assert result.exit_code == 0
-        mock_service.mark_applied.assert_called_once_with("acme-swe", "my-cv", applied_at=None)
+        mock_service.mark_applied.assert_called_once_with(
+            "acme-swe", "my-cv", applied_at=None
+        )
 
     def test_normalizes_optimized_cv_uri(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "job-postings/acme-swe/cvs/my-cv"])
+            result = runner.invoke(
+                main,
+                ["apply", "job-postings/acme-swe", "job-postings/acme-swe/cvs/my-cv"],
+            )
         assert result.exit_code == 0
-        mock_service.mark_applied.assert_called_once_with("acme-swe", "acme-swe/my-cv", applied_at=None)
+        mock_service.mark_applied.assert_called_once_with(
+            "acme-swe", "acme-swe/my-cv", applied_at=None
+        )
 
     def test_unrecognised_uri_exits(self, runner):
         with patch("services.application.ApplicationService"):
@@ -160,15 +218,27 @@ class TestTransitionCommand:
     def test_calls_service(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            result = runner.invoke(main, ["transition", "job-postings/acme-swe", "applied"])
+            result = runner.invoke(
+                main, ["transition", "job-postings/acme-swe", "applied"]
+            )
         assert result.exit_code == 0
-        mock_service.transition_job_posting.assert_called_once_with("acme-swe", "applied", None)
+        mock_service.transition_job_posting.assert_called_once_with(
+            "acme-swe", "applied", None
+        )
 
     def test_with_fields(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             mock_service = MockService.return_value
-            result = runner.invoke(main, ["transition", "job-postings/acme-swe", "applied",
-                                          "--field", "note=great role"])
+            result = runner.invoke(
+                main,
+                [
+                    "transition",
+                    "job-postings/acme-swe",
+                    "applied",
+                    "--field",
+                    "note=great role",
+                ],
+            )
         assert result.exit_code == 0
         mock_service.transition_job_posting.assert_called_once_with(
             "acme-swe", "applied", {"note": "great role"}
@@ -177,7 +247,9 @@ class TestTransitionCommand:
     def test_prints_confirmation(self, runner):
         with patch("services.application.ApplicationService") as MockService:
             MockService.return_value = MagicMock()
-            result = runner.invoke(main, ["transition", "job-postings/acme-swe", "applied"])
+            result = runner.invoke(
+                main, ["transition", "job-postings/acme-swe", "applied"]
+            )
         assert "acme-swe" in result.output
         assert "applied" in result.output
 
@@ -247,7 +319,9 @@ class TestAnalyzeJobPostingCommand:
             svc.analyze_job_posting.return_value = {}
             svc.generate_default_identifier.return_value = "acme-swe"
             svc.add_job_posting.return_value = mock_record
-            result = runner.invoke(main, ["ingest", "job-posting", url, "-"], input="# Job Posting")
+            result = runner.invoke(
+                main, ["ingest", "job-posting", url, "-"], input="# Job Posting"
+            )
         assert result.exit_code == 0, result.output
         args = svc.analyze_job_posting.call_args.args
         assert args[0] == url
@@ -260,8 +334,12 @@ class TestAnalyzeJobPostingCommand:
 
     def test_service_error_exits_nonzero(self, runner):
         with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.analyze_job_posting.side_effect = ValueError("analysis failed")
-            result = runner.invoke(main, ["ingest", "job-posting", "https://example.com"])
+            MockService.return_value.analyze_job_posting.side_effect = ValueError(
+                "analysis failed"
+            )
+            result = runner.invoke(
+                main, ["ingest", "job-posting", "https://example.com"]
+            )
         assert result.exit_code != 0
         assert "analysis failed" in result.output
 
@@ -297,7 +375,9 @@ class TestAnalyzeCvCommand:
 
     def test_service_error_exits_nonzero(self, runner):
         with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.analyze_cv.side_effect = ValueError("content_file must be provided")
+            MockService.return_value.analyze_cv.side_effect = ValueError(
+                "content_file must be provided"
+            )
             result = runner.invoke(main, ["ingest", "cv", "-"], input="")
         assert result.exit_code != 0
 
@@ -340,9 +420,7 @@ class TestRenameCommand:
                 ["rename", "job-postings/acme/cvs/foo", "job-postings/acme/cvs/bar"],
             )
         assert result.exit_code == 0, result.output
-        mock_service.rename_optimized_cv.assert_called_once_with(
-            "acme", "foo", "bar"
-        )
+        mock_service.rename_optimized_cv.assert_called_once_with("acme", "foo", "bar")
 
     def test_rejects_wrong_collection_prefix(self, runner):
         with patch("services.application.ApplicationService") as MockService:
@@ -360,16 +438,22 @@ class TestAddCommand:
         source = tmp_path / "notes.md"
         source.write_text("# Notes")
         with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.add_document.return_value = "job-postings/acme-swe/notes.md"
+            MockService.return_value.add_document.return_value = (
+                "job-postings/acme-swe/notes.md"
+            )
             result = runner.invoke(main, ["add", "job-postings/acme-swe", str(source)])
         assert result.exit_code == 0
-        MockService.return_value.add_document.assert_called_once_with("job-postings/acme-swe", str(source))
+        MockService.return_value.add_document.assert_called_once_with(
+            "job-postings/acme-swe", str(source)
+        )
 
     def test_prints_doc_uri(self, runner, tmp_path):
         source = tmp_path / "notes.md"
         source.write_text("# Notes")
         with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.add_document.return_value = "job-postings/acme-swe/notes.md"
+            MockService.return_value.add_document.return_value = (
+                "job-postings/acme-swe/notes.md"
+            )
             result = runner.invoke(main, ["add", "job-postings/acme-swe", str(source)])
         assert "job-postings/acme-swe/notes.md" in result.output
 
@@ -377,7 +461,9 @@ class TestAddCommand:
         source = tmp_path / "notes.md"
         source.write_text("# Notes")
         with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.add_document.side_effect = ValueError("Not found: job-postings/acme-swe")
+            MockService.return_value.add_document.side_effect = ValueError(
+                "Not found: job-postings/acme-swe"
+            )
             result = runner.invoke(main, ["add", "job-postings/acme-swe", str(source)])
         assert result.exit_code != 0
 

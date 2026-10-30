@@ -6,6 +6,7 @@ Migrate job-posting and CV collection records:
   - rename cv.json → curriculum-vitae.json
   - rename cv.md  → curriculum-vitae.md
 """
+
 import json
 import sys
 from pathlib import Path

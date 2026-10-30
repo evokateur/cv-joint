@@ -69,7 +69,9 @@ def test_generate_pdf_file_renders_data_to_explicit_output(service, sample_cv_da
         patch(
             "services.application.render_tex", return_value="tex source"
         ) as render_tex,
-        patch("services.application.tex_to_pdf", return_value=output_path) as tex_to_pdf,
+        patch(
+            "services.application.tex_to_pdf", return_value=output_path
+        ) as tex_to_pdf,
     ):
         result = service.generate_pdf_file(sample_cv_data, "cv.tex", output_path)
 
@@ -245,7 +247,9 @@ class TestRenameJobPosting:
         service.add_job_posting(sample_job_posting_data, "old-id")
         service.rename_job_posting("old-id", "new-id")
         assert not (Path(temp_data_dir) / "job-postings" / "old-id").exists()
-        assert (Path(temp_data_dir) / "job-postings" / "new-id" / "job-posting.md").exists()
+        assert (
+            Path(temp_data_dir) / "job-postings" / "new-id" / "job-posting.md"
+        ).exists()
 
 
 class TestRenameCv:
@@ -276,7 +280,9 @@ class TestRenameCv:
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "old-cv")
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "old-cv", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv(
+            "acme-swe", "opt-1", "old-cv", CurriculumVitae(**sample_cv_data)
+        )
         service.rename_cv("old-cv", "new-cv")
         record = service.repository.get_optimized_cv_record("acme-swe", "opt-1")
         assert record.base_cv_identifier == "new-cv"
@@ -335,6 +341,7 @@ class TestMarkApplied:
 
     def test_forwards_applied_at(self):
         from datetime import datetime
+
         mock_repo = MagicMock()
         service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = MagicMock()
@@ -425,7 +432,9 @@ class TestGetOptimizedCvs:
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "jane-doe")
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv(
+            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+        )
         file_job_posting(service)
         opts = service.get_optimized_cvs()
         assert not any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
@@ -435,24 +444,34 @@ class TestGetOptimizedCvs:
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "jane-doe")
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv(
+            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+        )
         opts = service.get_optimized_cvs()
         assert any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
 
 
 class TestRemoveOptimizedCv:
-    def test_returns_true_when_found(self, service, sample_job_posting_data, sample_cv_data):
+    def test_returns_true_when_found(
+        self, service, sample_job_posting_data, sample_cv_data
+    ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv(
+            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+        )
         assert service.remove_optimized_cv("acme-swe", "opt-1") is True
 
     def test_returns_false_when_not_found(self, service, sample_job_posting_data):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         assert service.remove_optimized_cv("acme-swe", "nonexistent") is False
 
-    def test_removes_from_repository(self, service, sample_job_posting_data, sample_cv_data):
+    def test_removes_from_repository(
+        self, service, sample_job_posting_data, sample_cv_data
+    ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv(
+            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+        )
         service.remove_optimized_cv("acme-swe", "opt-1")
         assert service.repository.get_optimized_cv_record("acme-swe", "opt-1") is None
 
@@ -462,10 +481,14 @@ class TestRenameOptimizedCv:
         self, service, sample_job_posting_data, sample_cv_data
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
+        service.repository.add_optimized_cv(
+            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+        )
         service.rename_optimized_cv("acme-swe", "opt-1", "new-id")
         assert service.repository.get_optimized_cv_record("acme-swe", "opt-1") is None
-        assert service.repository.get_optimized_cv_record("acme-swe", "new-id") is not None
+        assert (
+            service.repository.get_optimized_cv_record("acme-swe", "new-id") is not None
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -527,7 +550,10 @@ class TestExportOptimizationsUsesParentPath:
 
         service.export_markdown(collection_name="optimizations")
 
-        cv_md = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1/curriculum-vitae.md"
+        cv_md = (
+            Path(temp_data_dir)
+            / "job-postings/archived/acme-swe/cvs/opt-1/curriculum-vitae.md"
+        )
         assert cv_md.exists()
 
 
@@ -556,25 +582,33 @@ class TestGetCvOptimizationUsesParentPath:
 
 
 class TestCreateJobPostingFromUrl:
-    def test_analyzes_fetched_url_when_no_content_file(self, service, sample_job_posting_data):
+    def test_analyzes_fetched_url_when_no_content_file(
+        self, service, sample_job_posting_data
+    ):
         service._analyze_job_posting_url = MagicMock(
             return_value=JobPosting(**sample_job_posting_data)
         )
 
         service.analyze_job_posting(url="https://example.com/job/new")
 
-        service._analyze_job_posting_url.assert_called_once_with("https://example.com/job/new")
+        service._analyze_job_posting_url.assert_called_once_with(
+            "https://example.com/job/new"
+        )
 
     def test_url_injected_over_analyzer_value(self, service, sample_job_posting_data):
         service._analyze_job_posting_url = MagicMock(
-            return_value=JobPosting(**{**sample_job_posting_data, "url": "Not specified"})
+            return_value=JobPosting(
+                **{**sample_job_posting_data, "url": "Not specified"}
+            )
         )
 
         data = service.analyze_job_posting(url="https://example.com/job/new")
 
         assert data["url"] == "https://example.com/job/new"
 
-    def test_uses_content_file_when_provided(self, service, sample_job_posting_data, tmp_path):
+    def test_uses_content_file_when_provided(
+        self, service, sample_job_posting_data, tmp_path
+    ):
         content = tmp_path / "job.md"
         content.write_text("# Job")
         service.job_posting_analyzer = MagicMock()
@@ -582,7 +616,9 @@ class TestCreateJobPostingFromUrl:
             **sample_job_posting_data
         )
 
-        service.analyze_job_posting(url="https://example.com/job/123", content_file=str(content))
+        service.analyze_job_posting(
+            url="https://example.com/job/123", content_file=str(content)
+        )
 
         service.job_posting_analyzer.analyze.assert_called_once_with(str(content))
 
@@ -604,21 +640,27 @@ class TestCreateCv:
 
 
 class TestAddDocument:
-    def test_bare_object_uri_uses_source_filename(self, service, sample_job_posting_data, tmp_path):
+    def test_bare_object_uri_uses_source_filename(
+        self, service, sample_job_posting_data, tmp_path
+    ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         source = tmp_path / "notes.md"
         source.write_text("# Notes")
         doc_uri = service.add_document("job-postings/acme-swe", str(source))
         assert doc_uri == "job-postings/acme-swe/notes.md"
 
-    def test_full_document_uri_uses_given_name(self, service, sample_job_posting_data, tmp_path):
+    def test_full_document_uri_uses_given_name(
+        self, service, sample_job_posting_data, tmp_path
+    ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         source = tmp_path / "notes.md"
         source.write_text("# Notes")
         doc_uri = service.add_document("job-postings/acme-swe/intake.md", str(source))
         assert doc_uri == "job-postings/acme-swe/intake.md"
 
-    def test_content_written_to_directory(self, service, sample_job_posting_data, tmp_path, temp_data_dir):
+    def test_content_written_to_directory(
+        self, service, sample_job_posting_data, tmp_path, temp_data_dir
+    ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         source = tmp_path / "notes.md"
         source.write_text("# Notes")
@@ -642,7 +684,8 @@ class TestAddDocument:
         source.write_text("# Notes")
         service.add_document("job-postings/acme-swe", str(source))
         with pytest.raises(
-            ValueError, match="^Document already exists: job-postings/acme-swe/notes.md$"
+            ValueError,
+            match="^Document already exists: job-postings/acme-swe/notes.md$",
         ):
             service.add_document("job-postings/acme-swe", str(source))
 
@@ -680,14 +723,18 @@ class TestUniqueNewIdentifier:
         service.add_cv(sample_cv_data, "jane-doe-2")
         assert service.unique_new_identifier("cvs/jane-doe") == "jane-doe-3"
 
-    def test_scoped_per_namespace(self, service, sample_job_posting_data, sample_cv_data):
+    def test_scoped_per_namespace(
+        self, service, sample_job_posting_data, sample_cv_data
+    ):
         service.add_cv(sample_cv_data, "shared")
         # same identifier in a different namespace does not collide
         assert service.unique_new_identifier("job-postings/shared") == "shared"
 
 
 class TestGenerateDefaultIdentifier:
-    def test_job_posting_slugifies_company_and_title(self, service, sample_job_posting_data):
+    def test_job_posting_slugifies_company_and_title(
+        self, service, sample_job_posting_data
+    ):
         assert (
             service.generate_default_identifier("job-postings", sample_job_posting_data)
             == "acme-corp-software-engineer"

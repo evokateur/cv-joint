@@ -4,13 +4,20 @@ import pytest
 from crews.tools.knowledge_search import KnowledgeSearchTool
 
 
-FAKE_RESULT = json.dumps({
-    "query": "test",
-    "results_count": 1,
-    "results": [
-        {"id": "doc_1", "content": "Python experience", "score": 0.9, "metadata": {"source": "test.md"}}
-    ]
-})
+FAKE_RESULT = json.dumps(
+    {
+        "query": "test",
+        "results_count": 1,
+        "results": [
+            {
+                "id": "doc_1",
+                "content": "Python experience",
+                "score": 0.9,
+                "metadata": {"source": "test.md"},
+            }
+        ],
+    }
+)
 
 
 class _TextContent:
@@ -42,7 +49,9 @@ class FakeMcpManager:
 
 @pytest.fixture
 def tool():
-    return KnowledgeSearchTool(tool_name="rag_search_knowledge", manager=FakeMcpManager())
+    return KnowledgeSearchTool(
+        tool_name="rag_search_knowledge", manager=FakeMcpManager()
+    )
 
 
 def test_knowledge_search_tool_returns_results(tool):

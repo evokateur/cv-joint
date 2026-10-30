@@ -9,6 +9,7 @@ Usage:
 With crewai CLI (add entry point to pyproject.toml first):
     CV_PATH=<path> crewai run
 """
+
 import os
 import sys
 import warnings

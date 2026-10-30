@@ -100,9 +100,7 @@ class TestNoDefault:
         assert "RESULT=chosen-id" in result.output
 
     def test_reprompts_on_empty(self, runner):
-        result = runner.invoke(
-            _make_command(set(), None, True), input="\nchosen-id\n"
-        )
+        result = runner.invoke(_make_command(set(), None, True), input="\nchosen-id\n")
         assert result.exit_code == 0, result.output
         assert "RESULT=chosen-id" in result.output
 

@@ -81,9 +81,11 @@ class TestCvOptimizerInterface:
     def test_optimize_returns_optimizer_output(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        optimizer = CvOptimizer(implementation=FakeKickoffOptimizer(
-            lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
-        ))
+        optimizer = CvOptimizer(
+            implementation=FakeKickoffOptimizer(
+                lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
+            )
+        )
         result = optimizer.optimize(sample_cv, sample_job_posting)
 
         assert isinstance(result, OptimizerOutput)
@@ -91,9 +93,11 @@ class TestCvOptimizerInterface:
     def test_optimize_cv_is_curriculum_vitae(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        optimizer = CvOptimizer(implementation=FakeKickoffOptimizer(
-            lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
-        ))
+        optimizer = CvOptimizer(
+            implementation=FakeKickoffOptimizer(
+                lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
+            )
+        )
         result = optimizer.optimize(sample_cv, sample_job_posting)
 
         assert isinstance(result.cv, CurriculumVitae)
@@ -102,9 +106,11 @@ class TestCvOptimizerInterface:
     def test_optimize_artifacts_contains_transformation_plan(
         self, sample_cv, sample_job_posting, sample_plan
     ):
-        optimizer = CvOptimizer(implementation=FakeKickoffOptimizer(
-            lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
-        ))
+        optimizer = CvOptimizer(
+            implementation=FakeKickoffOptimizer(
+                lambda inputs: _fake_kickoff(inputs, sample_cv, sample_plan)
+            )
+        )
         result = optimizer.optimize(sample_cv, sample_job_posting)
 
         assert "transformation-plan" in result.artifacts
@@ -117,7 +123,9 @@ class TestCvOptimizerInterface:
 
         def capture_and_fake(inputs):
             captured_content["cv"] = json.loads(Path(inputs["cv_path"]).read_text())
-            captured_content["job"] = json.loads(Path(inputs["job_posting_path"]).read_text())
+            captured_content["job"] = json.loads(
+                Path(inputs["job_posting_path"]).read_text()
+            )
             _fake_kickoff(inputs, sample_cv, sample_plan)
 
         optimizer = CvOptimizer(implementation=FakeKickoffOptimizer(capture_and_fake))

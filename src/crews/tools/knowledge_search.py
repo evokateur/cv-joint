@@ -45,13 +45,10 @@ class KnowledgeSearchTool(BaseTool):
         """Async implementation of the search."""
         session = await self._manager.get_session()
 
-        result = await session.call_tool(self._tool_name, {
-            "params": {
-                "query": query,
-                "top_k": 5,
-                "response_format": "json"
-            }
-        })
+        result = await session.call_tool(
+            self._tool_name,
+            {"params": {"query": query, "top_k": 5, "response_format": "json"}},
+        )
 
         if result.isError:
             error_text = result.content[0].text if result.content else "Unknown error"
