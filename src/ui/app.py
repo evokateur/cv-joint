@@ -168,7 +168,7 @@ def create_app():
                             "",
                             True,
                             gr.update(visible=False),
-                            f"⚠ Job posting not found",
+                            "⚠ Job posting not found",
                             gr.update(value="", visible=False),
                         )
 
@@ -372,7 +372,7 @@ def create_app():
             with gr.Tab("Curriculum Vitae") as cv_tab:
                 with gr.Group():
                     gr.Markdown("### Import CV")
-                    with gr.Accordion("CV Source", open=False) as cv_source_accordion:
+                    with gr.Accordion("CV Source", open=False):
                         cv_file = gr.File(
                             label="CV File",
                             file_types=[".json", ".yaml", ".txt", ".md"],
