@@ -12,7 +12,7 @@ from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
 from repositories import DocumentExistsError, FileSystemRepository
-from repositories.filesystem import parse_uri
+from services.addressing import parse_uri, resolve_record
 from renderers.latex import render_tex, tex_to_pdf
 
 
@@ -392,7 +392,7 @@ class ApplicationService:
             base_uri, _ = uri.rsplit("/", 1)
             doc_uri = uri
 
-        record = self.repository.resolve_record(base_uri)
+        record = resolve_record(self.repository, base_uri)
         filename = doc_uri.rsplit("/", 1)[1]
         try:
             self.repository.add_document(record, filename, Path(file_path).read_text())
@@ -555,7 +555,7 @@ class ApplicationService:
 
     def get_display_markdown(self, uri: str, obj) -> str:
         base_uri = uri.rsplit("/", 1)[0]
-        record = self.repository.resolve_record(base_uri)
+        record = resolve_record(self.repository, base_uri)
         return insert_json_as_frontmatter(
             record.model_dump(mode="json"), self.to_markdown(obj)
         )

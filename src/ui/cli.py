@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 import yaml
 
-from repositories.filesystem import parse_uri
+from services.addressing import parse_uri
 from ui.identifier import validate_identifier
 
 

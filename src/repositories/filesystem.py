@@ -52,23 +52,6 @@ def _to_kebab_case(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1-\2", s1).lower()
 
 
-def parse_uri(uri: str) -> dict[str, str]:
-    parts = uri.strip("/").split("/")
-    if parts[0] == "job-postings" and len(parts) == 2:
-        return {"collection": "job-postings", "identifier": parts[1]}
-    if parts[0] == "cvs" and len(parts) == 2:
-        return {"collection": "cvs", "identifier": parts[1]}
-    if parts[0] == "cover-letters" and len(parts) == 2:
-        return {"collection": "cover-letters", "identifier": parts[1]}
-    if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
-        return {
-            "collection": "optimized-cvs",
-            "job_posting_identifier": parts[1],
-            "identifier": parts[3],
-        }
-    raise ValueError(f"Unrecognised URI: {uri}")
-
-
 def _job_posting_canonical_path(identifier: str, location: str | None = None) -> str:
     if location:
         return f"{JOB_POSTINGS_DIR}/{location}/{identifier}"
@@ -729,40 +712,6 @@ class FileSystemRepository:
         self._save_collection(self.cover_letters_collection, collection)
         assert new_record_data is not None
         return CoverLetterRecord(**new_record_data)
-
-    def resolve_record(
-        self, uri: str
-    ) -> (
-        JobPostingRecord | CurriculumVitaeRecord | OptimizedCvRecord | CoverLetterRecord
-    ):
-        """Return the governing record for a URI. Raises ValueError if not found."""
-        parsed = parse_uri(uri)
-        collection = parsed["collection"]
-
-        if collection == "job-postings":
-            record = self.get_job_posting_record(parsed["identifier"])
-            if record is None:
-                raise ValueError(f"Not found: {uri}")
-            return record
-
-        if collection == "cvs":
-            record = self.get_cv_record(parsed["identifier"])
-            if record is None:
-                raise ValueError(f"Not found: {uri}")
-            return record
-
-        if collection == "cover-letters":
-            record = self.get_cover_letter_record(parsed["identifier"])
-            if record is None:
-                raise ValueError(f"Not found: {uri}")
-            return record
-
-        record = self.get_optimized_cv_record(
-            parsed["job_posting_identifier"], parsed["identifier"]
-        )
-        if record is None:
-            raise ValueError(f"Not found: {uri}")
-        return record
 
     def _optimized_cv_path(self, job_posting_identifier: str, identifier: str) -> str:
         """Placement of an optimized CV under its parent job posting's stored path."""
