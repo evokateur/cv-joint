@@ -28,6 +28,10 @@ RECORD_DOCUMENTS: dict[type, set[str]] = {
     CoverLetterRecord: {"cover-letter"},
 }
 
+Record = (
+    JobPostingRecord | CurriculumVitaeRecord | OptimizedCvRecord | CoverLetterRecord
+)
+
 JOB_POSTINGS_DIR = "job-postings"
 CVS_DIR = "cvs"
 COVER_LETTERS_DIR = "cover-letters"
@@ -755,45 +759,49 @@ class FileSystemRepository:
             raise ValueError(f"Not found: {uri}")
         return record
 
-    def optimized_cv_base_uri(
-        self, job_posting_identifier: str, cv_identifier: str
-    ) -> str:
-        record = self.get_job_posting_record(job_posting_identifier)
+    def _optimized_cv_path(self, job_posting_identifier: str, identifier: str) -> str:
+        """Placement of an optimized CV under its parent job posting's stored path."""
+        parent = self.get_job_posting_record(job_posting_identifier)
         parent_path = (
-            record.path if record else f"job-postings/{job_posting_identifier}"
+            parent.path if parent else f"job-postings/{job_posting_identifier}"
         )
-        return f"{parent_path}/cvs/{cv_identifier}"
+        return f"{parent_path}/cvs/{identifier}"
 
-    def _cv_optimization_dir(
-        self, job_posting_identifier: str, identifier: str
-    ) -> Path:
-        return self._resolve_path(
-            self.optimized_cv_base_uri(job_posting_identifier, identifier)
+    # -------------------------------------------------------------------------
+    # Record-addressed storage locations
+    # -------------------------------------------------------------------------
+
+    def directory_for(self, record: Record) -> Path:
+        """Absolute directory holding a record's objects and documents."""
+        return self._resolve_path(record.path)
+
+    def file_for(self, record: Record, model_class: type[BaseModel]) -> Path:
+        """Absolute path of a record's stored object of the given class."""
+        return self.directory_for(record) / (
+            _to_kebab_case(model_class.__name__) + ".json"
         )
 
     # -------------------------------------------------------------------------
-    # Generic object storage (URI-addressed, self-describing JSON)
+    # Generic object storage (record-addressed, self-describing JSON)
     # -------------------------------------------------------------------------
 
-    def save_object(self, base_uri: str, obj: BaseModel) -> None:
-        filename = _to_kebab_case(type(obj).__name__) + ".json"
-        path = self._resolve_path(base_uri) / filename
+    def save_object(self, record: Record, obj: BaseModel) -> None:
+        path = self.file_for(record, type(obj))
         path.parent.mkdir(parents=True, exist_ok=True)
         data = obj.model_dump(mode="json")
         data["_type"] = type(obj).__name__
         path.write_text(json.dumps(data, indent=2))
 
-    def load_object(self, base_uri: str, model_class: type[T]) -> Optional[T]:
-        filename = _to_kebab_case(model_class.__name__) + ".json"
-        path = self._resolve_path(base_uri) / filename
+    def load_object(self, record: Record, model_class: type[T]) -> Optional[T]:
+        path = self.file_for(record, model_class)
         if not path.exists():
             return None
         data = json.loads(path.read_text())
         data.pop("_type", None)
         return model_class(**data)
 
-    def load_all_objects(self, base_uri: str) -> dict[str, BaseModel]:
-        directory = self._resolve_path(base_uri)
+    def load_all_objects(self, record: Record) -> dict[str, BaseModel]:
+        directory = self.directory_for(record)
         if not directory.exists():
             return {}
         results: dict[str, BaseModel] = {}
@@ -811,13 +819,13 @@ class FileSystemRepository:
         return results
 
     # -------------------------------------------------------------------------
-    # Document storage (URI-addressed, raw text)
+    # Document storage (record-addressed, raw text)
     # -------------------------------------------------------------------------
 
-    def add_or_replace_document(self, uri: str, content: str) -> None:
-        base_uri, filename = uri.rsplit("/", 1)
-        record = self.resolve_record(base_uri)
-        directory = self._resolve_path(record.path)
+    def add_or_replace_document(
+        self, record: Record, filename: str, content: str
+    ) -> None:
+        directory = self.directory_for(record)
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / filename
 
@@ -828,15 +836,10 @@ class FileSystemRepository:
 
         path.write_text(content)
 
-    def _document_path(self, uri: str) -> Path:
-        base_uri, filename = uri.rsplit("/", 1)
-        return self._resolve_path(self.resolve_record(base_uri).path) / filename
-
-    def add_document(self, uri: str, content: str) -> None:
-        path = self._document_path(uri)
-        if path.exists():
-            raise ValueError(f"Document already exists: {uri}")
-        self.add_or_replace_document(uri, content)
+    def add_document(self, record: Record, filename: str, content: str) -> None:
+        if self.document_exists(record, filename):
+            raise ValueError(f"Document already exists: {record.path}/{filename}")
+        self.add_or_replace_document(record, filename, content)
 
     def _patch_document_frontmatter(self, record: BaseModel) -> None:
         for stem in RECORD_DOCUMENTS.get(type(record), set()):
@@ -855,11 +858,11 @@ class FileSystemRepository:
             new_fm = f"---\n{yaml.dump(existing, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
             path.write_text(new_fm + body)
 
-    def load_document(self, uri: str) -> str:
-        return self._document_path(uri).read_text()
+    def load_document(self, record: Record, filename: str) -> str:
+        return (self.directory_for(record) / filename).read_text()
 
-    def document_exists(self, uri: str) -> bool:
-        return self._document_path(uri).exists()
+    def document_exists(self, record: Record, filename: str) -> bool:
+        return (self.directory_for(record) / filename).exists()
 
     # -------------------------------------------------------------------------
     # Optimized CVs collection
@@ -901,22 +904,14 @@ class FileSystemRepository:
                 f"Optimized CV already exists: job-postings/{job_posting_identifier}/cvs/{identifier}"
             )
 
-        base_uri = self.optimized_cv_base_uri(job_posting_identifier, identifier)
-        self.save_object(base_uri, cv)
-
         job_posting_record = self.get_job_posting_record(job_posting_identifier)
         job_title = job_posting_record.title if job_posting_record else None
         company = job_posting_record.company if job_posting_record else None
-        path = (
-            f"{job_posting_record.path}/cvs/{identifier}"
-            if job_posting_record
-            else f"job-postings/{job_posting_identifier}/cvs/{identifier}"
-        )
 
         now = datetime.now()
         record = OptimizedCvRecord(
             identifier=identifier,
-            path=path,
+            path=self._optimized_cv_path(job_posting_identifier, identifier),
             job_posting_identifier=job_posting_identifier,
             base_cv_identifier=base_cv_identifier,
             name=cv.name,
@@ -926,6 +921,7 @@ class FileSystemRepository:
             created_at=now,
             updated_at=now,
         )
+        self.save_object(record, cv)
         collection.append(record.model_dump(mode="json"))
         self._save_collection(self.optimized_cvs_collection, collection)
         return record
@@ -950,8 +946,10 @@ class FileSystemRepository:
     def get_optimized_cv(
         self, job_posting_identifier: str, identifier: str
     ) -> Optional[CurriculumVitae]:
-        base_uri = self.optimized_cv_base_uri(job_posting_identifier, identifier)
-        return self.load_object(base_uri, CurriculumVitae)
+        record = self.get_optimized_cv_record(job_posting_identifier, identifier)
+        if record is None:
+            return None
+        return self.load_object(record, CurriculumVitae)
 
     def get_optimized_cv_records(
         self, job_posting_identifier: Optional[str] = None
@@ -975,20 +973,19 @@ class FileSystemRepository:
         return [OptimizedCvRecord(**item) for item in collection]
 
     def remove_optimized_cv(self, job_posting_identifier: str, identifier: str) -> bool:
-        collection = self._load_collection(self.optimized_cvs_collection)
-        original_length = len(collection)
+        record = self.get_optimized_cv_record(job_posting_identifier, identifier)
+        if record is None:
+            return False
         collection = [
             item
-            for item in collection
+            for item in self._load_collection(self.optimized_cvs_collection)
             if not (
                 item["identifier"] == identifier
                 and item["job_posting_identifier"] == job_posting_identifier
             )
         ]
-        if len(collection) == original_length:
-            return False
         self._save_collection(self.optimized_cvs_collection, collection)
-        opt_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
+        opt_dir = self.directory_for(record)
         if opt_dir.exists():
             shutil.rmtree(opt_dir)
         return True
@@ -996,7 +993,8 @@ class FileSystemRepository:
     def rename_optimized_cv(
         self, job_posting_identifier: str, identifier: str, new_identifier: str
     ) -> OptimizedCvRecord:
-        if self.get_optimized_cv_record(job_posting_identifier, identifier) is None:
+        old_record = self.get_optimized_cv_record(job_posting_identifier, identifier)
+        if old_record is None:
             raise ValueError(
                 f"Optimized CV not found: job-postings/{job_posting_identifier}/cvs/{identifier}"
             )
@@ -1007,10 +1005,9 @@ class FileSystemRepository:
             raise ValueError(
                 f"Optimized CV already exists: job-postings/{job_posting_identifier}/cvs/{new_identifier}"
             )
-        old_dir = self._cv_optimization_dir(job_posting_identifier, identifier)
-        new_path = self.optimized_cv_base_uri(job_posting_identifier, new_identifier)
-        new_dir = self._resolve_path(new_path)
-        shutil.move(str(old_dir), str(new_dir))
+        old_dir = self.directory_for(old_record)
+        new_path = self._optimized_cv_path(job_posting_identifier, new_identifier)
+        shutil.move(str(old_dir), str(self._resolve_path(new_path)))
 
         collection = self._load_collection(self.optimized_cvs_collection)
         new_record_data = None

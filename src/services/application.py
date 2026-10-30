@@ -396,8 +396,11 @@ class ApplicationService:
             base_uri, _ = uri.rsplit("/", 1)
             doc_uri = uri
 
-        self.repository.resolve_record(base_uri)
-        self.repository.add_document(doc_uri, Path(file_path).read_text())
+        record = self.repository.resolve_record(base_uri)
+        filename = doc_uri.rsplit("/", 1)[1]
+        if self.repository.document_exists(record, filename):
+            raise ValueError(f"Document already exists: {doc_uri}")
+        self.repository.add_document(record, filename, Path(file_path).read_text())
         return doc_uri
 
     def optimize_cv(
@@ -467,10 +470,7 @@ class ApplicationService:
         )
 
         if plan is not None:
-            base_uri = self.repository.optimized_cv_base_uri(
-                job_posting_identifier, identifier
-            )
-            self.repository.save_object(base_uri, plan)
+            self.repository.save_object(record, plan)
             self.markdown_exporter.export_cv_transformation_plan(record, plan)
         self.markdown_exporter.export_cv(record, cv)
 
@@ -506,10 +506,14 @@ class ApplicationService:
         Returns:
             tuple of (plan_data, cv_data)
         """
-        base_uri = self.repository.optimized_cv_base_uri(
+        record = self.repository.get_optimized_cv_record(
             job_posting_identifier, identifier
         )
-        plan = self.repository.load_object(base_uri, CvTransformationPlan)
+        plan = (
+            self.repository.load_object(record, CvTransformationPlan)
+            if record
+            else None
+        )
         cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
 
         return (
@@ -527,29 +531,19 @@ class ApplicationService:
                 {
                     "identifier": record.identifier,
                     "filepath": str(
-                        self.repository.data_dir
-                        / record.path
-                        / "curriculum-vitae.json"
+                        self.repository.file_for(record, CurriculumVitae)
                     ),
                 }
             )
         for record in self.repository.get_optimized_cv_records():
             if record.job_posting_identifier in active_job_ids:
-                jp_id = record.job_posting_identifier
-                id_ = record.identifier
-                filepath = str(
-                    self.repository.data_dir
-                    / "job-postings"
-                    / jp_id
-                    / "cvs"
-                    / id_
-                    / "curriculum-vitae.json"
-                )
                 results.append(
                     {
-                        "identifier": id_,
-                        "job_posting_identifier": jp_id,
-                        "filepath": filepath,
+                        "identifier": record.identifier,
+                        "job_posting_identifier": record.job_posting_identifier,
+                        "filepath": str(
+                            self.repository.file_for(record, CurriculumVitae)
+                        ),
                     }
                 )
         return results

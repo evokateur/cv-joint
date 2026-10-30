@@ -117,6 +117,16 @@ def repository_with_optimized_cv(repository_with_job_posting, sample_cv):
 
 
 @pytest.fixture
+def job_posting_record(repository_with_job_posting):
+    return repository_with_job_posting.get_job_posting_record("acme-swe")
+
+
+@pytest.fixture
+def optimized_cv_record(repository_with_optimized_cv):
+    return repository_with_optimized_cv.get_optimized_cv_record("acme-swe", "opt-1")
+
+
+@pytest.fixture
 def repository_with_cover_letter(repository, sample_cover_letter):
     repository.add_cover_letter(sample_cover_letter, "jane-acme")
     return repository
@@ -782,11 +792,56 @@ class TestRenameUsesStoredPath:
         assert (Path(temp_data_dir) / "custom/new-id").exists()
 
 
+def _current_record(repository, kind):
+    if kind == "job-posting":
+        return repository.get_job_posting_record("acme-swe")
+    return repository.get_optimized_cv_record("acme-swe", "opt-1")
+
+
+class TestDirectoryFor:
+    def test_resolves_record_path_against_data_dir(
+        self, optimized_cv_record, repository_with_optimized_cv, temp_data_dir
+    ):
+        assert repository_with_optimized_cv.directory_for(optimized_cv_record) == (
+            Path(temp_data_dir) / "job-postings/acme-swe/cvs/opt-1"
+        )
+
+    def test_follows_stored_path(self, repository_with_job_posting, temp_data_dir):
+        repository_with_job_posting.transition_job_posting("acme-swe", "archived")
+        record = repository_with_job_posting.get_job_posting_record("acme-swe")
+        assert repository_with_job_posting.directory_for(record) == (
+            Path(temp_data_dir) / "job-postings/archived/acme-swe"
+        )
+
+
+class TestFileFor:
+    def test_names_file_after_model_class(
+        self, optimized_cv_record, repository_with_optimized_cv, temp_data_dir
+    ):
+        assert repository_with_optimized_cv.file_for(
+            optimized_cv_record, CvTransformationPlan
+        ) == (
+            Path(temp_data_dir)
+            / "job-postings/acme-swe/cvs/opt-1/cv-transformation-plan.json"
+        )
+
+    def test_points_at_saved_object(
+        self, optimized_cv_record, repository_with_optimized_cv
+    ):
+        assert repository_with_optimized_cv.file_for(
+            optimized_cv_record, CurriculumVitae
+        ).exists()
+
+
 class TestSaveObject:
     def test_writes_json_to_path_derived_from_class_name(
-        self, repository, sample_plan, temp_data_dir
+        self,
+        optimized_cv_record,
+        repository_with_optimized_cv,
+        sample_plan,
+        temp_data_dir,
     ):
-        repository.save_object("job-postings/acme-swe/cvs/opt-1", sample_plan)
+        repository_with_optimized_cv.save_object(optimized_cv_record, sample_plan)
         expected = (
             Path(temp_data_dir)
             / "job-postings"
@@ -797,8 +852,14 @@ class TestSaveObject:
         )
         assert expected.exists()
 
-    def test_includes_type_field(self, repository, sample_plan, temp_data_dir):
-        repository.save_object("job-postings/acme-swe/cvs/opt-1", sample_plan)
+    def test_includes_type_field(
+        self,
+        optimized_cv_record,
+        repository_with_optimized_cv,
+        sample_plan,
+        temp_data_dir,
+    ):
+        repository_with_optimized_cv.save_object(optimized_cv_record, sample_plan)
         path = (
             Path(temp_data_dir)
             / "job-postings"
@@ -810,14 +871,22 @@ class TestSaveObject:
         data = json.loads(path.read_text())
         assert data["_type"] == "CvTransformationPlan"
 
-    def test_creates_parent_directories(self, repository, sample_plan, temp_data_dir):
-        repository.save_object("job-postings/new-job/cvs/new-opt", sample_plan)
-        assert (
-            Path(temp_data_dir) / "job-postings" / "new-job" / "cvs" / "new-opt"
-        ).exists()
+    def test_creates_directory_if_absent(
+        self, optimized_cv_record, repository_with_optimized_cv, sample_plan
+    ):
+        directory = repository_with_optimized_cv.directory_for(optimized_cv_record)
+        shutil.rmtree(directory)
+        repository_with_optimized_cv.save_object(optimized_cv_record, sample_plan)
+        assert (directory / "cv-transformation-plan.json").exists()
 
-    def test_serializes_object_fields(self, repository, sample_plan, temp_data_dir):
-        repository.save_object("job-postings/acme-swe/cvs/opt-1", sample_plan)
+    def test_serializes_object_fields(
+        self,
+        optimized_cv_record,
+        repository_with_optimized_cv,
+        sample_plan,
+        temp_data_dir,
+    ):
+        repository_with_optimized_cv.save_object(optimized_cv_record, sample_plan)
         path = (
             Path(temp_data_dir)
             / "job-postings"
@@ -832,61 +901,73 @@ class TestSaveObject:
 
 
 class TestLoadObject:
-    def test_deserializes_to_typed_model(self, repository, sample_plan):
-        repository.save_object("job-postings/acme-swe/cvs/opt-1", sample_plan)
-        result = repository.load_object(
-            "job-postings/acme-swe/cvs/opt-1", CvTransformationPlan
+    def test_deserializes_to_typed_model(
+        self, optimized_cv_record, repository_with_optimized_cv, sample_plan
+    ):
+        repository_with_optimized_cv.save_object(optimized_cv_record, sample_plan)
+        result = repository_with_optimized_cv.load_object(
+            optimized_cv_record, CvTransformationPlan
         )
         assert isinstance(result, CvTransformationPlan)
         assert result.job_title == "Software Engineer"
 
-    def test_returns_none_when_not_found(self, repository):
-        result = repository.load_object(
-            "job-postings/acme-swe/cvs/opt-1", CvTransformationPlan
+    def test_returns_none_when_not_found(
+        self, optimized_cv_record, repository_with_optimized_cv
+    ):
+        result = repository_with_optimized_cv.load_object(
+            optimized_cv_record, CvTransformationPlan
         )
         assert result is None
 
 
 class TestLoadAllObjects:
-    def test_returns_dict_keyed_by_stem(self, repository, sample_plan, sample_cv):
-        repository.save_object("job-postings/acme-swe/cvs/opt-1", sample_plan)
-        repository.save_object("job-postings/acme-swe/cvs/opt-1", sample_cv)
-        result = repository.load_all_objects("job-postings/acme-swe/cvs/opt-1")
+    def test_returns_dict_keyed_by_stem(
+        self, optimized_cv_record, repository_with_optimized_cv, sample_plan
+    ):
+        repository_with_optimized_cv.save_object(optimized_cv_record, sample_plan)
+        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
         assert "cv-transformation-plan" in result
         assert "curriculum-vitae" in result
 
-    def test_deserializes_to_correct_types(self, repository, sample_plan):
-        repository.save_object("job-postings/acme-swe/cvs/opt-1", sample_plan)
-        result = repository.load_all_objects("job-postings/acme-swe/cvs/opt-1")
+    def test_deserializes_to_correct_types(
+        self, optimized_cv_record, repository_with_optimized_cv, sample_plan
+    ):
+        repository_with_optimized_cv.save_object(optimized_cv_record, sample_plan)
+        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
         assert isinstance(result["cv-transformation-plan"], CvTransformationPlan)
 
-    def test_skips_files_without_type_field(self, repository, temp_data_dir):
-        opt_dir = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1"
-        opt_dir.mkdir(parents=True)
-        (opt_dir / "no-type.json").write_text('{"foo": "bar"}')
-        result = repository.load_all_objects("job-postings/acme-swe/cvs/opt-1")
+    def test_skips_files_without_type_field(
+        self, optimized_cv_record, repository_with_optimized_cv
+    ):
+        directory = repository_with_optimized_cv.directory_for(optimized_cv_record)
+        (directory / "no-type.json").write_text('{"foo": "bar"}')
+        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
         assert "no-type" not in result
 
-    def test_skips_files_with_unrecognised_type(self, repository, temp_data_dir):
-        opt_dir = Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "opt-1"
-        opt_dir.mkdir(parents=True)
-        (opt_dir / "unknown.json").write_text(
+    def test_skips_files_with_unrecognised_type(
+        self, optimized_cv_record, repository_with_optimized_cv
+    ):
+        directory = repository_with_optimized_cv.directory_for(optimized_cv_record)
+        (directory / "unknown.json").write_text(
             '{"_type": "SomeUnknownClass", "data": 1}'
         )
-        result = repository.load_all_objects("job-postings/acme-swe/cvs/opt-1")
+        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
         assert "unknown" not in result
 
-    def test_returns_empty_dict_for_nonexistent_directory(self, repository):
-        result = repository.load_all_objects("job-postings/nonexistent/cvs/opt-1")
+    def test_returns_empty_dict_for_nonexistent_directory(
+        self, optimized_cv_record, repository_with_optimized_cv
+    ):
+        shutil.rmtree(repository_with_optimized_cv.directory_for(optimized_cv_record))
+        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
         assert result == {}
 
 
 class TestAddOrReplaceDocument:
     def test_prepends_frontmatter_for_owned_stem(
-        self, repository_with_job_posting, temp_data_dir
+        self, job_posting_record, repository_with_job_posting, temp_data_dir
     ):
         repository_with_job_posting.add_or_replace_document(
-            "job-postings/acme-swe/job-posting.md", "# Acme\n"
+            job_posting_record, "job-posting.md", "# Acme\n"
         )
         path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
         content = path.read_text()
@@ -897,8 +978,9 @@ class TestAddOrReplaceDocument:
     def test_prepends_frontmatter_for_cover_letter(
         self, repository_with_cover_letter, temp_data_dir
     ):
+        record = repository_with_cover_letter.get_cover_letter_record("jane-acme")
         repository_with_cover_letter.add_or_replace_document(
-            "cover-letters/jane-acme/cover-letter.md", "# Letter\n"
+            record, "cover-letter.md", "# Letter\n"
         )
         path = Path(temp_data_dir) / "cover-letters" / "jane-acme" / "cover-letter.md"
         content = path.read_text()
@@ -907,44 +989,42 @@ class TestAddOrReplaceDocument:
         assert "# Letter" in content
 
     def test_no_frontmatter_for_unowned_stem(
-        self, repository_with_job_posting, temp_data_dir
+        self, job_posting_record, repository_with_job_posting, temp_data_dir
     ):
         repository_with_job_posting.add_or_replace_document(
-            "job-postings/acme-swe/readme.md", "# Notes\n"
+            job_posting_record, "readme.md", "# Notes\n"
         )
         path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "readme.md"
         assert path.read_text() == "# Notes\n"
 
-    def test_raises_for_unknown_uri(self, repository):
-        with pytest.raises(ValueError):
-            repository.add_or_replace_document(
-                "job-postings/nonexistent/job-posting.md", "content"
-            )
-
     def test_creates_directory_if_absent(
-        self, repository_with_job_posting, temp_data_dir
+        self, job_posting_record, repository_with_job_posting
     ):
+        directory = repository_with_job_posting.directory_for(job_posting_record)
+        shutil.rmtree(directory)
         repository_with_job_posting.add_or_replace_document(
-            "job-postings/acme-swe/job-posting.md", "content"
+            job_posting_record, "notes.md", "content"
         )
-        assert (Path(temp_data_dir) / "job-postings" / "acme-swe").exists()
+        assert (directory / "notes.md").read_text() == "content"
 
 
 class TestAddDocument:
-    def test_raises_when_document_already_exists(self, repository_with_job_posting):
+    def test_raises_when_document_already_exists(
+        self, job_posting_record, repository_with_job_posting
+    ):
         repository_with_job_posting.add_document(
-            "job-postings/acme-swe/notes.md", "# Notes\n"
+            job_posting_record, "notes.md", "# Notes\n"
         )
         with pytest.raises(ValueError, match="already exists"):
             repository_with_job_posting.add_document(
-                "job-postings/acme-swe/notes.md", "# Overwrite\n"
+                job_posting_record, "notes.md", "# Overwrite\n"
             )
 
     def test_writes_document_when_absent(
-        self, repository_with_job_posting, temp_data_dir
+        self, job_posting_record, repository_with_job_posting, temp_data_dir
     ):
         repository_with_job_posting.add_document(
-            "job-postings/acme-swe/notes.md", "# Notes\n"
+            job_posting_record, "notes.md", "# Notes\n"
         )
         path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "notes.md"
         assert path.read_text() == "# Notes\n"
@@ -954,115 +1034,74 @@ class TestLoadDocument:
     @pytest.mark.parametrize(
         "location", ["", "applied", "my-custom"], ids=["active", "applied", "custom"]
     )
-    @pytest.mark.parametrize(
-        "uri",
-        ["job-postings/acme-swe/notes.md", "job-postings/acme-swe/cvs/opt-1/notes.md"],
-        ids=["job-posting", "optimized-cv"],
-    )
-    def test_reads_document_via_logical_uri(
-        self, repository_with_optimized_cv, location, uri
+    @pytest.mark.parametrize("kind", ["job-posting", "optimized-cv"])
+    def test_reads_document_from_current_record(
+        self, repository_with_optimized_cv, location, kind
     ):
-        repository_with_optimized_cv.add_document(uri, "# Notes\n")
+        repository = repository_with_optimized_cv
+        repository.add_document(
+            _current_record(repository, kind), "notes.md", "# Notes\n"
+        )
         if location:
-            repository_with_optimized_cv.transition_job_posting("acme-swe", location)
+            repository.transition_job_posting("acme-swe", location)
 
-        assert repository_with_optimized_cv.load_document(uri) == "# Notes\n"
+        record = _current_record(repository, kind)
+        assert repository.load_document(record, "notes.md") == "# Notes\n"
 
     @pytest.mark.parametrize(
         "location", ["", "applied", "my-custom"], ids=["active", "applied", "custom"]
     )
-    @pytest.mark.parametrize(
-        "uri",
-        ["job-postings/acme-swe/notes.md", "job-postings/acme-swe/cvs/opt-1/notes.md"],
-        ids=["job-posting", "optimized-cv"],
-    )
+    @pytest.mark.parametrize("kind", ["job-posting", "optimized-cv"])
     def test_raises_when_document_absent(
-        self, repository_with_optimized_cv, location, uri
+        self, repository_with_optimized_cv, location, kind
     ):
+        repository = repository_with_optimized_cv
         if location:
-            repository_with_optimized_cv.transition_job_posting("acme-swe", location)
+            repository.transition_job_posting("acme-swe", location)
 
         with pytest.raises(FileNotFoundError):
-            repository_with_optimized_cv.load_document(uri)
-
-    def test_raises_for_unknown_job_posting(self, repository):
-        with pytest.raises(ValueError, match="Not found: job-postings/nonexistent"):
-            repository.load_document("job-postings/nonexistent/notes.md")
-
-    def test_reads_text_from_uri_path(self, repository_with_job_posting):
-        repository_with_job_posting.add_or_replace_document(
-            "job-postings/acme-swe/job-posting.md", "# Hello\n"
-        )
-        content = repository_with_job_posting.load_document(
-            "job-postings/acme-swe/job-posting.md"
-        )
-        assert "# Hello" in content
+            repository.load_document(_current_record(repository, kind), "notes.md")
 
 
 class TestDocumentExists:
     @pytest.mark.parametrize(
         "location", ["", "applied", "my-custom"], ids=["active", "applied", "custom"]
     )
-    @pytest.mark.parametrize(
-        "uri",
-        ["job-postings/acme-swe/notes.md", "job-postings/acme-swe/cvs/opt-1/notes.md"],
-        ids=["job-posting", "optimized-cv"],
-    )
-    def test_finds_document_via_logical_uri(
-        self, repository_with_optimized_cv, location, uri
+    @pytest.mark.parametrize("kind", ["job-posting", "optimized-cv"])
+    def test_finds_document_from_current_record(
+        self, repository_with_optimized_cv, location, kind
     ):
-        repository_with_optimized_cv.add_document(uri, "# Notes\n")
+        repository = repository_with_optimized_cv
+        repository.add_document(
+            _current_record(repository, kind), "notes.md", "# Notes\n"
+        )
         if location:
-            repository_with_optimized_cv.transition_job_posting("acme-swe", location)
+            repository.transition_job_posting("acme-swe", location)
 
-        assert repository_with_optimized_cv.document_exists(uri) is True
+        record = _current_record(repository, kind)
+        assert repository.document_exists(record, "notes.md") is True
 
     @pytest.mark.parametrize(
         "location", ["", "applied", "my-custom"], ids=["active", "applied", "custom"]
     )
-    @pytest.mark.parametrize(
-        "uri",
-        ["job-postings/acme-swe/notes.md", "job-postings/acme-swe/cvs/opt-1/notes.md"],
-        ids=["job-posting", "optimized-cv"],
-    )
-    def test_returns_false_for_missing_document_via_logical_uri(
-        self, repository_with_optimized_cv, location, uri
+    @pytest.mark.parametrize("kind", ["job-posting", "optimized-cv"])
+    def test_returns_false_for_missing_document(
+        self, repository_with_optimized_cv, location, kind
     ):
+        repository = repository_with_optimized_cv
         if location:
-            repository_with_optimized_cv.transition_job_posting("acme-swe", location)
+            repository.transition_job_posting("acme-swe", location)
 
-        assert repository_with_optimized_cv.document_exists(uri) is False
-
-    def test_raises_for_unknown_job_posting(self, repository):
-        with pytest.raises(ValueError, match="Not found: job-postings/nonexistent"):
-            repository.document_exists("job-postings/nonexistent/notes.md")
-
-    def test_returns_true_when_file_exists(self, repository_with_job_posting):
-        repository_with_job_posting.add_or_replace_document(
-            "job-postings/acme-swe/job-posting.md", "content"
-        )
-        assert (
-            repository_with_job_posting.document_exists(
-                "job-postings/acme-swe/job-posting.md"
-            )
-            is True
-        )
-
-    def test_returns_false_when_file_absent(self, repository_with_job_posting):
-        assert (
-            repository_with_job_posting.document_exists(
-                "job-postings/acme-swe/job-posting.md"
-            )
-            is False
-        )
+        record = _current_record(repository, kind)
+        assert repository.document_exists(record, "notes.md") is False
 
 
 class TestPatchDocumentFrontmatter:
     def test_merges_record_fields_into_frontmatter(
-        self, repository_with_job_posting, temp_data_dir
+        self, job_posting_record, repository_with_job_posting, temp_data_dir
     ):
         repository_with_job_posting.add_or_replace_document(
-            "job-postings/acme-swe/job-posting.md", "# Acme\n\nBody text.\n"
+            job_posting_record, "job-posting.md", "# Acme\n\nBody text.\n"
         )
         repository_with_job_posting.transition_job_posting("acme-swe", "somewhere")
         path = (
@@ -1092,9 +1131,11 @@ class TestPatchDocumentFrontmatter:
         )
         assert "custom_tag: keep-me" in path.read_text()
 
-    def test_preserves_body_content(self, repository_with_job_posting, temp_data_dir):
+    def test_preserves_body_content(
+        self, job_posting_record, repository_with_job_posting, temp_data_dir
+    ):
         repository_with_job_posting.add_or_replace_document(
-            "job-postings/acme-swe/job-posting.md", "# Acme\n\nHand-edited paragraph.\n"
+            job_posting_record, "job-posting.md", "# Acme\n\nHand-edited paragraph.\n"
         )
         repository_with_job_posting.transition_job_posting("acme-swe", "somewhere")
         path = (
@@ -1292,17 +1333,19 @@ class TestRenameOptimizedCv:
         )
         if location:
             repository_with_job_posting.transition_job_posting("acme-swe", location)
-        repository_with_job_posting.rename_optimized_cv("acme-swe", "old-id", "new-id")
+        record = repository_with_job_posting.rename_optimized_cv(
+            "acme-swe", "old-id", "new-id"
+        )
 
         repository_with_job_posting.add_or_replace_document(
-            "job-postings/acme-swe/cvs/new-id/curriculum-vitae.md", "# Updated CV\n"
+            record, "curriculum-vitae.md", "# Updated CV\n"
         )
 
         directory = Path(temp_data_dir) / "job-postings" / location / "acme-swe/cvs"
         assert not (directory / "old-id").exists()
-        assert "# Updated CV\n" in (
-            directory / "new-id/curriculum-vitae.md"
-        ).read_text()
+        assert (
+            "# Updated CV\n" in (directory / "new-id/curriculum-vitae.md").read_text()
+        )
 
     def test_renames_directory(
         self, repository_with_job_posting, sample_cv, temp_data_dir
@@ -1360,15 +1403,22 @@ class TestOptimizedCvUsesParentPath:
     """
 
     def _move_job_posting(self, repository, identifier, new_rel):
-        """Physically move a job posting directory and update its stored path in the collection."""
+        """Physically move a job posting directory and update its stored path, and its child optimized CV paths, in the collections."""
         collection = repository._load_collection(repository.job_postings_collection)
         item = next(i for i in collection if i["identifier"] == identifier)
-        old_abs = repository.data_dir / item["path"]
+        old_rel = item["path"]
+        old_abs = repository.data_dir / old_rel
         new_abs = repository.data_dir / new_rel
         new_abs.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(old_abs), str(new_abs))
         item["path"] = new_rel
         repository._save_collection(repository.job_postings_collection, collection)
+
+        optimized_cvs = repository._load_collection(repository.optimized_cvs_collection)
+        for child in optimized_cvs:
+            if child["job_posting_identifier"] == identifier:
+                child["path"] = new_rel + child["path"][len(old_rel) :]
+        repository._save_collection(repository.optimized_cvs_collection, optimized_cvs)
 
     def test_add_optimized_cv_saves_under_parent_stored_path(
         self, repository_with_job_posting, sample_cv, temp_data_dir

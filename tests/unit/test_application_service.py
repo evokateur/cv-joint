@@ -153,9 +153,8 @@ class TestExportMarkdown:
 
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
         cv = CurriculumVitae(**sample_cv_data)
-        base_uri = "job-postings/job-1/cvs/opt-1"
-        service.repository.add_optimized_cv("job-1", "opt-1", "cv-1", cv)
-        service.repository.save_object(base_uri, plan)
+        record = service.repository.add_optimized_cv("job-1", "opt-1", "cv-1", cv)
+        service.repository.save_object(record, plan)
 
         opt_dir = Path(temp_data_dir) / "job-postings" / "job-1" / "cvs" / "opt-1"
         plan_md = opt_dir / "cv-transformation-plan.md"
@@ -633,6 +632,19 @@ class TestAddDocument:
         source.write_text("# Notes")
         with pytest.raises(ValueError, match="Not found"):
             service.add_document("job-postings/nonexistent", str(source))
+
+    def test_existing_document_error_names_logical_uri(
+        self, service, sample_job_posting_data, tmp_path
+    ):
+        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.archive_job_posting("acme-swe")
+        source = tmp_path / "notes.md"
+        source.write_text("# Notes")
+        service.add_document("job-postings/acme-swe", str(source))
+        with pytest.raises(
+            ValueError, match="^Document already exists: job-postings/acme-swe/notes.md$"
+        ):
+            service.add_document("job-postings/acme-swe", str(source))
 
 
 class TestObjectExists:
