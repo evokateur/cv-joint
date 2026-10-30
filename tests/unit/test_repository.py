@@ -655,7 +655,7 @@ class TestRemoveUsesStoredPath:
         assert not (Path(temp_data_dir) / "archived/cvs/to-delete").exists()
 
 
-class TestListCvsBaseOnly:
+class TestGetCvRecordsBaseOnly:
     def test_get_cv_records_returns_only_base_cvs(
         self, repository, sample_job_posting, sample_cv
     ):

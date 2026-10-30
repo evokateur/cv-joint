@@ -412,10 +412,6 @@ class TestListingDictionaries:
         assert service.get_cvs(query="no match") == []
 
 
-# ---------------------------------------------------------------------------
-# New tests for step 3 service method updates
-# ---------------------------------------------------------------------------
-
 class TestGetOptimizedCvs:
     @pytest.mark.parametrize(
         "file_job_posting",
