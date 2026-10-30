@@ -286,17 +286,17 @@ class TestRenameCv:
 class TestGetJobPostings:
     def test_forwards_location_param(self):
         mock_repo = MagicMock()
-        mock_repo.list_job_postings.return_value = []
+        mock_repo.get_job_posting_records.return_value = []
         service = ApplicationService(repository=mock_repo)
         service.get_job_postings(location="archived")
-        mock_repo.list_job_postings.assert_called_once_with(location="archived", all=False)
+        mock_repo.get_job_posting_records.assert_called_once_with(location="archived", all=False)
 
     def test_forwards_all_param(self):
         mock_repo = MagicMock()
-        mock_repo.list_job_postings.return_value = []
+        mock_repo.get_job_posting_records.return_value = []
         service = ApplicationService(repository=mock_repo)
         service.get_job_postings(all=True)
-        mock_repo.list_job_postings.assert_called_once_with(location=None, all=True)
+        mock_repo.get_job_posting_records.assert_called_once_with(location=None, all=True)
 
 
 class TestArchiveJobPosting:
@@ -354,14 +354,73 @@ class TestMarkApplied:
 # New tests for step 3 service method updates
 # ---------------------------------------------------------------------------
 
+class TestListingDictionaries:
+    @pytest.mark.parametrize(
+        "getter, expected_identifier",
+        [
+            ("get_job_postings", "acme-swe"),
+            ("get_cvs", "jane-doe"),
+            ("get_optimized_cvs", "opt-1"),
+        ],
+    )
+    def test_returns_json_compatible_dictionaries(
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        getter,
+        expected_identifier,
+    ):
+        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add_cv(sample_cv_data, "jane-doe")
+        service.repository.add_optimized_cv(
+            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+        )
+
+        results = getattr(service, getter)()
+
+        assert len(results) == 1
+        assert isinstance(results[0], dict)
+        assert results[0]["identifier"] == expected_identifier
+        assert isinstance(results[0]["created_at"], str)
+        assert isinstance(results[0]["updated_at"], str)
+        assert json.loads(json.dumps(results)) == results
+
+    @pytest.mark.parametrize("query", ["ACME", "software", "MID-LEVEL", "example.com"])
+    def test_job_posting_keyword_filters(self, service, sample_job_posting_data, query):
+        service.add_job_posting(sample_job_posting_data, "acme-swe")
+
+        results = service.get_job_postings(query=query)
+
+        assert [record["identifier"] for record in results] == ["acme-swe"]
+        assert service.get_job_postings(query="no match") == []
+
+    def test_job_posting_date_filter(self, service, sample_job_posting_data):
+        record = service.add_job_posting(sample_job_posting_data, "acme-swe")
+
+        results = service.get_job_postings(query=record.created_at.date().isoformat())
+
+        assert [item["identifier"] for item in results] == ["acme-swe"]
+
+    @pytest.mark.parametrize("query", ["JANE", "base-cv"])
+    def test_cv_keyword_filters(self, service, sample_cv_data, query):
+        service.add_cv(sample_cv_data, "base-cv")
+
+        results = service.get_cvs(query=query)
+
+        assert [record["identifier"] for record in results] == ["base-cv"]
+        assert service.get_cvs(query="no match") == []
+
+
 class TestGetOptimizedCvs:
-    def test_excludes_optimizations_from_archived_job_postings(
-        self, service, sample_job_posting_data, sample_cv_data
+    @pytest.mark.parametrize("location", ["archived", "applied"])
+    def test_excludes_optimizations_from_filed_job_postings(
+        self, service, sample_job_posting_data, sample_cv_data, location
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "jane-doe")
         service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
-        service.archive_job_posting("acme-swe")
+        service.transition_job_posting("acme-swe", location)
         opts = service.get_optimized_cvs()
         assert not any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
 

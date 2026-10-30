@@ -195,7 +195,10 @@ class ApplicationService:
         Returns:
             list of job posting metadata dictionaries
         """
-        results = self.repository.list_job_postings(location=location, all=all)
+        results = [
+            record.model_dump(mode="json")
+            for record in self.repository.get_job_posting_records(location=location, all=all)
+        ]
         if query:
             q = query.lower()
             results = [
@@ -294,7 +297,9 @@ class ApplicationService:
         Returns:
             list of CV metadata dictionaries
         """
-        results = self.repository.list_cvs()
+        results = [
+            record.model_dump(mode="json") for record in self.repository.get_cv_records()
+        ]
         if query:
             q = query.lower()
             results = [
@@ -481,11 +486,15 @@ class ApplicationService:
         Returns:
             list of optimization metadata dictionaries
         """
-        opts = self.repository.list_optimized_cvs()
+        opts = self.repository.get_optimized_cv_records()
         active_job_ids = {
-            item["identifier"] for item in self.repository.list_job_postings()
+            record.identifier for record in self.repository.get_job_posting_records()
         }
-        return [o for o in opts if o.get("job_posting_identifier") in active_job_ids]
+        return [
+            record.model_dump(mode="json")
+            for record in opts
+            if record.job_posting_identifier in active_job_ids
+        ]
 
     def get_cv_optimization(
         self, job_posting_identifier: str, identifier: str
@@ -513,24 +522,24 @@ class ApplicationService:
 
     def get_cv_data_filepaths(self) -> list[dict[str, Any]]:
         active_job_ids = {
-            item["identifier"] for item in self.repository.list_job_postings()
+            record.identifier for record in self.repository.get_job_posting_records()
         }
         results = []
-        for item in self.repository.list_cvs():
+        for item in self.repository.get_cv_records():
             results.append(
                 {
-                    "identifier": item["identifier"],
+                    "identifier": item.identifier,
                     "filepath": str(
                         self.repository.data_dir
-                        / item["path"]
+                        / item.path
                         / "curriculum-vitae.json"
                     ),
                 }
             )
-        for item in self.repository.list_optimized_cvs():
-            if item.get("job_posting_identifier") in active_job_ids:
-                jp_id = item["job_posting_identifier"]
-                id_ = item["identifier"]
+        for item in self.repository.get_optimized_cv_records():
+            if item.job_posting_identifier in active_job_ids:
+                jp_id = item.job_posting_identifier
+                id_ = item.identifier
                 filepath = str(
                     self.repository.data_dir
                     / "job-postings"

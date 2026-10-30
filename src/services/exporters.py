@@ -60,20 +60,17 @@ class MarkdownExporter:
 
         count = 0
         if collection_name is None or collection_name == "job-postings":
-            for item in self.repository.list_job_postings(all=True):
-                record = JobPostingRecord(**item)
+            for record in self.repository.get_job_posting_records(all=True):
                 job_posting = self.repository.get_job_posting(record.identifier)
                 self.export_job_posting(record, job_posting)
                 count += 1
         if collection_name is None or collection_name == "cvs":
-            for item in self.repository.list_cvs():
-                record = CurriculumVitaeRecord(**item)
+            for record in self.repository.get_cv_records():
                 cv = self.repository.get_cv(record.identifier)
                 self.export_cv(record, cv)
                 count += 1
         if collection_name is None or collection_name == "optimizations":
-            for item in self.repository.list_optimized_cvs():
-                record = OptimizedCvRecord(**item)
+            for record in self.repository.get_optimized_cv_records():
                 uri = f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
                 actual_path = self.repository.optimized_cv_base_uri(
                     record.job_posting_identifier, record.identifier

@@ -205,9 +205,9 @@ class FileSystemRepository:
 
         return JobPostingRecord(**data)
 
-    def list_job_postings(
+    def get_job_posting_records(
         self, location: str | None = None, all: bool = False
-    ) -> list[dict[str, Any]]:
+    ) -> list[JobPostingRecord]:
         """
         List job postings in the collection.
 
@@ -216,12 +216,16 @@ class FileSystemRepository:
             all: If True and location is None, return all records across all locations.
 
         Returns:
-            List of collection metadata dicts
+            List of job posting records
         """
         collection = self._load_collection(self.job_postings_collection)
         if all and location is None:
-            return collection
-        return [item for item in collection if item.get("location") == location]
+            return [JobPostingRecord(**item) for item in collection]
+        return [
+            JobPostingRecord(**item)
+            for item in collection
+            if item.get("location") == location
+        ]
 
     def transition_job_posting(
         self,
@@ -409,16 +413,18 @@ class FileSystemRepository:
 
         return CurriculumVitaeRecord(**data)
 
-    def list_cvs(self) -> list[dict[str, Any]]:
+    def get_cv_records(self) -> list[CurriculumVitaeRecord]:
         """
         List base CVs in the collection.
 
         Returns:
-            List of collection metadata dicts
+            List of base CV records
         """
         collection = self._load_collection(self.cvs_collection)
         return [
-            item for item in collection if item.get("job_posting_identifier") is None
+            CurriculumVitaeRecord(**item)
+            for item in collection
+            if item.get("job_posting_identifier") is None
         ]
 
     def remove_cv(self, identifier: str) -> bool:
@@ -633,14 +639,12 @@ class FileSystemRepository:
 
         return CoverLetterRecord(**data)
 
-    def list_cover_letters(self) -> list[dict[str, Any]]:
-        """
-        List cover letters in the collection.
-
-        Returns:
-            List of collection metadata dicts
-        """
-        return self._load_collection(self.cover_letters_collection)
+    def get_cover_letter_records(self) -> list[CoverLetterRecord]:
+        """Return the cover letter records in the collection."""
+        return [
+            CoverLetterRecord(**item)
+            for item in self._load_collection(self.cover_letters_collection)
+        ]
 
     def remove_cover_letter(self, identifier: str) -> bool:
         """
@@ -944,9 +948,9 @@ class FileSystemRepository:
         base_uri = self.optimized_cv_base_uri(job_posting_identifier, identifier)
         return self.load_object(base_uri, CurriculumVitae)
 
-    def list_optimized_cvs(
+    def get_optimized_cv_records(
         self, job_posting_identifier: Optional[str] = None
-    ) -> list[dict[str, Any]]:
+    ) -> list[OptimizedCvRecord]:
         collection = self._load_collection(self.optimized_cvs_collection)
         if job_posting_identifier is not None:
             collection = [
@@ -954,7 +958,7 @@ class FileSystemRepository:
                 for item in collection
                 if item["job_posting_identifier"] == job_posting_identifier
             ]
-        return collection
+        return [OptimizedCvRecord(**item) for item in collection]
 
     def remove_optimized_cv(self, job_posting_identifier: str, identifier: str) -> bool:
         collection = self._load_collection(self.optimized_cvs_collection)

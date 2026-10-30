@@ -12,9 +12,12 @@ from repositories import FileSystemRepository
 from repositories.filesystem import parse_uri
 from models import (
     CoverLetter,
+    CoverLetterRecord,
     CurriculumVitae,
+    CurriculumVitaeRecord,
     CvTransformationPlan,
     JobPosting,
+    JobPostingRecord,
     OptimizedCvRecord,
 )
 
@@ -143,18 +146,19 @@ class TestJobPostingOperations:
         assert retrieved.company == "Acme Corp"
         assert retrieved.title == "Software Engineer"
 
-    def test_list_job_postings(self, repository, sample_job_posting):
+    def test_get_job_posting_records(self, repository, sample_job_posting):
         repository.add_job_posting(sample_job_posting, "job-1")
         repository.add_job_posting(sample_job_posting, "job-2")
 
-        listings = repository.list_job_postings()
+        listings = repository.get_job_posting_records()
         assert len(listings) == 2
-        identifiers = [item["identifier"] for item in listings]
+        assert all(isinstance(record, JobPostingRecord) for record in listings)
+        identifiers = [record.identifier for record in listings]
         assert "job-1" in identifiers
         assert "job-2" in identifiers
 
-    def test_list_job_postings_empty(self, repository):
-        listings = repository.list_job_postings()
+    def test_get_job_posting_records_empty(self, repository):
+        listings = repository.get_job_posting_records()
         assert listings == []
 
     def test_remove_job_posting(self, repository, sample_job_posting, temp_data_dir):
@@ -167,7 +171,7 @@ class TestJobPostingOperations:
         repository.add_job_posting(sample_job_posting, "to-delete")
         repository.remove_job_posting("to-delete")
         assert all(
-            item["identifier"] != "to-delete" for item in repository.list_job_postings()
+            item.identifier != "to-delete" for item in repository.get_job_posting_records()
         )
 
     def test_remove_nonexistent_job_posting(self, repository):
@@ -202,37 +206,37 @@ class TestJobPostingOperations:
     def test_get_job_posting_record_not_found(self, repository):
         assert repository.get_job_posting_record("nonexistent") is None
 
-    def test_list_job_postings_excludes_filed_by_default(
+    def test_get_job_posting_records_excludes_filed_by_default(
         self, repository, sample_job_posting
     ):
         repository.add_job_posting(sample_job_posting, "active-job")
         repository.add_job_posting(sample_job_posting, "filed-job")
         repository.transition_job_posting("filed-job", "somewhere")
 
-        listings = repository.list_job_postings()
-        identifiers = [item["identifier"] for item in listings]
+        listings = repository.get_job_posting_records()
+        identifiers = [item.identifier for item in listings]
         assert "active-job" in identifiers
         assert "filed-job" not in identifiers
 
-    def test_list_job_postings_by_location(self, repository, sample_job_posting):
+    def test_get_job_posting_records_by_location(self, repository, sample_job_posting):
         repository.add_job_posting(sample_job_posting, "active-job")
         repository.add_job_posting(sample_job_posting, "filed-job")
         repository.transition_job_posting("filed-job", "somewhere")
 
-        listings = repository.list_job_postings(location="somewhere")
-        identifiers = [item["identifier"] for item in listings]
+        listings = repository.get_job_posting_records(location="somewhere")
+        identifiers = [item.identifier for item in listings]
         assert "active-job" not in identifiers
         assert "filed-job" in identifiers
 
-    def test_list_job_postings_all_returns_every_record(
+    def test_get_job_posting_records_all_returns_every_record(
         self, repository, sample_job_posting
     ):
         repository.add_job_posting(sample_job_posting, "active-job")
         repository.add_job_posting(sample_job_posting, "filed-job")
         repository.transition_job_posting("filed-job", "somewhere")
 
-        listings = repository.list_job_postings(all=True)
-        identifiers = [item["identifier"] for item in listings]
+        listings = repository.get_job_posting_records(all=True)
+        identifiers = [item.identifier for item in listings]
         assert "active-job" in identifiers
         assert "filed-job" in identifiers
 
@@ -246,18 +250,19 @@ class TestCvOperations:
         assert retrieved.name == "Jane Doe"
         assert retrieved.profession == "Software Engineer"
 
-    def test_list_cvs(self, repository, sample_cv):
+    def test_get_cv_records(self, repository, sample_cv):
         repository.add_cv(sample_cv, "cv-1")
         repository.add_cv(sample_cv, "cv-2")
 
-        listings = repository.list_cvs()
+        listings = repository.get_cv_records()
         assert len(listings) == 2
-        identifiers = [item["identifier"] for item in listings]
+        assert all(isinstance(record, CurriculumVitaeRecord) for record in listings)
+        identifiers = [record.identifier for record in listings]
         assert "cv-1" in identifiers
         assert "cv-2" in identifiers
 
-    def test_list_cvs_empty(self, repository):
-        listings = repository.list_cvs()
+    def test_get_cv_records_empty(self, repository):
+        listings = repository.get_cv_records()
         assert listings == []
 
     def test_remove_cv(self, repository, sample_cv, temp_data_dir):
@@ -269,7 +274,7 @@ class TestCvOperations:
     def test_remove_cv_not_in_listing(self, repository, sample_cv):
         repository.add_cv(sample_cv, "to-delete")
         repository.remove_cv("to-delete")
-        assert all(item["identifier"] != "to-delete" for item in repository.list_cvs())
+        assert all(item.identifier != "to-delete" for item in repository.get_cv_records())
 
     def test_remove_nonexistent_cv(self, repository):
         assert repository.remove_cv("nonexistent") is False
@@ -375,18 +380,19 @@ class TestCoverLetterOperations:
         assert retrieved.salutation == "Dear Hiring Manager,"
         assert retrieved.closing == "Sincerely,"
 
-    def test_list_cover_letters(self, repository, sample_cover_letter):
+    def test_get_cover_letter_records(self, repository, sample_cover_letter):
         repository.add_cover_letter(sample_cover_letter, "letter-1")
         repository.add_cover_letter(sample_cover_letter, "letter-2")
 
-        listings = repository.list_cover_letters()
+        listings = repository.get_cover_letter_records()
         assert len(listings) == 2
-        identifiers = [item["identifier"] for item in listings]
+        assert all(isinstance(record, CoverLetterRecord) for record in listings)
+        identifiers = [record.identifier for record in listings]
         assert "letter-1" in identifiers
         assert "letter-2" in identifiers
 
-    def test_list_cover_letters_empty(self, repository):
-        assert repository.list_cover_letters() == []
+    def test_get_cover_letter_records_empty(self, repository):
+        assert repository.get_cover_letter_records() == []
 
     def test_remove_cover_letter(self, repository, sample_cover_letter, temp_data_dir):
         repository.add_cover_letter(sample_cover_letter, "to-delete")
@@ -398,8 +404,8 @@ class TestCoverLetterOperations:
         repository.add_cover_letter(sample_cover_letter, "to-delete")
         repository.remove_cover_letter("to-delete")
         assert all(
-            item["identifier"] != "to-delete"
-            for item in repository.list_cover_letters()
+            item.identifier != "to-delete"
+            for item in repository.get_cover_letter_records()
         )
 
     def test_remove_nonexistent_cover_letter(self, repository):
@@ -541,7 +547,7 @@ class TestRemoveJobPostingCascadesOptimizedCvs:
         repository.add_optimized_cv("to-delete", "opt-1", "jane-doe", sample_cv)
         repository.add_optimized_cv("to-delete", "opt-2", "jane-doe", sample_cv)
         repository.remove_job_posting("to-delete")
-        assert repository.list_optimized_cvs("to-delete") == []
+        assert repository.get_optimized_cv_records("to-delete") == []
 
 
 class TestRenameJobPostingOptimizedCvs:
@@ -647,15 +653,15 @@ class TestRemoveUsesStoredPath:
 
 
 class TestListCvsBaseOnly:
-    def test_list_cvs_returns_only_base_cvs(
+    def test_get_cv_records_returns_only_base_cvs(
         self, repository, sample_job_posting, sample_cv
     ):
         repository.add_cv(sample_cv, "jane-doe")
         repository.add_job_posting(sample_job_posting, "acme-swe")
         repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
-        listings = repository.list_cvs()
+        listings = repository.get_cv_records()
         assert len(listings) == 1
-        assert listings[0]["identifier"] == "jane-doe"
+        assert listings[0].identifier == "jane-doe"
 
 
 class TestParseUri:
@@ -1195,7 +1201,7 @@ class TestGetOptimizedCv:
         )
 
 
-class TestListOptimizedCvs:
+class TestGetOptimizedCvRecords:
     def test_returns_all_records(self, repository_with_job_posting, sample_cv):
         repository_with_job_posting.add_optimized_cv(
             "acme-swe", "opt-1", "jane-doe", sample_cv
@@ -1203,8 +1209,10 @@ class TestListOptimizedCvs:
         repository_with_job_posting.add_optimized_cv(
             "acme-swe", "opt-2", "jane-doe", sample_cv
         )
-        results = repository_with_job_posting.list_optimized_cvs()
+        results = repository_with_job_posting.get_optimized_cv_records()
         assert len(results) == 2
+        assert all(isinstance(record, OptimizedCvRecord) for record in results)
+        assert [record.identifier for record in results] == ["opt-1", "opt-2"]
 
     def test_filters_by_job_posting_identifier(
         self, repository, sample_job_posting, sample_cv
@@ -1213,12 +1221,12 @@ class TestListOptimizedCvs:
         repository.add_job_posting(sample_job_posting, "other-job")
         repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
         repository.add_optimized_cv("other-job", "opt-2", "jane-doe", sample_cv)
-        results = repository.list_optimized_cvs("acme-swe")
+        results = repository.get_optimized_cv_records("acme-swe")
         assert len(results) == 1
-        assert results[0]["identifier"] == "opt-1"
+        assert results[0].identifier == "opt-1"
 
     def test_returns_empty_list(self, repository_with_job_posting):
-        assert repository_with_job_posting.list_optimized_cvs() == []
+        assert repository_with_job_posting.get_optimized_cv_records() == []
 
 
 class TestRemoveOptimizedCv:
