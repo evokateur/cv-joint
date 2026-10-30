@@ -640,7 +640,12 @@ class FileSystemRepository:
         return CoverLetterRecord(**data)
 
     def get_cover_letter_records(self) -> list[CoverLetterRecord]:
-        """Return the cover letter records in the collection."""
+        """
+        List cover letters in the collection.
+
+        Returns:
+            List of cover letter records
+        """
         return [
             CoverLetterRecord(**item)
             for item in self._load_collection(self.cover_letters_collection)
@@ -951,6 +956,15 @@ class FileSystemRepository:
     def get_optimized_cv_records(
         self, job_posting_identifier: Optional[str] = None
     ) -> list[OptimizedCvRecord]:
+        """
+        List optimized CVs in the collection.
+
+        Args:
+            job_posting_identifier: If given, only optimized CVs for this job posting.
+
+        Returns:
+            List of optimized CV records
+        """
         collection = self._load_collection(self.optimized_cvs_collection)
         if job_posting_identifier is not None:
             collection = [

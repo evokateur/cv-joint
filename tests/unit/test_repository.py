@@ -171,7 +171,8 @@ class TestJobPostingOperations:
         repository.add_job_posting(sample_job_posting, "to-delete")
         repository.remove_job_posting("to-delete")
         assert all(
-            item.identifier != "to-delete" for item in repository.get_job_posting_records()
+            record.identifier != "to-delete"
+            for record in repository.get_job_posting_records()
         )
 
     def test_remove_nonexistent_job_posting(self, repository):
@@ -274,7 +275,9 @@ class TestCvOperations:
     def test_remove_cv_not_in_listing(self, repository, sample_cv):
         repository.add_cv(sample_cv, "to-delete")
         repository.remove_cv("to-delete")
-        assert all(item.identifier != "to-delete" for item in repository.get_cv_records())
+        assert all(
+            record.identifier != "to-delete" for record in repository.get_cv_records()
+        )
 
     def test_remove_nonexistent_cv(self, repository):
         assert repository.remove_cv("nonexistent") is False

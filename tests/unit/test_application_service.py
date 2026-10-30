@@ -289,14 +289,18 @@ class TestGetJobPostings:
         mock_repo.get_job_posting_records.return_value = []
         service = ApplicationService(repository=mock_repo)
         service.get_job_postings(location="archived")
-        mock_repo.get_job_posting_records.assert_called_once_with(location="archived", all=False)
+        mock_repo.get_job_posting_records.assert_called_once_with(
+            location="archived", all=False
+        )
 
     def test_forwards_all_param(self):
         mock_repo = MagicMock()
         mock_repo.get_job_posting_records.return_value = []
         service = ApplicationService(repository=mock_repo)
         service.get_job_postings(all=True)
-        mock_repo.get_job_posting_records.assert_called_once_with(location=None, all=True)
+        mock_repo.get_job_posting_records.assert_called_once_with(
+            location=None, all=True
+        )
 
 
 class TestArchiveJobPosting:
@@ -349,10 +353,6 @@ class TestMarkApplied:
         service.mark_applied("acme-swe", "my-cv")
         mock_exporter.export_job_posting.assert_not_called()
 
-
-# ---------------------------------------------------------------------------
-# New tests for step 3 service method updates
-# ---------------------------------------------------------------------------
 
 class TestListingDictionaries:
     @pytest.mark.parametrize(
@@ -412,15 +412,26 @@ class TestListingDictionaries:
         assert service.get_cvs(query="no match") == []
 
 
+# ---------------------------------------------------------------------------
+# New tests for step 3 service method updates
+# ---------------------------------------------------------------------------
+
 class TestGetOptimizedCvs:
-    @pytest.mark.parametrize("location", ["archived", "applied"])
+    @pytest.mark.parametrize(
+        "file_job_posting",
+        [
+            lambda service: service.archive_job_posting("acme-swe"),
+            lambda service: service.mark_applied("acme-swe", "jane-doe"),
+        ],
+        ids=["archived", "applied"],
+    )
     def test_excludes_optimizations_from_filed_job_postings(
-        self, service, sample_job_posting_data, sample_cv_data, location
+        self, service, sample_job_posting_data, sample_cv_data, file_job_posting
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "jane-doe")
         service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data))
-        service.transition_job_posting("acme-swe", location)
+        file_job_posting(service)
         opts = service.get_optimized_cvs()
         assert not any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
 
