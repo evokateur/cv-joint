@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from config.root import get_settings
-from models import CurriculumVitae, CvTransformationPlan, JobPosting
+from models import CurriculumVitae, CvTransformationPlan, JobPosting, JobPostingRecord
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
@@ -229,25 +229,54 @@ class ApplicationService:
         self, identifier: str, location: str, fields: dict | None = None
     ):
         """File a job posting into a named location, recording the transition."""
-        record = self.repository.transition_job_posting(identifier, location, fields)
+        return self._transition_job_posting(identifier, location, fields)
+
+    def _transition_job_posting(
+        self,
+        identifier: str,
+        location: str | None,
+        fields: dict | None = None,
+        record_fields: dict | None = None,
+    ) -> JobPostingRecord:
+        """Build the lifecycle update, persist it, and patch its Markdown metadata."""
+        current = self.repository.get_job_posting_record(identifier)
+        if current is None:
+            raise ValueError(f"Job posting not found: {identifier}")
+
+        normalized_location = None if location == "." else location
+        if normalized_location == current.location:
+            raise ValueError(f"Job posting already in {location}")
+
+        now = datetime.now()
+        entry = {
+            "date": now.isoformat(),
+            "location": normalized_location if normalized_location is not None else ".",
+            **(fields or {}),
+        }
+        replacement = JobPostingRecord(
+            **{
+                **current.model_dump(),
+                "location": normalized_location,
+                "transitions": current.transitions + [entry],
+                "updated_at": now,
+                **(record_fields or {}),
+            }
+        )
+        record = self.repository.update_job_posting_record(replacement)
         self.markdown_exporter.patch_document_frontmatter(record)
         return record
 
     def archive_job_posting(self, identifier: str):
         """Mark a job posting as archived."""
-        record = self.repository.transition_job_posting(
+        return self._transition_job_posting(
             identifier, "archived", record_fields={"is_archived": True}
         )
-        self.markdown_exporter.patch_document_frontmatter(record)
-        return record
 
     def unarchive_job_posting(self, identifier: str):
         """Return a job posting to the root (active/unfiled)."""
-        record = self.repository.transition_job_posting(
+        return self._transition_job_posting(
             identifier, ".", record_fields={"is_archived": False}
         )
-        self.markdown_exporter.patch_document_frontmatter(record)
-        return record
 
     def mark_applied(
         self, identifier: str, cv_identifier: str, applied_at: Optional[datetime] = None
@@ -258,11 +287,9 @@ class ApplicationService:
             "applied_with": cv_identifier,
             "applied_at": applied_at_dt.isoformat(),
         }
-        record = self.repository.transition_job_posting(
+        return self._transition_job_posting(
             identifier, "applied", fields=denorm, record_fields=denorm
         )
-        self.markdown_exporter.patch_document_frontmatter(record)
-        return record
 
     def analyze_cv(self, content_file: Optional[str] = None) -> dict[str, Any]:
         """

@@ -265,7 +265,11 @@ class TestJobPostingOperations:
         repository.add_job_posting(
             build_job_posting_record("filed-job"), sample_job_posting
         )
-        repository.transition_job_posting("filed-job", "somewhere")
+        repository.update_job_posting_record(
+            repository.get_job_posting_record("filed-job").model_copy(
+                update={"location": "somewhere"}
+            )
+        )
 
         listings = repository.get_job_posting_records()
         identifiers = [item.identifier for item in listings]
@@ -281,7 +285,11 @@ class TestJobPostingOperations:
         repository.add_job_posting(
             build_job_posting_record("filed-job"), sample_job_posting
         )
-        repository.transition_job_posting("filed-job", "somewhere")
+        repository.update_job_posting_record(
+            repository.get_job_posting_record("filed-job").model_copy(
+                update={"location": "somewhere"}
+            )
+        )
 
         listings = repository.get_job_posting_records(location="somewhere")
         identifiers = [item.identifier for item in listings]
@@ -297,7 +305,11 @@ class TestJobPostingOperations:
         repository.add_job_posting(
             build_job_posting_record("filed-job"), sample_job_posting
         )
-        repository.transition_job_posting("filed-job", "somewhere")
+        repository.update_job_posting_record(
+            repository.get_job_posting_record("filed-job").model_copy(
+                update={"location": "somewhere"}
+            )
+        )
 
         listings = repository.get_job_posting_records(all=True)
         identifiers = [item.identifier for item in listings]
@@ -952,7 +964,11 @@ class TestDirectoryFor:
         )
 
     def test_follows_stored_path(self, repository_with_job_posting, temp_data_dir):
-        repository_with_job_posting.transition_job_posting("acme-swe", "archived")
+        repository_with_job_posting.update_job_posting_record(
+            repository_with_job_posting.get_job_posting_record("acme-swe").model_copy(
+                update={"location": "archived"}
+            )
+        )
         record = repository_with_job_posting.get_job_posting_record("acme-swe")
         assert repository_with_job_posting.directory_for(record) == (
             Path(temp_data_dir) / "job-postings/archived/acme-swe"
@@ -1178,7 +1194,11 @@ class TestLoadDocument:
             _current_record(repository, kind), "notes.md", "# Notes\n"
         )
         if location:
-            repository.transition_job_posting("acme-swe", location)
+            repository.update_job_posting_record(
+                repository.get_job_posting_record("acme-swe").model_copy(
+                    update={"location": location}
+                )
+            )
 
         record = _current_record(repository, kind)
         assert repository.load_document(record, "notes.md") == "# Notes\n"
@@ -1192,7 +1212,11 @@ class TestLoadDocument:
     ):
         repository = repository_with_optimized_cv
         if location:
-            repository.transition_job_posting("acme-swe", location)
+            repository.update_job_posting_record(
+                repository.get_job_posting_record("acme-swe").model_copy(
+                    update={"location": location}
+                )
+            )
 
         with pytest.raises(FileNotFoundError):
             repository.load_document(_current_record(repository, kind), "notes.md")
@@ -1211,7 +1235,11 @@ class TestDocumentExists:
             _current_record(repository, kind), "notes.md", "# Notes\n"
         )
         if location:
-            repository.transition_job_posting("acme-swe", location)
+            repository.update_job_posting_record(
+                repository.get_job_posting_record("acme-swe").model_copy(
+                    update={"location": location}
+                )
+            )
 
         record = _current_record(repository, kind)
         assert repository.document_exists(record, "notes.md") is True
@@ -1225,7 +1253,11 @@ class TestDocumentExists:
     ):
         repository = repository_with_optimized_cv
         if location:
-            repository.transition_job_posting("acme-swe", location)
+            repository.update_job_posting_record(
+                repository.get_job_posting_record("acme-swe").model_copy(
+                    update={"location": location}
+                )
+            )
 
         record = _current_record(repository, kind)
         assert repository.document_exists(record, "notes.md") is False
@@ -1503,7 +1535,11 @@ class TestRenameOptimizedCv:
             sample_cv,
         )
         if location:
-            repository_with_job_posting.transition_job_posting("acme-swe", location)
+            repository_with_job_posting.update_job_posting_record(
+                repository_with_job_posting.get_job_posting_record(
+                    "acme-swe"
+                ).model_copy(update={"location": location})
+            )
 
         record = repository_with_job_posting.rename_optimized_cv(
             "acme-swe", "old-id", "new-id"
@@ -1537,7 +1573,11 @@ class TestRenameOptimizedCv:
             sample_cv,
         )
         if location:
-            repository_with_job_posting.transition_job_posting("acme-swe", location)
+            repository_with_job_posting.update_job_posting_record(
+                repository_with_job_posting.get_job_posting_record(
+                    "acme-swe"
+                ).model_copy(update={"location": location})
+            )
         record = repository_with_job_posting.rename_optimized_cv(
             "acme-swe", "old-id", "new-id"
         )
@@ -1721,71 +1761,62 @@ class TestOptimizedCvUsesParentPath:
         ).exists()
 
 
-class TestTransitionAuditLog:
-    def test_sets_location(self, repository_with_job_posting):
-        record = repository_with_job_posting.transition_job_posting(
-            "acme-swe", "somewhere"
-        )
-        assert record.location == "somewhere"
-        assert (
-            repository_with_job_posting.get_job_posting_record("acme-swe").location
-            == "somewhere"
-        )
+class TestUpdateJobPostingRecord:
+    @pytest.mark.parametrize("path", [None, "elsewhere", "../outside"])
+    @pytest.mark.parametrize("location", [None, "archived"])
+    def test_ignores_submitted_path(self, repository_with_job_posting, path, location):
+        repository = repository_with_job_posting
+        original = repository.get_job_posting_record("acme-swe")
+        submitted = original.model_copy(update={"path": path, "location": location})
 
-    def test_updates_updated_at(self, repository_with_job_posting):
-        from datetime import datetime
+        result = repository.update_job_posting_record(submitted)
 
-        before = datetime.now()
-        record = repository_with_job_posting.transition_job_posting(
-            "acme-swe", "somewhere"
+        expected = (
+            "job-postings/archived/acme-swe" if location else "job-postings/acme-swe"
         )
-        assert record.updated_at >= before
+        assert result == submitted.model_copy(update={"path": expected})
+        assert submitted.path == path
+        assert repository.load_object(result, JobPosting).title == "Software Engineer"
+        assert repository.get_job_posting_record("acme-swe") == result
 
-    def test_merges_record_fields_into_record(self, repository_with_job_posting):
-        record = repository_with_job_posting.transition_job_posting(
-            "acme-swe", "somewhere", record_fields={"applied_with": "my-cv"}
-        )
-        assert record.applied_with == "my-cv"
-        assert (
-            repository_with_job_posting.get_job_posting_record("acme-swe").applied_with
-            == "my-cv"
-        )
-
-    def test_raises_when_already_in_target_location(self, repository_with_job_posting):
-        repository_with_job_posting.transition_job_posting("acme-swe", "somewhere")
-        with pytest.raises(ValueError, match="already in "):
-            repository_with_job_posting.transition_job_posting("acme-swe", "somewhere")
-
-    def test_appends_entry_with_required_keys(self, repository_with_job_posting):
-        record = repository_with_job_posting.transition_job_posting(
-            "acme-swe", "applied"
-        )
-        assert len(record.transitions) == 1
-        entry = record.transitions[0]
-        assert entry["location"] == "applied"
-        assert "date" in entry
-
-    def test_arbitrary_fields_included_in_entry(self, repository_with_job_posting):
-        record = repository_with_job_posting.transition_job_posting(
-            "acme-swe", "applied", {"note": "strong match"}
-        )
-        assert record.transitions[0]["note"] == "strong match"
-
-    def test_subsequent_transitions_append_not_replace(
-        self, repository_with_job_posting
+    def test_missing_identifier_raises_without_creating_record(
+        self, repository, build_job_posting_record
     ):
-        repository_with_job_posting.transition_job_posting("acme-swe", "applied")
-        record = repository_with_job_posting.transition_job_posting(
-            "acme-swe", "archived"
-        )
-        assert len(record.transitions) == 2
-        assert record.transitions[0]["location"] == "applied"
-        assert record.transitions[1]["location"] == "archived"
+        with pytest.raises(ValueError, match="Job posting not found: missing"):
+            repository.update_job_posting_record(build_job_posting_record("missing"))
 
-    def test_dot_stored_verbatim_in_log_normalized_on_record(
-        self, repository_with_job_posting
+        assert repository.get_job_posting_record("missing") is None
+        assert not (repository.data_dir / "job-postings/missing").exists()
+
+    def test_moves_directory_and_repairs_child_paths(
+        self, repository_with_optimized_cv
     ):
-        repository_with_job_posting.transition_job_posting("acme-swe", "archived")
-        record = repository_with_job_posting.transition_job_posting("acme-swe", ".")
-        assert record.location is None
-        assert record.transitions[-1]["location"] == "."
+        repository = repository_with_optimized_cv
+        original = repository.get_job_posting_record("acme-swe")
+        source = repository.directory_for(original)
+        replacement = original.model_copy(update={"location": "shortlisted"})
+
+        result = repository.update_job_posting_record(replacement)
+
+        assert result == replacement.model_copy(
+            update={"path": "job-postings/shortlisted/acme-swe"}
+        )
+        assert not source.exists()
+        assert repository.load_object(result, JobPosting).title == "Software Engineer"
+        child = repository.get_optimized_cv_record("acme-swe", "opt-1")
+        assert child.path == "job-postings/shortlisted/acme-swe/cvs/opt-1"
+        assert repository.load_object(child, CurriculumVitae).name == "Jane Doe"
+        reloaded = FileSystemRepository(repository.data_dir)
+        assert reloaded.get_job_posting_record("acme-swe") == result
+        assert reloaded.get_optimized_cv_record("acme-swe", "opt-1") == child
+
+    def test_updates_same_location_without_moving(self, repository_with_job_posting):
+        repository = repository_with_job_posting
+        original = repository.get_job_posting_record("acme-swe")
+        replacement = original.model_copy(update={"title": "Updated title"})
+
+        result = repository.update_job_posting_record(replacement)
+
+        assert result == replacement
+        assert repository.get_job_posting_record("acme-swe") == replacement
+        assert repository.load_object(result, JobPosting).title == "Software Engineer"

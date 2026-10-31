@@ -381,52 +381,43 @@ class TestTransitionFrontmatter:
 
 
 class TestArchiveJobPosting:
-    def test_delegates_to_repository(self):
-        mock_repo = MagicMock()
-        service = ApplicationService(repository=mock_repo)
-        service.markdown_exporter = MagicMock()
-        service.archive_job_posting("acme-swe")
-        mock_repo.transition_job_posting.assert_called_once_with(
-            "acme-swe", "archived", record_fields={"is_archived": True}
-        )
+    def test_sets_archived_flag(self, service_with_job_posting):
+        result = service_with_job_posting.archive_job_posting("acme-swe")
+        assert result.is_archived is True
+        assert result.location == "archived"
+        assert "is_archived" not in result.transitions[-1]
 
-    def test_does_not_regenerate_job_posting_markdown(self):
-        mock_repo = MagicMock()
+    def test_does_not_regenerate_job_posting_markdown(self, service_with_job_posting):
+        service = service_with_job_posting
         mock_exporter = MagicMock()
-        service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = mock_exporter
         service.archive_job_posting("acme-swe")
         mock_exporter.export_job_posting.assert_not_called()
 
 
 class TestMarkApplied:
-    def test_delegates_to_repository(self):
-        mock_repo = MagicMock()
-        service = ApplicationService(repository=mock_repo)
-        service.markdown_exporter = MagicMock()
-        service.mark_applied("acme-swe", "my-cv")
-        args, kwargs = mock_repo.transition_job_posting.call_args
-        assert args[0] == "acme-swe"
-        assert args[1] == "applied"
-        assert kwargs["fields"]["applied_with"] == "my-cv"
-        assert kwargs["record_fields"]["applied_with"] == "my-cv"
+    def test_records_application_in_record_and_history(self, service_with_job_posting):
+        result = service_with_job_posting.mark_applied("acme-swe", "my-cv")
+        assert result.location == "applied"
+        assert result.applied_with == "my-cv"
+        assert result.applied_at is not None
+        assert result.transitions[-1]["applied_with"] == "my-cv"
+        assert result.transitions[-1]["applied_at"] == result.applied_at.isoformat()
+        assert service_with_job_posting.get_job_posting_record("acme-swe") == result
 
-    def test_forwards_applied_at(self):
+    def test_records_explicit_applied_at(self, service_with_job_posting):
         from datetime import datetime
 
-        mock_repo = MagicMock()
-        service = ApplicationService(repository=mock_repo)
-        service.markdown_exporter = MagicMock()
         date = datetime(2025, 1, 15)
-        service.mark_applied("acme-swe", "my-cv", applied_at=date)
-        _, kwargs = mock_repo.transition_job_posting.call_args
-        assert kwargs["fields"]["applied_at"] == date.isoformat()
-        assert kwargs["record_fields"]["applied_at"] == date.isoformat()
+        result = service_with_job_posting.mark_applied(
+            "acme-swe", "my-cv", applied_at=date
+        )
+        assert result.applied_at == date
+        assert result.transitions[-1]["applied_at"] == "2025-01-15T00:00:00"
 
-    def test_does_not_regenerate_job_posting_markdown(self):
-        mock_repo = MagicMock()
+    def test_does_not_regenerate_job_posting_markdown(self, service_with_job_posting):
+        service = service_with_job_posting
         mock_exporter = MagicMock()
-        service = ApplicationService(repository=mock_repo)
         service.markdown_exporter = mock_exporter
         service.mark_applied("acme-swe", "my-cv")
         mock_exporter.export_job_posting.assert_not_called()
@@ -1044,3 +1035,90 @@ class TestAddOptimizedCvBuildsRecord:
         )
         exporter.export_cv_transformation_plan.assert_called_once_with(persisted, plan)
         exporter.export_cv.assert_called_once_with(persisted, cv)
+
+
+@pytest.fixture
+def service_with_job_posting(service, sample_job_posting_data):
+    service.add_job_posting(sample_job_posting_data, "acme-swe")
+    return service
+
+
+class TestTransitionAuditLog:
+    def test_sets_location(self, service_with_job_posting):
+        record = service_with_job_posting.transition_job_posting(
+            "acme-swe", "somewhere"
+        )
+        assert record.location == "somewhere"
+        assert (
+            service_with_job_posting.get_job_posting_record("acme-swe").location
+            == "somewhere"
+        )
+
+    def test_updates_updated_at(self, service_with_job_posting):
+        from datetime import datetime
+
+        original = service_with_job_posting.get_job_posting_record("acme-swe")
+        now = datetime(2030, 1, 15, 12, 30)
+        with patch("services.application.datetime") as clock:
+            clock.now.return_value = now
+            record = service_with_job_posting.transition_job_posting(
+                "acme-swe", "somewhere"
+            )
+        assert record.updated_at == now
+        assert record.created_at == original.created_at
+        assert record.transitions[-1]["date"] == "2030-01-15T12:30:00"
+
+    @pytest.mark.parametrize(
+        "method, arguments, location, message_location",
+        [
+            ("transition_job_posting", ("somewhere",), "somewhere", "somewhere"),
+            ("transition_job_posting", (".",), None, "."),
+            ("transition_job_posting", (None,), None, "None"),
+            ("archive_job_posting", (), "archived", "archived"),
+            ("unarchive_job_posting", (), None, "."),
+            ("mark_applied", ("my-cv",), "applied", "applied"),
+        ],
+    )
+    def test_raises_when_already_in_target_location(
+        self, service_with_job_posting, method, arguments, location, message_location
+    ):
+        service = service_with_job_posting
+        if location is not None:
+            service.transition_job_posting("acme-swe", location)
+        original = service.get_job_posting_record("acme-swe")
+        with pytest.raises(ValueError) as error:
+            getattr(service, method)("acme-swe", *arguments)
+        assert str(error.value) == f"Job posting already in {message_location}"
+        assert service.get_job_posting_record("acme-swe") == original
+
+    def test_appends_entry_with_required_keys(self, service_with_job_posting):
+        record = service_with_job_posting.transition_job_posting("acme-swe", "applied")
+        assert len(record.transitions) == 1
+        entry = record.transitions[0]
+        assert entry["location"] == "applied"
+        assert "date" in entry
+
+    def test_arbitrary_fields_included_in_entry(self, service_with_job_posting):
+        record = service_with_job_posting.transition_job_posting(
+            "acme-swe",
+            "applied",
+            {"note": "strong match", "applied_with": "history-only"},
+        )
+        assert record.transitions[0]["note"] == "strong match"
+        assert record.transitions[0]["applied_with"] == "history-only"
+        assert record.applied_with is None
+
+    def test_subsequent_transitions_append_not_replace(self, service_with_job_posting):
+        service_with_job_posting.transition_job_posting("acme-swe", "applied")
+        record = service_with_job_posting.transition_job_posting("acme-swe", "archived")
+        assert len(record.transitions) == 2
+        assert record.transitions[0]["location"] == "applied"
+        assert record.transitions[1]["location"] == "archived"
+
+    def test_dot_stored_verbatim_in_log_normalized_on_record(
+        self, service_with_job_posting
+    ):
+        service_with_job_posting.transition_job_posting("acme-swe", "archived")
+        record = service_with_job_posting.transition_job_posting("acme-swe", ".")
+        assert record.location is None
+        assert record.transitions[-1]["location"] == "."
