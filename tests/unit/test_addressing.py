@@ -105,35 +105,56 @@ def sample_cover_letter():
 
 
 class TestResolveRecord:
-    def test_resolves_job_posting(self, repository, sample_job_posting):
+    def test_resolves_job_posting(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
         from models import JobPostingRecord
 
-        repository.add_job_posting(sample_job_posting, "acme-swe")
+        repository.add_job_posting(
+            build_job_posting_record("acme-swe"), sample_job_posting
+        )
         record = resolve_record(repository, "job-postings/acme-swe")
         assert isinstance(record, JobPostingRecord)
         assert record.identifier == "acme-swe"
 
-    def test_resolves_cv(self, repository, sample_cv):
+    def test_resolves_cv(self, repository, sample_cv, build_cv_record):
         from models import CurriculumVitaeRecord
 
-        repository.add_cv(sample_cv, "jane-doe")
+        repository.add_cv(build_cv_record("jane-doe"), sample_cv)
         record = resolve_record(repository, "cvs/jane-doe")
         assert isinstance(record, CurriculumVitaeRecord)
         assert record.identifier == "jane-doe"
 
-    def test_resolves_optimized_cv(self, repository, sample_job_posting, sample_cv):
+    def test_resolves_optimized_cv(
+        self,
+        repository,
+        sample_job_posting,
+        sample_cv,
+        build_job_posting_record,
+        build_optimized_cv_record,
+    ):
         from models import OptimizedCvRecord
 
-        repository.add_job_posting(sample_job_posting, "acme-swe")
-        repository.add_optimized_cv("acme-swe", "jane-v2", "jane-doe", sample_cv)
+        repository.add_job_posting(
+            build_job_posting_record("acme-swe"), sample_job_posting
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("jane-v2", "acme-swe", "jane-doe"),
+            sample_cv,
+        )
         record = resolve_record(repository, "job-postings/acme-swe/cvs/jane-v2")
         assert isinstance(record, OptimizedCvRecord)
         assert record.identifier == "jane-v2"
 
-    def test_resolves_cover_letter(self, repository, sample_cover_letter):
+    def test_resolves_cover_letter(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
         from models import CoverLetterRecord
 
-        repository.add_cover_letter(sample_cover_letter, "frobozzco-magic-gunk")
+        repository.add_cover_letter(
+            build_cover_letter_record("frobozzco-magic-gunk"), sample_cover_letter
+        )
         record = resolve_record(repository, "cover-letters/frobozzco-magic-gunk")
         assert isinstance(record, CoverLetterRecord)
         assert record.identifier == "frobozzco-magic-gunk"

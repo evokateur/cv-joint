@@ -156,14 +156,23 @@ class TestExportMarkdown:
         assert not cv_md.exists()
 
     def test_export_optimizations(
-        self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "job-1")
         service.add_cv(sample_cv_data, "cv-1")
 
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
         cv = CurriculumVitae(**sample_cv_data)
-        record = service.repository.add_optimized_cv("job-1", "opt-1", "cv-1", cv)
+        record = service.repository.add_optimized_cv(
+            service.repository.get_job_posting_record("job-1"),
+            build_optimized_cv_record("opt-1", "job-1", "cv-1"),
+            cv,
+        )
         service.repository.save_object(record, plan)
 
         opt_dir = Path(temp_data_dir) / "job-postings" / "job-1" / "cvs" / "opt-1"
@@ -176,12 +185,18 @@ class TestExportMarkdown:
         assert cv_md.exists()
 
     def test_export_cvs_excludes_optimized(
-        self, service, sample_job_posting_data, sample_cv_data
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "jane-doe")
         service.repository.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            CurriculumVitae(**sample_cv_data),
         )
 
         count = service.export_markdown(collection_name="cvs")
@@ -284,12 +299,18 @@ class TestRenameCv:
         assert (Path(temp_data_dir) / "cvs" / "new-id" / "curriculum-vitae.md").exists()
 
     def test_repairs_optimization_references(
-        self, service, sample_job_posting_data, sample_cv_data
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "old-cv")
         service.repository.add_optimized_cv(
-            "acme-swe", "opt-1", "old-cv", CurriculumVitae(**sample_cv_data)
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "old-cv"),
+            CurriculumVitae(**sample_cv_data),
         )
         service.rename_cv("old-cv", "new-cv")
         record = service.repository.get_optimized_cv_record("acme-swe", "opt-1")
@@ -427,11 +448,14 @@ class TestListingDictionaries:
         sample_cv_data,
         getter,
         expected_identifier,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "jane-doe")
         service.repository.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            CurriculumVitae(**sample_cv_data),
         )
 
         results = getattr(service, getter)()
@@ -479,24 +503,37 @@ class TestGetOptimizedCvs:
         ids=["archived", "applied"],
     )
     def test_excludes_optimizations_from_filed_job_postings(
-        self, service, sample_job_posting_data, sample_cv_data, file_job_posting
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        file_job_posting,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "jane-doe")
         service.repository.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            CurriculumVitae(**sample_cv_data),
         )
         file_job_posting(service)
         opts = service.get_optimized_cvs()
         assert not any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
 
     def test_includes_optimizations_from_active_job_postings(
-        self, service, sample_job_posting_data, sample_cv_data
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.add_cv(sample_cv_data, "jane-doe")
         service.repository.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            CurriculumVitae(**sample_cv_data),
         )
         opts = service.get_optimized_cvs()
         assert any(o.get("job_posting_identifier") == "acme-swe" for o in opts)
@@ -504,11 +541,17 @@ class TestGetOptimizedCvs:
 
 class TestRemoveOptimizedCv:
     def test_returns_true_when_found(
-        self, service, sample_job_posting_data, sample_cv_data
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.repository.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            CurriculumVitae(**sample_cv_data),
         )
         assert service.remove_optimized_cv("acme-swe", "opt-1") is True
 
@@ -517,11 +560,17 @@ class TestRemoveOptimizedCv:
         assert service.remove_optimized_cv("acme-swe", "nonexistent") is False
 
     def test_removes_from_repository(
-        self, service, sample_job_posting_data, sample_cv_data
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.repository.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            CurriculumVitae(**sample_cv_data),
         )
         service.remove_optimized_cv("acme-swe", "opt-1")
         assert service.repository.get_optimized_cv_record("acme-swe", "opt-1") is None
@@ -529,11 +578,17 @@ class TestRemoveOptimizedCv:
 
 class TestRenameOptimizedCv:
     def test_data_accessible_at_new_identifier(
-        self, service, sample_job_posting_data, sample_cv_data
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.repository.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", CurriculumVitae(**sample_cv_data)
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            CurriculumVitae(**sample_cv_data),
         )
         service.rename_optimized_cv("acme-swe", "opt-1", "new-id")
         assert service.repository.get_optimized_cv_record("acme-swe", "opt-1") is None
@@ -569,13 +624,22 @@ class TestExportOptimizationsUsesParentPath:
     """export('optimizations') must load artifacts and write markdown via the parent's stored path."""
 
     def test_finds_artifacts_after_parent_path_moved(
-        self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         cv = CurriculumVitae(**sample_cv_data)
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
 
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
+        service.repository.add_optimized_cv(
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            cv,
+        )
 
         cv_dir = Path(temp_data_dir) / "job-postings/acme-swe/cvs/opt-1"
         plan_data = plan.model_dump(mode="json")
@@ -591,11 +655,20 @@ class TestExportOptimizationsUsesParentPath:
         assert count == 2
 
     def test_markdown_written_at_parent_stored_path(
-        self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         cv = CurriculumVitae(**sample_cv_data)
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
+        service.repository.add_optimized_cv(
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            cv,
+        )
 
         service.archive_job_posting("acme-swe")
 
@@ -612,7 +685,12 @@ class TestGetCvOptimizationUsesParentPath:
     """get_cv_optimization must load the transformation plan from the parent's stored path."""
 
     def test_finds_plan_at_parent_stored_path(
-        self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
+        self,
+        service,
+        sample_job_posting_data,
+        sample_cv_data,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
         service.archive_job_posting("acme-swe")
@@ -620,7 +698,11 @@ class TestGetCvOptimizationUsesParentPath:
         cv = CurriculumVitae(**sample_cv_data)
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
 
-        service.repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
+        service.repository.add_optimized_cv(
+            service.repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            cv,
+        )
 
         cv_dir = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1"
         plan_json = plan.model_dump(mode="json")
@@ -691,9 +773,11 @@ class TestCreateCv:
 
 
 class TestAddDocument:
-    def test_composes_owned_document(self, service, sample_job_posting_data, tmp_path):
+    def test_composes_owned_document(
+        self, service, sample_job_posting_data, tmp_path, build_job_posting_record
+    ):
         record = service.repository.add_job_posting(
-            JobPosting(**sample_job_posting_data), "test-job"
+            build_job_posting_record("test-job"), JobPosting(**sample_job_posting_data)
         )
         source = tmp_path / "job-posting.md"
         source.write_text("# Imported posting\n")
@@ -841,3 +925,122 @@ class TestAddRaisesOnCollision:
         service.add_cv(sample_cv_data, "jane-doe")
         with pytest.raises(ValueError, match="already exists"):
             service.add_cv(sample_cv_data, "jane-doe")
+
+
+@pytest.fixture
+def mock_repository_service():
+    service = ApplicationService(repository=MagicMock())
+    service.markdown_exporter = MagicMock()
+    return service
+
+
+class TestAddJobPostingBuildsRecord:
+    def test_builds_unpersisted_record(
+        self, mock_repository_service, sample_job_posting_data
+    ):
+        mock_repository_service.add_job_posting(sample_job_posting_data, "acme-swe")
+
+        record, job_posting = (
+            mock_repository_service.repository.add_job_posting.call_args.args
+        )
+        assert record.identifier == "acme-swe"
+        assert record.path is None
+        assert record.url == "https://example.com/job/123"
+        assert record.company == "Acme Corp"
+        assert record.title == "Software Engineer"
+        assert record.experience_level == "Mid-level"
+        assert record.location is None
+        assert record.created_at == record.updated_at
+        assert job_posting == JobPosting(**sample_job_posting_data)
+
+    def test_exports_and_returns_persisted_record(
+        self, mock_repository_service, sample_job_posting_data
+    ):
+        result = mock_repository_service.add_job_posting(
+            sample_job_posting_data, "acme-swe"
+        )
+
+        persisted = mock_repository_service.repository.add_job_posting.return_value
+        assert result is persisted
+        mock_repository_service.markdown_exporter.export_job_posting.assert_called_once_with(
+            persisted, JobPosting(**sample_job_posting_data)
+        )
+
+
+class TestAddCvBuildsRecord:
+    def test_builds_unpersisted_record(self, mock_repository_service, sample_cv_data):
+        mock_repository_service.add_cv(sample_cv_data, "jane-doe")
+
+        record, cv = mock_repository_service.repository.add_cv.call_args.args
+        assert record.identifier == "jane-doe"
+        assert record.path is None
+        assert record.name == "Jane Doe"
+        assert record.profession == "Software Engineer"
+        assert record.created_at == record.updated_at
+        assert cv == CurriculumVitae(**sample_cv_data)
+
+    def test_exports_and_returns_persisted_record(
+        self, mock_repository_service, sample_cv_data
+    ):
+        result = mock_repository_service.add_cv(sample_cv_data, "jane-doe")
+
+        persisted = mock_repository_service.repository.add_cv.return_value
+        assert result is persisted
+        mock_repository_service.markdown_exporter.export_cv.assert_called_once_with(
+            persisted, CurriculumVitae(**sample_cv_data)
+        )
+
+
+class TestAddOptimizedCvBuildsRecord:
+    @pytest.fixture
+    def parent(self, mock_repository_service, build_job_posting_record):
+        parent = build_job_posting_record(
+            "acme-swe",
+            path="job-postings/acme-swe",
+            title="Staff Engineer",
+            company="Initech",
+        )
+        mock_repository_service.repository.get_job_posting_record.return_value = parent
+        return parent
+
+    def test_builds_unpersisted_record_under_parent(
+        self, mock_repository_service, parent, sample_cv_data
+    ):
+        cv = CurriculumVitae(**sample_cv_data)
+        mock_repository_service.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
+
+        mock_repository_service.repository.get_job_posting_record.assert_called_once_with(
+            "acme-swe"
+        )
+        passed_parent, record, passed_cv = (
+            mock_repository_service.repository.add_optimized_cv.call_args.args
+        )
+        assert passed_parent is parent
+        assert passed_cv is cv
+        assert record.identifier == "opt-1"
+        assert record.path is None
+        assert record.job_posting_identifier == "acme-swe"
+        assert record.base_cv_identifier == "jane-doe"
+        assert record.name == "Jane Doe"
+        assert record.profession == "Software Engineer"
+        assert record.job_title == "Staff Engineer"
+        assert record.company == "Initech"
+        assert record.created_at == record.updated_at
+
+    def test_saves_and_exports_with_persisted_record(
+        self, mock_repository_service, parent, sample_cv_data
+    ):
+        cv = CurriculumVitae(**sample_cv_data)
+        plan = CvTransformationPlan(job_title="Staff Engineer", company="Initech")
+        result = mock_repository_service.add_optimized_cv(
+            "acme-swe", "opt-1", "jane-doe", cv, plan
+        )
+
+        persisted = mock_repository_service.repository.add_optimized_cv.return_value
+        exporter = mock_repository_service.markdown_exporter
+        assert result is persisted
+        mock_repository_service.repository.save_object.assert_called_once_with(
+            persisted, plan
+        )
+        exporter.export_cv_transformation_plan.assert_called_once_with(persisted, plan)
+        exporter.export_cv.assert_called_once_with(persisted, cv)
