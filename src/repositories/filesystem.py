@@ -199,51 +199,28 @@ class FileSystemRepository:
             if item.get("location") == location
         ]
 
-    def transition_job_posting(
-        self,
-        identifier: str,
-        location: str | None,
-        fields: dict[str, Any] | None = None,
-        record_fields: dict[str, Any] | None = None,
-    ) -> JobPostingRecord:
-        """
-        Move a job posting to a named location subdirectory, recording the transition.
-        """
+    def update_job_posting_record(self, record: JobPostingRecord) -> JobPostingRecord:
+        """Replace a job posting record, moving its files and child paths as needed."""
         collection = self._load_collection(self.job_postings_collection)
-        record_data = next(
-            (item for item in collection if item["identifier"] == identifier), None
+        stored = next(
+            (item for item in collection if item["identifier"] == record.identifier),
+            None,
         )
-        if record_data is None:
-            raise ValueError(f"Job posting not found: {identifier}")
+        if stored is None:
+            raise ValueError(f"Job posting not found: {record.identifier}")
 
-        normalized_location = None if location == "." else location
-        target_path = _job_posting_canonical_path(identifier, normalized_location)
+        target_path = _job_posting_canonical_path(record.identifier, record.location)
+        if target_path != stored["path"]:
+            destination = self._resolve_path(target_path)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(self._resolve_path(stored["path"])), str(destination))
+            self._update_optimized_cv_paths(record.identifier, target_path)
 
-        if target_path == record_data.get("path"):
-            raise ValueError(f"Job posting already in {location}")
-
-        now = datetime.now()
-        entry = {
-            "date": now.isoformat(),
-            "location": normalized_location if normalized_location is not None else ".",
-            **(fields or {}),
-        }
-
-        record_data["location"] = normalized_location
-        record_data["transitions"] = record_data.get("transitions", []) + [entry]
-        record_data["updated_at"] = now.isoformat()
-        if record_fields:
-            record_data.update(record_fields)
-
-        new_abs = self._resolve_path(target_path)
-        new_abs.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(self._resolve_path(record_data["path"])), str(new_abs))
-        record_data["path"] = target_path
-        self._update_optimized_cv_paths(identifier, target_path)
-
+        record = record.model_copy(update={"path": target_path})
+        stored.clear()
+        stored.update(record.model_dump(mode="json"))
         self._save_collection(self.job_postings_collection, collection)
-        result = JobPostingRecord(**record_data)
-        return result
+        return record
 
     def _update_optimized_cv_paths(
         self,
