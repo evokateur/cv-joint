@@ -170,10 +170,20 @@ class ApplicationService:
         Raises:
             ValueError: if identifier already exists
         """
-        from models import JobPosting
+        from models import JobPosting, JobPostingRecord
 
         job_posting = JobPosting(**job_posting_data)
-        record = self.repository.add_job_posting(job_posting, identifier)
+        now = datetime.now()
+        record = JobPostingRecord(
+            identifier=identifier,
+            url=job_posting.url,
+            company=job_posting.company,
+            title=job_posting.title,
+            experience_level=job_posting.experience_level,
+            created_at=now,
+            updated_at=now,
+        )
+        record = self.repository.add_job_posting(record, job_posting)
         self.markdown_exporter.export_job_posting(record, job_posting)
         return record
 
@@ -283,10 +293,18 @@ class ApplicationService:
         Raises:
             ValueError: if identifier already exists
         """
-        from models import CurriculumVitae
+        from models import CurriculumVitae, CurriculumVitaeRecord
 
         cv = CurriculumVitae(**cv_data)
-        record = self.repository.add_cv(cv, identifier)
+        now = datetime.now()
+        record = CurriculumVitaeRecord(
+            identifier=identifier,
+            name=cv.name,
+            profession=cv.profession,
+            created_at=now,
+            updated_at=now,
+        )
+        record = self.repository.add_cv(record, cv)
         self.markdown_exporter.export_cv(record, cv)
         return record
 
@@ -473,9 +491,22 @@ class ApplicationService:
         Returns:
             OptimizedCvRecord
         """
-        record = self.repository.add_optimized_cv(
-            job_posting_identifier, identifier, base_cv_identifier, cv
+        from models import OptimizedCvRecord
+
+        parent = self.repository.get_job_posting_record(job_posting_identifier)
+        now = datetime.now()
+        record = OptimizedCvRecord(
+            identifier=identifier,
+            job_posting_identifier=job_posting_identifier,
+            base_cv_identifier=base_cv_identifier,
+            name=cv.name,
+            profession=cv.profession,
+            job_title=parent.title,
+            company=parent.company,
+            created_at=now,
+            updated_at=now,
         )
+        record = self.repository.add_optimized_cv(parent, record, cv)
 
         if plan is not None:
             self.repository.save_object(record, plan)

@@ -102,15 +102,21 @@ def sample_plan():
 
 
 @pytest.fixture
-def repository_with_job_posting(repository, sample_job_posting):
-    repository.add_job_posting(sample_job_posting, "acme-swe")
+def repository_with_job_posting(
+    repository, sample_job_posting, build_job_posting_record
+):
+    repository.add_job_posting(build_job_posting_record("acme-swe"), sample_job_posting)
     return repository
 
 
 @pytest.fixture
-def repository_with_optimized_cv(repository_with_job_posting, sample_cv):
+def repository_with_optimized_cv(
+    repository_with_job_posting, sample_cv, build_optimized_cv_record
+):
     repository_with_job_posting.add_optimized_cv(
-        "acme-swe", "opt-1", "jane-doe", sample_cv
+        repository_with_job_posting.get_job_posting_record("acme-swe"),
+        build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+        sample_cv,
     )
     return repository_with_job_posting
 
@@ -126,8 +132,12 @@ def optimized_cv_record(repository_with_optimized_cv):
 
 
 @pytest.fixture
-def repository_with_cover_letter(repository, sample_cover_letter):
-    repository.add_cover_letter(sample_cover_letter, "jane-acme")
+def repository_with_cover_letter(
+    repository, sample_cover_letter, build_cover_letter_record
+):
+    repository.add_cover_letter(
+        build_cover_letter_record("jane-acme"), sample_cover_letter
+    )
     return repository
 
 
@@ -147,17 +157,27 @@ class TestFileSystemRepositoryInit:
 
 
 class TestJobPostingOperations:
-    def test_add_and_get_job_posting(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "test-job")
+    def test_add_and_get_job_posting(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("test-job"), sample_job_posting
+        )
         retrieved = repository.get_job_posting("test-job")
 
         assert retrieved is not None
         assert retrieved.company == "Acme Corp"
         assert retrieved.title == "Software Engineer"
 
-    def test_get_job_posting_records(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "job-1")
-        repository.add_job_posting(sample_job_posting, "job-2")
+    def test_get_job_posting_records(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("job-1"), sample_job_posting
+        )
+        repository.add_job_posting(
+            build_job_posting_record("job-2"), sample_job_posting
+        )
 
         listings = repository.get_job_posting_records()
         assert len(listings) == 2
@@ -170,14 +190,22 @@ class TestJobPostingOperations:
         listings = repository.get_job_posting_records()
         assert listings == []
 
-    def test_remove_job_posting(self, repository, sample_job_posting, temp_data_dir):
-        repository.add_job_posting(sample_job_posting, "to-delete")
+    def test_remove_job_posting(
+        self, repository, sample_job_posting, temp_data_dir, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("to-delete"), sample_job_posting
+        )
         assert repository.remove_job_posting("to-delete") is True
         assert repository.get_job_posting("to-delete") is None
         assert not (Path(temp_data_dir) / "job-postings" / "to-delete").exists()
 
-    def test_remove_job_posting_not_in_listing(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "to-delete")
+    def test_remove_job_posting_not_in_listing(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("to-delete"), sample_job_posting
+        )
         repository.remove_job_posting("to-delete")
         assert all(
             record.identifier != "to-delete"
@@ -187,22 +215,34 @@ class TestJobPostingOperations:
     def test_remove_nonexistent_job_posting(self, repository):
         assert repository.remove_job_posting("nonexistent") is False
 
-    def test_add_job_posting_raises_if_exists(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "update-test")
+    def test_add_job_posting_raises_if_exists(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("update-test"), sample_job_posting
+        )
         with pytest.raises(ValueError, match="already exists"):
-            repository.add_job_posting(sample_job_posting, "update-test")
+            repository.add_job_posting(
+                build_job_posting_record("update-test"), sample_job_posting
+            )
 
     def test_job_posting_stored_in_correct_location(
-        self, repository, sample_job_posting, temp_data_dir
+        self, repository, sample_job_posting, temp_data_dir, build_job_posting_record
     ):
-        repository.add_job_posting(sample_job_posting, "location-test")
+        repository.add_job_posting(
+            build_job_posting_record("location-test"), sample_job_posting
+        )
         expected_path = (
             Path(temp_data_dir) / "job-postings" / "location-test" / "job-posting.json"
         )
         assert expected_path.exists()
 
-    def test_get_job_posting_record(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "test-job")
+    def test_get_job_posting_record(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("test-job"), sample_job_posting
+        )
         record = repository.get_job_posting_record("test-job")
 
         assert record is not None
@@ -217,10 +257,14 @@ class TestJobPostingOperations:
         assert repository.get_job_posting_record("nonexistent") is None
 
     def test_get_job_posting_records_excludes_filed_by_default(
-        self, repository, sample_job_posting
+        self, repository, sample_job_posting, build_job_posting_record
     ):
-        repository.add_job_posting(sample_job_posting, "active-job")
-        repository.add_job_posting(sample_job_posting, "filed-job")
+        repository.add_job_posting(
+            build_job_posting_record("active-job"), sample_job_posting
+        )
+        repository.add_job_posting(
+            build_job_posting_record("filed-job"), sample_job_posting
+        )
         repository.transition_job_posting("filed-job", "somewhere")
 
         listings = repository.get_job_posting_records()
@@ -228,9 +272,15 @@ class TestJobPostingOperations:
         assert "active-job" in identifiers
         assert "filed-job" not in identifiers
 
-    def test_get_job_posting_records_by_location(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "active-job")
-        repository.add_job_posting(sample_job_posting, "filed-job")
+    def test_get_job_posting_records_by_location(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("active-job"), sample_job_posting
+        )
+        repository.add_job_posting(
+            build_job_posting_record("filed-job"), sample_job_posting
+        )
         repository.transition_job_posting("filed-job", "somewhere")
 
         listings = repository.get_job_posting_records(location="somewhere")
@@ -239,10 +289,14 @@ class TestJobPostingOperations:
         assert "filed-job" in identifiers
 
     def test_get_job_posting_records_all_returns_every_record(
-        self, repository, sample_job_posting
+        self, repository, sample_job_posting, build_job_posting_record
     ):
-        repository.add_job_posting(sample_job_posting, "active-job")
-        repository.add_job_posting(sample_job_posting, "filed-job")
+        repository.add_job_posting(
+            build_job_posting_record("active-job"), sample_job_posting
+        )
+        repository.add_job_posting(
+            build_job_posting_record("filed-job"), sample_job_posting
+        )
         repository.transition_job_posting("filed-job", "somewhere")
 
         listings = repository.get_job_posting_records(all=True)
@@ -252,17 +306,17 @@ class TestJobPostingOperations:
 
 
 class TestCvOperations:
-    def test_add_and_get_cv(self, repository, sample_cv):
-        repository.add_cv(sample_cv, "test-cv")
+    def test_add_and_get_cv(self, repository, sample_cv, build_cv_record):
+        repository.add_cv(build_cv_record("test-cv"), sample_cv)
         retrieved = repository.get_cv("test-cv")
 
         assert retrieved is not None
         assert retrieved.name == "Jane Doe"
         assert retrieved.profession == "Software Engineer"
 
-    def test_get_cv_records(self, repository, sample_cv):
-        repository.add_cv(sample_cv, "cv-1")
-        repository.add_cv(sample_cv, "cv-2")
+    def test_get_cv_records(self, repository, sample_cv, build_cv_record):
+        repository.add_cv(build_cv_record("cv-1"), sample_cv)
+        repository.add_cv(build_cv_record("cv-2"), sample_cv)
 
         listings = repository.get_cv_records()
         assert len(listings) == 2
@@ -275,14 +329,14 @@ class TestCvOperations:
         listings = repository.get_cv_records()
         assert listings == []
 
-    def test_remove_cv(self, repository, sample_cv, temp_data_dir):
-        repository.add_cv(sample_cv, "to-delete")
+    def test_remove_cv(self, repository, sample_cv, temp_data_dir, build_cv_record):
+        repository.add_cv(build_cv_record("to-delete"), sample_cv)
         assert repository.remove_cv("to-delete") is True
         assert repository.get_cv("to-delete") is None
         assert not (Path(temp_data_dir) / "cvs" / "to-delete").exists()
 
-    def test_remove_cv_not_in_listing(self, repository, sample_cv):
-        repository.add_cv(sample_cv, "to-delete")
+    def test_remove_cv_not_in_listing(self, repository, sample_cv, build_cv_record):
+        repository.add_cv(build_cv_record("to-delete"), sample_cv)
         repository.remove_cv("to-delete")
         assert all(
             record.identifier != "to-delete" for record in repository.get_cv_records()
@@ -291,15 +345,17 @@ class TestCvOperations:
     def test_remove_nonexistent_cv(self, repository):
         assert repository.remove_cv("nonexistent") is False
 
-    def test_cv_stored_in_correct_location(self, repository, sample_cv, temp_data_dir):
-        repository.add_cv(sample_cv, "location-test")
+    def test_cv_stored_in_correct_location(
+        self, repository, sample_cv, temp_data_dir, build_cv_record
+    ):
+        repository.add_cv(build_cv_record("location-test"), sample_cv)
         expected_path = (
             Path(temp_data_dir) / "cvs" / "location-test" / "curriculum-vitae.json"
         )
         assert expected_path.exists()
 
-    def test_get_cv_record(self, repository, sample_cv):
-        repository.add_cv(sample_cv, "test-cv")
+    def test_get_cv_record(self, repository, sample_cv, build_cv_record):
+        repository.add_cv(build_cv_record("test-cv"), sample_cv)
         record = repository.get_cv_record("test-cv")
 
         assert record is not None
@@ -317,33 +373,55 @@ class TestRenameJobPosting:
         with pytest.raises(ValueError, match="not found"):
             repository.rename_job_posting("nonexistent", "new-id")
 
-    def test_raises_on_collision(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "job-1")
-        repository.add_job_posting(sample_job_posting, "job-2")
+    def test_raises_on_collision(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("job-1"), sample_job_posting
+        )
+        repository.add_job_posting(
+            build_job_posting_record("job-2"), sample_job_posting
+        )
         with pytest.raises(ValueError, match="already exists"):
             repository.rename_job_posting("job-1", "job-2")
 
-    def test_renames_directory(self, repository, sample_job_posting, temp_data_dir):
-        repository.add_job_posting(sample_job_posting, "old-id")
+    def test_renames_directory(
+        self, repository, sample_job_posting, temp_data_dir, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("old-id"), sample_job_posting
+        )
         repository.rename_job_posting("old-id", "new-id")
         assert not (Path(temp_data_dir) / "job-postings" / "old-id").exists()
         assert (Path(temp_data_dir) / "job-postings" / "new-id").exists()
 
-    def test_updates_collection(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "old-id")
+    def test_updates_collection(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("old-id"), sample_job_posting
+        )
         repository.rename_job_posting("old-id", "new-id")
         assert repository.get_job_posting_record("old-id") is None
         record = repository.get_job_posting_record("new-id")
         assert record is not None
         assert record.identifier == "new-id"
 
-    def test_returns_new_record(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "old-id")
+    def test_returns_new_record(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("old-id"), sample_job_posting
+        )
         record = repository.rename_job_posting("old-id", "new-id")
         assert record.identifier == "new-id"
 
-    def test_preserves_created_at(self, repository, sample_job_posting):
-        repository.add_job_posting(sample_job_posting, "old-id")
+    def test_preserves_created_at(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        repository.add_job_posting(
+            build_job_posting_record("old-id"), sample_job_posting
+        )
         original = repository.get_job_posting_record("old-id")
         record = repository.rename_job_posting("old-id", "new-id")
         assert record.created_at == original.created_at
@@ -354,35 +432,41 @@ class TestRenameCv:
         with pytest.raises(ValueError, match="not found"):
             repository.rename_cv("nonexistent", "new-id")
 
-    def test_raises_on_collision(self, repository, sample_cv):
-        repository.add_cv(sample_cv, "cv-1")
-        repository.add_cv(sample_cv, "cv-2")
+    def test_raises_on_collision(self, repository, sample_cv, build_cv_record):
+        repository.add_cv(build_cv_record("cv-1"), sample_cv)
+        repository.add_cv(build_cv_record("cv-2"), sample_cv)
         with pytest.raises(ValueError, match="already exists"):
             repository.rename_cv("cv-1", "cv-2")
 
-    def test_renames_directory(self, repository, sample_cv, temp_data_dir):
-        repository.add_cv(sample_cv, "old-id")
+    def test_renames_directory(
+        self, repository, sample_cv, temp_data_dir, build_cv_record
+    ):
+        repository.add_cv(build_cv_record("old-id"), sample_cv)
         repository.rename_cv("old-id", "new-id")
         assert not (Path(temp_data_dir) / "cvs" / "old-id").exists()
         assert (Path(temp_data_dir) / "cvs" / "new-id").exists()
 
-    def test_updates_collection(self, repository, sample_cv):
-        repository.add_cv(sample_cv, "old-id")
+    def test_updates_collection(self, repository, sample_cv, build_cv_record):
+        repository.add_cv(build_cv_record("old-id"), sample_cv)
         repository.rename_cv("old-id", "new-id")
         assert repository.get_cv_record("old-id") is None
         record = repository.get_cv_record("new-id")
         assert record is not None
         assert record.identifier == "new-id"
 
-    def test_returns_new_record(self, repository, sample_cv):
-        repository.add_cv(sample_cv, "old-id")
+    def test_returns_new_record(self, repository, sample_cv, build_cv_record):
+        repository.add_cv(build_cv_record("old-id"), sample_cv)
         record = repository.rename_cv("old-id", "new-id")
         assert record.identifier == "new-id"
 
 
 class TestCoverLetterOperations:
-    def test_add_and_get_cover_letter(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "test-letter")
+    def test_add_and_get_cover_letter(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("test-letter"), sample_cover_letter
+        )
         retrieved = repository.get_cover_letter("test-letter")
 
         assert retrieved is not None
@@ -392,9 +476,15 @@ class TestCoverLetterOperations:
         assert retrieved.salutation == "Dear Hiring Manager,"
         assert retrieved.closing == "Sincerely,"
 
-    def test_get_cover_letter_records(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "letter-1")
-        repository.add_cover_letter(sample_cover_letter, "letter-2")
+    def test_get_cover_letter_records(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("letter-1"), sample_cover_letter
+        )
+        repository.add_cover_letter(
+            build_cover_letter_record("letter-2"), sample_cover_letter
+        )
 
         listings = repository.get_cover_letter_records()
         assert len(listings) == 2
@@ -406,14 +496,22 @@ class TestCoverLetterOperations:
     def test_get_cover_letter_records_empty(self, repository):
         assert repository.get_cover_letter_records() == []
 
-    def test_remove_cover_letter(self, repository, sample_cover_letter, temp_data_dir):
-        repository.add_cover_letter(sample_cover_letter, "to-delete")
+    def test_remove_cover_letter(
+        self, repository, sample_cover_letter, temp_data_dir, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("to-delete"), sample_cover_letter
+        )
         assert repository.remove_cover_letter("to-delete") is True
         assert repository.get_cover_letter("to-delete") is None
         assert not (Path(temp_data_dir) / "cover-letters" / "to-delete").exists()
 
-    def test_remove_cover_letter_not_in_listing(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "to-delete")
+    def test_remove_cover_letter_not_in_listing(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("to-delete"), sample_cover_letter
+        )
         repository.remove_cover_letter("to-delete")
         assert all(
             item.identifier != "to-delete"
@@ -423,15 +521,23 @@ class TestCoverLetterOperations:
     def test_remove_nonexistent_cover_letter(self, repository):
         assert repository.remove_cover_letter("nonexistent") is False
 
-    def test_add_cover_letter_raises_if_exists(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "dupe")
+    def test_add_cover_letter_raises_if_exists(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("dupe"), sample_cover_letter
+        )
         with pytest.raises(ValueError, match="already exists"):
-            repository.add_cover_letter(sample_cover_letter, "dupe")
+            repository.add_cover_letter(
+                build_cover_letter_record("dupe"), sample_cover_letter
+            )
 
     def test_cover_letter_stored_in_correct_location(
-        self, repository, sample_cover_letter, temp_data_dir
+        self, repository, sample_cover_letter, temp_data_dir, build_cover_letter_record
     ):
-        repository.add_cover_letter(sample_cover_letter, "location-test")
+        repository.add_cover_letter(
+            build_cover_letter_record("location-test"), sample_cover_letter
+        )
         expected_path = (
             Path(temp_data_dir)
             / "cover-letters"
@@ -440,8 +546,12 @@ class TestCoverLetterOperations:
         )
         assert expected_path.exists()
 
-    def test_get_cover_letter_record(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "test-letter")
+    def test_get_cover_letter_record(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("test-letter"), sample_cover_letter
+        )
         record = repository.get_cover_letter_record("test-letter")
 
         assert record is not None
@@ -456,12 +566,15 @@ class TestCoverLetterOperations:
         assert repository.get_cover_letter_record("nonexistent") is None
 
     def test_draft_record_allows_optional_company_position(
-        self, repository, sample_cover_letter
+        self, repository, sample_cover_letter, build_cover_letter_record
     ):
         draft = sample_cover_letter.model_copy(
             update={"company": None, "position": None}
         )
-        repository.add_cover_letter(draft, "draft-letter")
+        repository.add_cover_letter(
+            build_cover_letter_record("draft-letter", company=None, position=None),
+            draft,
+        )
         record = repository.get_cover_letter_record("draft-letter")
 
         assert record is not None
@@ -474,20 +587,34 @@ class TestRenameCoverLetter:
         with pytest.raises(ValueError, match="not found"):
             repository.rename_cover_letter("nonexistent", "new-id")
 
-    def test_raises_on_collision(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "letter-1")
-        repository.add_cover_letter(sample_cover_letter, "letter-2")
+    def test_raises_on_collision(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("letter-1"), sample_cover_letter
+        )
+        repository.add_cover_letter(
+            build_cover_letter_record("letter-2"), sample_cover_letter
+        )
         with pytest.raises(ValueError, match="already exists"):
             repository.rename_cover_letter("letter-1", "letter-2")
 
-    def test_renames_directory(self, repository, sample_cover_letter, temp_data_dir):
-        repository.add_cover_letter(sample_cover_letter, "old-id")
+    def test_renames_directory(
+        self, repository, sample_cover_letter, temp_data_dir, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("old-id"), sample_cover_letter
+        )
         repository.rename_cover_letter("old-id", "new-id")
         assert not (Path(temp_data_dir) / "cover-letters" / "old-id").exists()
         assert (Path(temp_data_dir) / "cover-letters" / "new-id").exists()
 
-    def test_updates_collection(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "old-id")
+    def test_updates_collection(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("old-id"), sample_cover_letter
+        )
         repository.rename_cover_letter("old-id", "new-id")
         assert repository.get_cover_letter_record("old-id") is None
         record = repository.get_cover_letter_record("new-id")
@@ -495,13 +622,21 @@ class TestRenameCoverLetter:
         assert record.identifier == "new-id"
         assert record.path == "cover-letters/new-id"
 
-    def test_returns_new_record(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "old-id")
+    def test_returns_new_record(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("old-id"), sample_cover_letter
+        )
         record = repository.rename_cover_letter("old-id", "new-id")
         assert record.identifier == "new-id"
 
-    def test_preserves_created_at(self, repository, sample_cover_letter):
-        repository.add_cover_letter(sample_cover_letter, "old-id")
+    def test_preserves_created_at(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        repository.add_cover_letter(
+            build_cover_letter_record("old-id"), sample_cover_letter
+        )
         original = repository.get_cover_letter_record("old-id")
         record = repository.rename_cover_letter("old-id", "new-id")
         assert record.created_at == original.created_at
@@ -553,22 +688,52 @@ class TestOptimizedCvRecord:
 
 class TestRemoveJobPostingCascadesOptimizedCvs:
     def test_cascades_to_optimized_cvs_collection(
-        self, repository, sample_job_posting, sample_cv
+        self,
+        repository,
+        sample_job_posting,
+        sample_cv,
+        build_job_posting_record,
+        build_optimized_cv_record,
     ):
-        repository.add_job_posting(sample_job_posting, "to-delete")
-        repository.add_optimized_cv("to-delete", "opt-1", "jane-doe", sample_cv)
-        repository.add_optimized_cv("to-delete", "opt-2", "jane-doe", sample_cv)
+        repository.add_job_posting(
+            build_job_posting_record("to-delete"), sample_job_posting
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("to-delete"),
+            build_optimized_cv_record("opt-1", "to-delete", "jane-doe"),
+            sample_cv,
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("to-delete"),
+            build_optimized_cv_record("opt-2", "to-delete", "jane-doe"),
+            sample_cv,
+        )
         repository.remove_job_posting("to-delete")
         assert repository.get_optimized_cv_records("to-delete") == []
 
 
 class TestRenameJobPostingOptimizedCvs:
     def test_repairs_job_posting_identifier_in_optimized_cvs(
-        self, repository, sample_job_posting, sample_cv
+        self,
+        repository,
+        sample_job_posting,
+        sample_cv,
+        build_job_posting_record,
+        build_optimized_cv_record,
     ):
-        repository.add_job_posting(sample_job_posting, "old-id")
-        repository.add_optimized_cv("old-id", "opt-1", "jane-doe", sample_cv)
-        repository.add_optimized_cv("old-id", "opt-2", "jane-doe", sample_cv)
+        repository.add_job_posting(
+            build_job_posting_record("old-id"), sample_job_posting
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("old-id"),
+            build_optimized_cv_record("opt-1", "old-id", "jane-doe"),
+            sample_cv,
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("old-id"),
+            build_optimized_cv_record("opt-2", "old-id", "jane-doe"),
+            sample_cv,
+        )
         repository.rename_job_posting("old-id", "new-id")
         assert repository.get_optimized_cv_record("old-id", "opt-1") is None
         assert repository.get_optimized_cv_record("new-id", "opt-1") is not None
@@ -584,12 +749,28 @@ class TestRenameJobPostingOptimizedCvs:
 
 class TestRenameCvOptimizedCvs:
     def test_repairs_base_cv_identifier_in_optimized_cvs(
-        self, repository, sample_job_posting, sample_cv
+        self,
+        repository,
+        sample_job_posting,
+        sample_cv,
+        build_job_posting_record,
+        build_cv_record,
+        build_optimized_cv_record,
     ):
-        repository.add_job_posting(sample_job_posting, "acme-swe")
-        repository.add_cv(sample_cv, "old-cv")
-        repository.add_optimized_cv("acme-swe", "opt-1", "old-cv", sample_cv)
-        repository.add_optimized_cv("acme-swe", "opt-2", "old-cv", sample_cv)
+        repository.add_job_posting(
+            build_job_posting_record("acme-swe"), sample_job_posting
+        )
+        repository.add_cv(build_cv_record("old-cv"), sample_cv)
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "old-cv"),
+            sample_cv,
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-2", "acme-swe", "old-cv"),
+            sample_cv,
+        )
         repository.rename_cv("old-cv", "new-cv")
         assert (
             repository.get_optimized_cv_record("acme-swe", "opt-1").base_cv_identifier
@@ -601,13 +782,29 @@ class TestRenameCvOptimizedCvs:
         )
 
     def test_does_not_repair_unrelated_optimizations(
-        self, repository, sample_job_posting, sample_cv
+        self,
+        repository,
+        sample_job_posting,
+        sample_cv,
+        build_job_posting_record,
+        build_cv_record,
+        build_optimized_cv_record,
     ):
-        repository.add_job_posting(sample_job_posting, "acme-swe")
-        repository.add_cv(sample_cv, "old-cv")
-        repository.add_cv(sample_cv, "other-cv")
-        repository.add_optimized_cv("acme-swe", "opt-1", "old-cv", sample_cv)
-        repository.add_optimized_cv("acme-swe", "opt-2", "other-cv", sample_cv)
+        repository.add_job_posting(
+            build_job_posting_record("acme-swe"), sample_job_posting
+        )
+        repository.add_cv(build_cv_record("old-cv"), sample_cv)
+        repository.add_cv(build_cv_record("other-cv"), sample_cv)
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "old-cv"),
+            sample_cv,
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-2", "acme-swe", "other-cv"),
+            sample_cv,
+        )
         repository.rename_cv("old-cv", "new-cv")
         assert (
             repository.get_optimized_cv_record("acme-swe", "opt-2").base_cv_identifier
@@ -632,9 +829,11 @@ class TestRemoveUsesStoredPath:
         repository._save_collection(collection_file, collection)
 
     def test_remove_job_posting_deletes_custom_path(
-        self, repository, sample_job_posting, temp_data_dir
+        self, repository, sample_job_posting, temp_data_dir, build_job_posting_record
     ):
-        repository.add_job_posting(sample_job_posting, "to-delete")
+        repository.add_job_posting(
+            build_job_posting_record("to-delete"), sample_job_posting
+        )
         self._move_to_custom_path(
             repository,
             repository.job_postings_collection,
@@ -648,8 +847,10 @@ class TestRemoveUsesStoredPath:
         assert result is True
         assert not (Path(temp_data_dir) / "archived/job-postings/to-delete").exists()
 
-    def test_remove_cv_deletes_custom_path(self, repository, sample_cv, temp_data_dir):
-        repository.add_cv(sample_cv, "to-delete")
+    def test_remove_cv_deletes_custom_path(
+        self, repository, sample_cv, temp_data_dir, build_cv_record
+    ):
+        repository.add_cv(build_cv_record("to-delete"), sample_cv)
         self._move_to_custom_path(
             repository,
             repository.cvs_collection,
@@ -666,11 +867,23 @@ class TestRemoveUsesStoredPath:
 
 class TestGetCvRecordsBaseOnly:
     def test_get_cv_records_returns_only_base_cvs(
-        self, repository, sample_job_posting, sample_cv
+        self,
+        repository,
+        sample_job_posting,
+        sample_cv,
+        build_job_posting_record,
+        build_cv_record,
+        build_optimized_cv_record,
     ):
-        repository.add_cv(sample_cv, "jane-doe")
-        repository.add_job_posting(sample_job_posting, "acme-swe")
-        repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
+        repository.add_cv(build_cv_record("jane-doe"), sample_cv)
+        repository.add_job_posting(
+            build_job_posting_record("acme-swe"), sample_job_posting
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
+        )
         listings = repository.get_cv_records()
         assert len(listings) == 1
         assert listings[0].identifier == "jane-doe"
@@ -692,9 +905,11 @@ class TestRenameUsesStoredPath:
         repository._save_collection(collection_file, collection)
 
     def test_rename_job_posting_uses_stored_path(
-        self, repository, sample_job_posting, temp_data_dir
+        self, repository, sample_job_posting, temp_data_dir, build_job_posting_record
     ):
-        repository.add_job_posting(sample_job_posting, "old-id")
+        repository.add_job_posting(
+            build_job_posting_record("old-id"), sample_job_posting
+        )
         self._move_to_custom_path(
             repository,
             repository.job_postings_collection,
@@ -706,8 +921,10 @@ class TestRenameUsesStoredPath:
         assert not (Path(temp_data_dir) / "custom/old-id").exists()
         assert (Path(temp_data_dir) / "custom/new-id").exists()
 
-    def test_rename_cv_uses_stored_path(self, repository, sample_cv, temp_data_dir):
-        repository.add_cv(sample_cv, "old-id")
+    def test_rename_cv_uses_stored_path(
+        self, repository, sample_cv, temp_data_dir, build_cv_record
+    ):
+        repository.add_cv(build_cv_record("old-id"), sample_cv)
         self._move_to_custom_path(
             repository,
             repository.cvs_collection,
@@ -1014,12 +1231,73 @@ class TestDocumentExists:
         assert repository.document_exists(record, "notes.md") is False
 
 
-class TestUpsertOptimizedCv:
+class TestAddReturnsPersistedRecord:
+    """add_* ignores a submitted path, places the record, and returns a persisted copy."""
+
+    def test_job_posting(
+        self, repository, sample_job_posting, build_job_posting_record
+    ):
+        submitted = build_job_posting_record("acme-swe", path="elsewhere")
+        record = repository.add_job_posting(submitted, sample_job_posting)
+        assert record == submitted.model_copy(update={"path": "job-postings/acme-swe"})
+        assert submitted.path == "elsewhere"
+        assert repository.get_job_posting_record("acme-swe") == record
+
+    def test_job_posting_placed_by_location(
+        self, repository, sample_job_posting, build_job_posting_record, temp_data_dir
+    ):
+        record = repository.add_job_posting(
+            build_job_posting_record("acme-swe", location="archived"),
+            sample_job_posting,
+        )
+        assert record.path == "job-postings/archived/acme-swe"
+        assert (Path(temp_data_dir) / record.path / "job-posting.json").exists()
+
+    def test_cv(self, repository, sample_cv, build_cv_record):
+        submitted = build_cv_record("jane-doe", path="elsewhere")
+        record = repository.add_cv(submitted, sample_cv)
+        assert record == submitted.model_copy(update={"path": "cvs/jane-doe"})
+        assert submitted.path == "elsewhere"
+        assert repository.get_cv_record("jane-doe") == record
+
+    def test_cover_letter(
+        self, repository, sample_cover_letter, build_cover_letter_record
+    ):
+        submitted = build_cover_letter_record("jane-acme", path="elsewhere")
+        record = repository.add_cover_letter(submitted, sample_cover_letter)
+        assert record == submitted.model_copy(
+            update={"path": "cover-letters/jane-acme"}
+        )
+        assert submitted.path == "elsewhere"
+        assert repository.get_cover_letter_record("jane-acme") == record
+
+    def test_optimized_cv(
+        self, repository_with_job_posting, sample_cv, build_optimized_cv_record
+    ):
+        repository = repository_with_job_posting
+        submitted = build_optimized_cv_record("opt-1", path="elsewhere")
+        record = repository.add_optimized_cv(
+            repository.get_job_posting_record("acme-swe"), submitted, sample_cv
+        )
+        assert record == submitted.model_copy(
+            update={"path": "job-postings/acme-swe/cvs/opt-1"}
+        )
+        assert submitted.path == "elsewhere"
+        assert repository.get_optimized_cv_record("acme-swe", "opt-1") == record
+
+
+class TestAddOptimizedCv:
     def test_saves_curriculum_vitae_json_in_optimization_directory(
-        self, repository_with_job_posting, sample_cv, temp_data_dir
+        self,
+        repository_with_job_posting,
+        sample_cv,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         cv_path = (
             Path(temp_data_dir)
@@ -1032,48 +1310,66 @@ class TestUpsertOptimizedCv:
         assert cv_path.exists()
 
     def test_writes_record_to_collection(
-        self, repository_with_job_posting, sample_cv, temp_data_dir
+        self,
+        repository_with_job_posting,
+        sample_cv,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         collection_path = Path(temp_data_dir) / "collections" / "optimized-cvs.json"
         assert collection_path.exists()
         data = json.loads(collection_path.read_text())
         assert any(r["identifier"] == "opt-1" for r in data)
 
-    def test_extracts_name_and_profession_from_cv(
-        self, repository_with_job_posting, sample_cv
+    def test_raises_if_exists(
+        self, repository_with_job_posting, sample_cv, build_optimized_cv_record
     ):
-        record = repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+        repository = repository_with_job_posting
+        parent = repository.get_job_posting_record("acme-swe")
+        repository.add_optimized_cv(
+            parent, build_optimized_cv_record("opt-1"), sample_cv
         )
-        assert record.name == "Jane Doe"
-        assert record.profession == "Software Engineer"
+        with pytest.raises(ValueError, match="already exists"):
+            repository.add_optimized_cv(
+                parent, build_optimized_cv_record("opt-1"), sample_cv
+            )
 
-    def test_looks_up_job_title_and_company_from_job_posting(
-        self, repository_with_job_posting, sample_cv
+    def test_raises_without_parent(
+        self, repository, sample_cv, build_optimized_cv_record
     ):
-        record = repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
-        )
-        assert record.job_title == "Software Engineer"
-        assert record.company == "Acme Corp"
+        with pytest.raises(ValueError):
+            repository.add_optimized_cv(
+                None, build_optimized_cv_record("opt-1"), sample_cv
+            )
 
-    def test_returns_optimized_cv_record(self, repository_with_job_posting, sample_cv):
-        record = repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
-        )
-        assert isinstance(record, OptimizedCvRecord)
-        assert record.identifier == "opt-1"
-        assert record.job_posting_identifier == "acme-swe"
-        assert record.base_cv_identifier == "jane-doe"
+    def test_raises_for_unpersisted_parent(
+        self,
+        repository,
+        sample_cv,
+        build_job_posting_record,
+        build_optimized_cv_record,
+    ):
+        with pytest.raises(ValueError):
+            repository.add_optimized_cv(
+                build_job_posting_record("acme-swe"),
+                build_optimized_cv_record("opt-1"),
+                sample_cv,
+            )
 
 
 class TestGetOptimizedCvRecord:
-    def test_returns_record(self, repository_with_job_posting, sample_cv):
+    def test_returns_record(
+        self, repository_with_job_posting, sample_cv, build_optimized_cv_record
+    ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         record = repository_with_job_posting.get_optimized_cv_record(
             "acme-swe", "opt-1"
@@ -1092,9 +1388,13 @@ class TestGetOptimizedCvRecord:
 
 
 class TestGetOptimizedCv:
-    def test_returns_curriculum_vitae(self, repository_with_job_posting, sample_cv):
+    def test_returns_curriculum_vitae(
+        self, repository_with_job_posting, sample_cv, build_optimized_cv_record
+    ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         cv = repository_with_job_posting.get_optimized_cv("acme-swe", "opt-1")
         assert isinstance(cv, CurriculumVitae)
@@ -1108,12 +1408,18 @@ class TestGetOptimizedCv:
 
 
 class TestGetOptimizedCvRecords:
-    def test_returns_all_records(self, repository_with_job_posting, sample_cv):
+    def test_returns_all_records(
+        self, repository_with_job_posting, sample_cv, build_optimized_cv_record
+    ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-2", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-2", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         results = repository_with_job_posting.get_optimized_cv_records()
         assert len(results) == 2
@@ -1121,12 +1427,29 @@ class TestGetOptimizedCvRecords:
         assert [record.identifier for record in results] == ["opt-1", "opt-2"]
 
     def test_filters_by_job_posting_identifier(
-        self, repository, sample_job_posting, sample_cv
+        self,
+        repository,
+        sample_job_posting,
+        sample_cv,
+        build_job_posting_record,
+        build_optimized_cv_record,
     ):
-        repository.add_job_posting(sample_job_posting, "acme-swe")
-        repository.add_job_posting(sample_job_posting, "other-job")
-        repository.add_optimized_cv("acme-swe", "opt-1", "jane-doe", sample_cv)
-        repository.add_optimized_cv("other-job", "opt-2", "jane-doe", sample_cv)
+        repository.add_job_posting(
+            build_job_posting_record("acme-swe"), sample_job_posting
+        )
+        repository.add_job_posting(
+            build_job_posting_record("other-job"), sample_job_posting
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
+        )
+        repository.add_optimized_cv(
+            repository.get_job_posting_record("other-job"),
+            build_optimized_cv_record("opt-2", "other-job", "jane-doe"),
+            sample_cv,
+        )
         results = repository.get_optimized_cv_records("acme-swe")
         assert len(results) == 1
         assert results[0].identifier == "opt-1"
@@ -1137,10 +1460,16 @@ class TestGetOptimizedCvRecords:
 
 class TestRemoveOptimizedCv:
     def test_removes_from_collection_and_deletes_directory(
-        self, repository_with_job_posting, sample_cv, temp_data_dir
+        self,
+        repository_with_job_posting,
+        sample_cv,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         result = repository_with_job_posting.remove_optimized_cv("acme-swe", "opt-1")
         assert result is True
@@ -1161,10 +1490,17 @@ class TestRemoveOptimizedCv:
 class TestRenameOptimizedCv:
     @pytest.mark.parametrize("location", ["", "archived"], ids=["active", "archived"])
     def test_updates_stored_path(
-        self, repository_with_job_posting, sample_cv, temp_data_dir, location
+        self,
+        repository_with_job_posting,
+        sample_cv,
+        temp_data_dir,
+        location,
+        build_optimized_cv_record,
     ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "old-id", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("old-id", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         if location:
             repository_with_job_posting.transition_job_posting("acme-swe", location)
@@ -1188,10 +1524,17 @@ class TestRenameOptimizedCv:
 
     @pytest.mark.parametrize("location", ["", "archived"], ids=["active", "archived"])
     def test_document_write_after_rename_targets_new_dir(
-        self, repository_with_job_posting, sample_cv, temp_data_dir, location
+        self,
+        repository_with_job_posting,
+        sample_cv,
+        temp_data_dir,
+        location,
+        build_optimized_cv_record,
     ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "old-id", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("old-id", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         if location:
             repository_with_job_posting.transition_job_posting("acme-swe", location)
@@ -1210,10 +1553,16 @@ class TestRenameOptimizedCv:
         )
 
     def test_renames_directory(
-        self, repository_with_job_posting, sample_cv, temp_data_dir
+        self,
+        repository_with_job_posting,
+        sample_cv,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "old-id", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("old-id", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         repository_with_job_posting.rename_optimized_cv("acme-swe", "old-id", "new-id")
         assert not (
@@ -1223,9 +1572,13 @@ class TestRenameOptimizedCv:
             Path(temp_data_dir) / "job-postings" / "acme-swe" / "cvs" / "new-id"
         ).exists()
 
-    def test_updates_collection(self, repository_with_job_posting, sample_cv):
+    def test_updates_collection(
+        self, repository_with_job_posting, sample_cv, build_optimized_cv_record
+    ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "old-id", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("old-id", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         repository_with_job_posting.rename_optimized_cv("acme-swe", "old-id", "new-id")
         assert (
@@ -1244,12 +1597,18 @@ class TestRenameOptimizedCv:
                 "acme-swe", "nonexistent", "new-id"
             )
 
-    def test_raises_on_collision(self, repository_with_job_posting, sample_cv):
+    def test_raises_on_collision(
+        self, repository_with_job_posting, sample_cv, build_optimized_cv_record
+    ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-2", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-2", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         with pytest.raises(ValueError, match="already exists"):
             repository_with_job_posting.rename_optimized_cv(
@@ -1283,13 +1642,19 @@ class TestOptimizedCvUsesParentPath:
         repository._save_collection(repository.optimized_cvs_collection, optimized_cvs)
 
     def test_add_optimized_cv_saves_under_parent_stored_path(
-        self, repository_with_job_posting, sample_cv, temp_data_dir
+        self,
+        repository_with_job_posting,
+        sample_cv,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         self._move_job_posting(
             repository_with_job_posting, "acme-swe", "job-postings/archived/acme-swe"
         )
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         correct = (
             Path(temp_data_dir)
@@ -1298,10 +1663,12 @@ class TestOptimizedCvUsesParentPath:
         assert correct.exists()
 
     def test_get_optimized_cv_reads_from_parent_stored_path(
-        self, repository_with_job_posting, sample_cv
+        self, repository_with_job_posting, sample_cv, build_optimized_cv_record
     ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         # Moving the job posting dir carries the nested cvs/opt-1 subdir with it.
         self._move_job_posting(
@@ -1311,10 +1678,16 @@ class TestOptimizedCvUsesParentPath:
         assert result is not None
 
     def test_remove_optimized_cv_deletes_from_parent_stored_path(
-        self, repository_with_job_posting, sample_cv, temp_data_dir
+        self,
+        repository_with_job_posting,
+        sample_cv,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         self._move_job_posting(
             repository_with_job_posting, "acme-swe", "job-postings/archived/acme-swe"
@@ -1325,10 +1698,16 @@ class TestOptimizedCvUsesParentPath:
         assert not cv_dir.exists()
 
     def test_rename_optimized_cv_uses_parent_stored_path(
-        self, repository_with_job_posting, sample_cv, temp_data_dir
+        self,
+        repository_with_job_posting,
+        sample_cv,
+        temp_data_dir,
+        build_optimized_cv_record,
     ):
         repository_with_job_posting.add_optimized_cv(
-            "acme-swe", "old-id", "jane-doe", sample_cv
+            repository_with_job_posting.get_job_posting_record("acme-swe"),
+            build_optimized_cv_record("old-id", "acme-swe", "jane-doe"),
+            sample_cv,
         )
         self._move_job_posting(
             repository_with_job_posting, "acme-swe", "job-postings/archived/acme-swe"

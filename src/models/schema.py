@@ -178,7 +178,10 @@ class JobPostingRecord(BaseModel):
     """
 
     identifier: str = Field(description="Unique identifier of the job posting")
-    path: str = Field(description="Directory path relative to data dir")
+    path: Optional[str] = Field(
+        default=None,
+        description="Directory path relative to data dir",
+    )
     url: Optional[str] = Field(default=None, description="Original job posting URL")
     company: str = Field(description="Company name (for listing display)")
     title: str = Field(description="Job title (for listing display)")
@@ -210,7 +213,10 @@ class CurriculumVitaeRecord(BaseModel):
     """
 
     identifier: str = Field(description="Unique identifier of the CV")
-    path: str = Field(description="Directory path relative to data dir")
+    path: Optional[str] = Field(
+        default=None,
+        description="Directory path relative to data dir",
+    )
     name: str = Field(description="Person's name (for listing display)")
     profession: str = Field(description="Profession (for listing display)")
     job_posting_identifier: Optional[str] = Field(
@@ -229,7 +235,10 @@ class OptimizedCvRecord(BaseModel):
     """
 
     identifier: str = Field(description="Unique identifier of the optimized CV")
-    path: str = Field(description="Directory path relative to data dir")
+    path: Optional[str] = Field(
+        default=None,
+        description="Directory path relative to data dir",
+    )
     job_posting_identifier: str = Field(
         description="Identifier of the job posting this CV was optimized for"
     )
@@ -257,7 +266,10 @@ class CoverLetterRecord(BaseModel):
     """
 
     identifier: str = Field(description="Unique identifier of the cover letter")
-    path: str = Field(description="Directory path relative to data dir")
+    path: Optional[str] = Field(
+        default=None,
+        description="Directory path relative to data dir",
+    )
     name: str = Field(description="Person's name (for listing display)")
     company: Optional[str] = Field(
         default=None, description="Company (for listing display)"
