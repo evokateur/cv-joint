@@ -786,7 +786,7 @@ class FileSystemRepository:
             The persisted OptimizedCvRecord
         """
         if parent is None or parent.path is None:
-            raise ValueError("Optimized CV requires a persisted parent job posting")
+            raise ValueError("Parent JobPostingRecord required")
 
         collection = self._load_collection(self.optimized_cvs_collection)
 
