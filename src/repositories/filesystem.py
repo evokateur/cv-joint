@@ -95,45 +95,38 @@ class FileSystemRepository:
         return self.data_dir / relative_path
 
     def add_job_posting(
-        self, job_posting: JobPosting, identifier: str
+        self, record: JobPostingRecord, job_posting: JobPosting
     ) -> JobPostingRecord:
         """
-        Add a job posting and update collection metadata.
+        Place a new job posting record by its location and persist it.
 
         Args:
+            record: The job posting record; any submitted path is ignored
             job_posting: JobPosting
-            identifier: Unique identifier for this job posting
 
         Returns:
-            The persisted JobPostingRecord
+            The persisted JobPostingRecord, with path set
         """
         collection = self._load_collection(self.job_postings_collection)
 
         existing = next(
-            (item for item in collection if item["identifier"] == identifier), None
+            (item for item in collection if item["identifier"] == record.identifier),
+            None,
         )
 
         if existing is not None:
-            raise ValueError(f"Job posting already exists: {identifier}")
+            raise ValueError(f"Job posting already exists: {record.identifier}")
 
-        directory = _job_posting_canonical_path(identifier)
-        absolute_path = self._resolve_path(directory) / "job-posting.json"
+        record = record.model_copy(
+            update={
+                "path": _job_posting_canonical_path(record.identifier, record.location)
+            }
+        )
+        absolute_path = self.directory_for(record) / "job-posting.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(absolute_path, "w") as f:
             json.dump(job_posting.model_dump(mode="json"), f, indent=2)
-
-        now = datetime.now()
-        record = JobPostingRecord(
-            identifier=identifier,
-            path=directory,
-            url=job_posting.url,
-            company=job_posting.company,
-            title=job_posting.title,
-            experience_level=job_posting.experience_level,
-            created_at=now,
-            updated_at=now,
-        )
 
         collection.append(record.model_dump(mode="json"))
         self._save_collection(self.job_postings_collection, collection)
@@ -305,42 +298,37 @@ class FileSystemRepository:
 
         return True
 
-    def add_cv(self, cv: CurriculumVitae, identifier: str) -> CurriculumVitaeRecord:
+    def add_cv(
+        self, record: CurriculumVitaeRecord, cv: CurriculumVitae
+    ) -> CurriculumVitaeRecord:
         """
-        Add a CV and update collection metadata.
+        Place a new CV record and persist it.
 
         Args:
+            record: The CV record; any submitted path is ignored
             cv: CurriculumVitae
-            identifier: Unique identifier for this CV
 
         Returns:
-            The persisted CurriculumVitaeRecord
+            The persisted CurriculumVitaeRecord, with path set
         """
         collection = self._load_collection(self.cvs_collection)
 
         existing = next(
-            (item for item in collection if item["identifier"] == identifier), None
+            (item for item in collection if item["identifier"] == record.identifier),
+            None,
         )
 
         if existing is not None:
-            raise ValueError(f"CV already exists: {identifier}")
+            raise ValueError(f"CV already exists: {record.identifier}")
 
-        directory = _cv_canonical_path(identifier)
-        absolute_path = self._resolve_path(directory) / "curriculum-vitae.json"
+        record = record.model_copy(
+            update={"path": _cv_canonical_path(record.identifier)}
+        )
+        absolute_path = self.directory_for(record) / "curriculum-vitae.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(absolute_path, "w") as f:
             json.dump(cv.model_dump(mode="json"), f, indent=2)
-
-        now = datetime.now()
-        record = CurriculumVitaeRecord(
-            identifier=identifier,
-            path=directory,
-            name=cv.name,
-            profession=cv.profession,
-            created_at=now,
-            updated_at=now,
-        )
 
         collection.append(record.model_dump(mode="json"))
         self._save_collection(self.cvs_collection, collection)
@@ -529,44 +517,36 @@ class FileSystemRepository:
         return CurriculumVitaeRecord(**new_record_data)
 
     def add_cover_letter(
-        self, cover_letter: CoverLetter, identifier: str
+        self, record: CoverLetterRecord, cover_letter: CoverLetter
     ) -> CoverLetterRecord:
         """
-        Add a cover letter and update collection metadata.
+        Place a new cover letter record and persist it.
 
         Args:
+            record: The cover letter record; any submitted path is ignored
             cover_letter: CoverLetter
-            identifier: Unique identifier for this cover letter
 
         Returns:
-            The persisted CoverLetterRecord
+            The persisted CoverLetterRecord, with path set
         """
         collection = self._load_collection(self.cover_letters_collection)
 
         existing = next(
-            (item for item in collection if item["identifier"] == identifier), None
+            (item for item in collection if item["identifier"] == record.identifier),
+            None,
         )
 
         if existing is not None:
-            raise ValueError(f"Cover letter already exists: {identifier}")
+            raise ValueError(f"Cover letter already exists: {record.identifier}")
 
-        directory = _cover_letter_canonical_path(identifier)
-        absolute_path = self._resolve_path(directory) / "cover-letter.json"
+        record = record.model_copy(
+            update={"path": _cover_letter_canonical_path(record.identifier)}
+        )
+        absolute_path = self.directory_for(record) / "cover-letter.json"
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(absolute_path, "w") as f:
             json.dump(cover_letter.model_dump(mode="json"), f, indent=2)
-
-        now = datetime.now()
-        record = CoverLetterRecord(
-            identifier=identifier,
-            path=directory,
-            name=cover_letter.name,
-            company=cover_letter.company,
-            position=cover_letter.position,
-            created_at=now,
-            updated_at=now,
-        )
 
         collection.append(record.model_dump(mode="json"))
         self._save_collection(self.cover_letters_collection, collection)
@@ -790,56 +770,47 @@ class FileSystemRepository:
 
     def add_optimized_cv(
         self,
-        job_posting_identifier: str,
-        identifier: str,
-        base_cv_identifier: str | None,
+        parent: JobPostingRecord,
+        record: OptimizedCvRecord,
         cv: CurriculumVitae,
     ) -> OptimizedCvRecord:
         """
-        Add an optimized CV and update collection metadata.
+        Place a new optimized CV record under its parent job posting and persist it.
 
         Args:
-            job_posting_identifier: Identifier of the parent job posting
-            identifier: Unique identifier for this optimization
-            base_cv_identifier: Identifier of the base CV, or None if not recorded
+            parent: The persisted parent job posting record
+            record: The optimized CV record; any submitted path is ignored
             cv: The optimized CurriculumVitae
 
         Returns:
-            The persisted OptimizedCvRecord
+            The persisted OptimizedCvRecord, with path set
+
+        Raises:
+            ValueError: if parent is missing or unpersisted, or the
+                optimized CV already exists under parent
         """
+        if parent is None or parent.path is None:
+            raise ValueError("Optimized CV requires a persisted parent job posting")
+
         collection = self._load_collection(self.optimized_cvs_collection)
 
         existing = next(
             (
                 item
                 for item in collection
-                if item["identifier"] == identifier
-                and item["job_posting_identifier"] == job_posting_identifier
+                if item["identifier"] == record.identifier
+                and item["job_posting_identifier"] == parent.identifier
             ),
             None,
         )
 
         if existing is not None:
             raise ValueError(
-                f"Optimized CV already exists: job-postings/{job_posting_identifier}/cvs/{identifier}"
+                f"Optimized CV already exists: job-postings/{parent.identifier}/cvs/{record.identifier}"
             )
 
-        job_posting_record = self.get_job_posting_record(job_posting_identifier)
-        job_title = job_posting_record.title if job_posting_record else None
-        company = job_posting_record.company if job_posting_record else None
-
-        now = datetime.now()
-        record = OptimizedCvRecord(
-            identifier=identifier,
-            path=self._optimized_cv_path(job_posting_identifier, identifier),
-            job_posting_identifier=job_posting_identifier,
-            base_cv_identifier=base_cv_identifier,
-            name=cv.name,
-            profession=cv.profession,
-            job_title=job_title,
-            company=company,
-            created_at=now,
-            updated_at=now,
+        record = record.model_copy(
+            update={"path": f"{parent.path}/{CVS_DIR}/{record.identifier}"}
         )
         self.save_object(record, cv)
         collection.append(record.model_dump(mode="json"))
