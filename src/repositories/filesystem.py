@@ -98,14 +98,14 @@ class FileSystemRepository:
         self, record: JobPostingRecord, job_posting: JobPosting
     ) -> JobPostingRecord:
         """
-        Place a new job posting record by its location and persist it.
+        Add a job posting and update collection metadata.
 
         Args:
-            record: The job posting record; any submitted path is ignored
+            record: JobPostingRecord
             job_posting: JobPosting
 
         Returns:
-            The persisted JobPostingRecord, with path set
+            The persisted JobPostingRecord
         """
         collection = self._load_collection(self.job_postings_collection)
 
@@ -302,14 +302,14 @@ class FileSystemRepository:
         self, record: CurriculumVitaeRecord, cv: CurriculumVitae
     ) -> CurriculumVitaeRecord:
         """
-        Place a new CV record and persist it.
+        Add a CV and update collection metadata.
 
         Args:
-            record: The CV record; any submitted path is ignored
+            record: CurriculumVitaeRecord
             cv: CurriculumVitae
 
         Returns:
-            The persisted CurriculumVitaeRecord, with path set
+            The persisted CurriculumVitaeRecord
         """
         collection = self._load_collection(self.cvs_collection)
 
@@ -520,14 +520,14 @@ class FileSystemRepository:
         self, record: CoverLetterRecord, cover_letter: CoverLetter
     ) -> CoverLetterRecord:
         """
-        Place a new cover letter record and persist it.
+        Add a cover letter and update collection metadata.
 
         Args:
-            record: The cover letter record; any submitted path is ignored
+            record: CoverLetterRecord
             cover_letter: CoverLetter
 
         Returns:
-            The persisted CoverLetterRecord, with path set
+            The persisted CoverLetterRecord
         """
         collection = self._load_collection(self.cover_letters_collection)
 
@@ -775,19 +775,15 @@ class FileSystemRepository:
         cv: CurriculumVitae,
     ) -> OptimizedCvRecord:
         """
-        Place a new optimized CV record under its parent job posting and persist it.
+        Add an optimized CV and update collection metadata.
 
         Args:
-            parent: The persisted parent job posting record
-            record: The optimized CV record; any submitted path is ignored
+            parent: The parent JobPostingRecord
+            record: OptimizedCvRecord
             cv: The optimized CurriculumVitae
 
         Returns:
-            The persisted OptimizedCvRecord, with path set
-
-        Raises:
-            ValueError: if parent is missing or unpersisted, or the
-                optimized CV already exists under parent
+            The persisted OptimizedCvRecord
         """
         if parent is None or parent.path is None:
             raise ValueError("Optimized CV requires a persisted parent job posting")
