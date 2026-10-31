@@ -891,30 +891,20 @@ class TestLoadAllObjects:
 
 
 class TestAddOrReplaceDocument:
-    def test_prepends_frontmatter_for_owned_stem(
-        self, job_posting_record, repository_with_job_posting, temp_data_dir
+    @pytest.mark.parametrize("method", ["add_document", "add_or_replace_document"])
+    def test_stores_owned_document_exactly_as_supplied(
+        self, job_posting_record, repository_with_job_posting, method
     ):
-        repository_with_job_posting.add_or_replace_document(
-            job_posting_record, "job-posting.md", "# Acme\n"
+        content = "---\ncustom: keep\n---\n# Hand-written body\n"
+        getattr(repository_with_job_posting, method)(
+            job_posting_record, "job-posting.md", content
         )
-        path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
-        content = path.read_text()
-        assert content.startswith("---\n")
-        assert "identifier: acme-swe" in content
-        assert "# Acme" in content
-
-    def test_prepends_frontmatter_for_cover_letter(
-        self, repository_with_cover_letter, temp_data_dir
-    ):
-        record = repository_with_cover_letter.get_cover_letter_record("jane-acme")
-        repository_with_cover_letter.add_or_replace_document(
-            record, "cover-letter.md", "# Letter\n"
+        assert (
+            repository_with_job_posting.load_document(
+                job_posting_record, "job-posting.md"
+            )
+            == content
         )
-        path = Path(temp_data_dir) / "cover-letters" / "jane-acme" / "cover-letter.md"
-        content = path.read_text()
-        assert content.startswith("---\n")
-        assert "identifier: jane-acme" in content
-        assert "# Letter" in content
 
     def test_no_frontmatter_for_unowned_stem(
         self, job_posting_record, repository_with_job_posting, temp_data_dir
@@ -1022,62 +1012,6 @@ class TestDocumentExists:
 
         record = _current_record(repository, kind)
         assert repository.document_exists(record, "notes.md") is False
-
-
-class TestPatchDocumentFrontmatter:
-    def test_merges_record_fields_into_frontmatter(
-        self, job_posting_record, repository_with_job_posting, temp_data_dir
-    ):
-        repository_with_job_posting.add_or_replace_document(
-            job_posting_record, "job-posting.md", "# Acme\n\nBody text.\n"
-        )
-        repository_with_job_posting.transition_job_posting("acme-swe", "somewhere")
-        path = (
-            Path(temp_data_dir)
-            / "job-postings"
-            / "somewhere"
-            / "acme-swe"
-            / "job-posting.md"
-        )
-        content = path.read_text()
-        assert content.startswith("---\n")
-        assert "location: somewhere" in content
-
-    def test_preserves_hand_added_frontmatter_keys(
-        self, repository_with_job_posting, temp_data_dir
-    ):
-        src = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
-        src.parent.mkdir(parents=True, exist_ok=True)
-        src.write_text("---\ncustom_tag: keep-me\n---\n# Acme\n")
-        repository_with_job_posting.transition_job_posting("acme-swe", "somewhere")
-        path = (
-            Path(temp_data_dir)
-            / "job-postings"
-            / "somewhere"
-            / "acme-swe"
-            / "job-posting.md"
-        )
-        assert "custom_tag: keep-me" in path.read_text()
-
-    def test_preserves_body_content(
-        self, job_posting_record, repository_with_job_posting, temp_data_dir
-    ):
-        repository_with_job_posting.add_or_replace_document(
-            job_posting_record, "job-posting.md", "# Acme\n\nHand-edited paragraph.\n"
-        )
-        repository_with_job_posting.transition_job_posting("acme-swe", "somewhere")
-        path = (
-            Path(temp_data_dir)
-            / "job-postings"
-            / "somewhere"
-            / "acme-swe"
-            / "job-posting.md"
-        )
-        assert "Hand-edited paragraph." in path.read_text()
-
-    def test_skips_nonexistent_markdown_files(self, repository_with_job_posting):
-        # Should not raise even if no .md file exists yet
-        repository_with_job_posting.transition_job_posting("acme-swe", "somewhere")
 
 
 class TestUpsertOptimizedCv:

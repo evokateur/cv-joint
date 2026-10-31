@@ -1,9 +1,11 @@
 import re
 from typing import Optional
 
+import yaml
 from pydantic import BaseModel
 
 from models import (
+    CoverLetterRecord,
     JobPosting,
     JobPostingRecord,
     CvTransformationPlan,
@@ -11,7 +13,15 @@ from models import (
     CurriculumVitaeRecord,
     OptimizedCvRecord,
 )
-from .converters import MarkdownConverter
+from .converters import MarkdownConverter, insert_json_as_frontmatter
+
+
+RECORD_DOCUMENTS: dict[type, set[str]] = {
+    JobPostingRecord: {"job-posting"},
+    CurriculumVitaeRecord: {"curriculum-vitae"},
+    OptimizedCvRecord: {"curriculum-vitae", "cv-transformation-plan"},
+    CoverLetterRecord: {"cover-letter"},
+}
 
 
 def _to_kebab_case(name: str) -> str:
@@ -26,11 +36,39 @@ class MarkdownExporter:
         self.repository = repository
         self.converter = converter
 
+    def compose_document(self, record: BaseModel, filename: str, content: str) -> str:
+        """Prepend record metadata to its owned Markdown documents."""
+        if filename.endswith(".md"):
+            if filename[:-3] in RECORD_DOCUMENTS.get(type(record), set()):
+                return insert_json_as_frontmatter(
+                    record.model_dump(mode="json"), content
+                )
+        return content
+
+    def patch_document_frontmatter(self, record: BaseModel) -> None:
+        """Update existing record metadata while preserving custom keys and body."""
+        for stem in RECORD_DOCUMENTS.get(type(record), set()):
+            filename = f"{stem}.md"
+            if not self.repository.document_exists(record, filename):
+                continue
+            content = self.repository.load_document(record, filename)
+            if not content.startswith("---\n"):
+                continue
+            end = content.find("\n---\n", 4)
+            if end == -1:
+                continue
+            existing = yaml.safe_load(content[4:end]) or {}
+            body = content[end + 5 :]
+            existing.update(record.model_dump(mode="json"))
+            new_fm = f"---\n{yaml.dump(existing, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
+            self.repository.add_or_replace_document(record, filename, new_fm + body)
+
     def _save(self, record: BaseModel, obj: BaseModel):
         markdown = self.converter.convert(obj)
         if markdown is None:
             return
         filename = f"{_to_kebab_case(type(obj).__name__)}.md"
+        markdown = self.compose_document(record, filename, markdown)
         self.repository.add_or_replace_document(record, filename, markdown)
 
     def export_job_posting(self, record: JobPostingRecord, job_posting: JobPosting):

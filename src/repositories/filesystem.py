@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, TypeVar
 
-import yaml
 from pydantic import BaseModel
 
 from models import (
@@ -21,13 +20,6 @@ from models import (
 
 T = TypeVar("T", bound=BaseModel)
 
-RECORD_DOCUMENTS: dict[type, set[str]] = {
-    JobPostingRecord: {"job-posting"},
-    CurriculumVitaeRecord: {"curriculum-vitae"},
-    OptimizedCvRecord: {"curriculum-vitae", "cv-transformation-plan"},
-    CoverLetterRecord: {"cover-letter"},
-}
-
 Record = (
     JobPostingRecord | CurriculumVitaeRecord | OptimizedCvRecord | CoverLetterRecord
 )
@@ -40,11 +32,6 @@ class DocumentExistsError(ValueError):
 JOB_POSTINGS_DIR = "job-postings"
 CVS_DIR = "cvs"
 COVER_LETTERS_DIR = "cover-letters"
-
-
-def _render_frontmatter(record: BaseModel) -> str:
-    data = record.model_dump(mode="json")
-    return f"---\n{yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
 
 
 def _to_kebab_case(name: str) -> str:
@@ -263,7 +250,6 @@ class FileSystemRepository:
 
         self._save_collection(self.job_postings_collection, collection)
         result = JobPostingRecord(**record_data)
-        self._patch_document_frontmatter(result)
         return result
 
     def _update_optimized_cv_paths(
@@ -783,11 +769,6 @@ class FileSystemRepository:
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / filename
 
-        if filename.endswith(".md"):
-            stem = filename[:-3]
-            if stem in RECORD_DOCUMENTS.get(type(record), set()):
-                content = _render_frontmatter(record) + content
-
         path.write_text(content)
 
     def add_document(self, record: Record, filename: str, content: str) -> None:
@@ -796,23 +777,6 @@ class FileSystemRepository:
                 f"Document already exists: {record.path}/{filename}"
             )
         self.add_or_replace_document(record, filename, content)
-
-    def _patch_document_frontmatter(self, record: BaseModel) -> None:
-        for stem in RECORD_DOCUMENTS.get(type(record), set()):
-            path = self.data_dir / record.path / f"{stem}.md"  # type: ignore[union-attr]
-            if not path.exists():
-                continue
-            content = path.read_text()
-            if not content.startswith("---\n"):
-                continue
-            end = content.find("\n---\n", 4)
-            if end == -1:
-                continue
-            existing = yaml.safe_load(content[4:end]) or {}
-            body = content[end + 5 :]
-            existing.update(record.model_dump(mode="json"))
-            new_fm = f"---\n{yaml.dump(existing, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
-            path.write_text(new_fm + body)
 
     def load_document(self, record: Record, filename: str) -> str:
         return (self.directory_for(record) / filename).read_text()
