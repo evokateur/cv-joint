@@ -4,6 +4,7 @@ Unit tests for application service markdown generation.
 
 import json
 import pytest
+import yaml
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -81,6 +82,13 @@ def test_generate_pdf_file_renders_data_to_explicit_output(service, sample_cv_da
 
 
 class TestSaveJobPostingMarkdown:
+    def test_includes_record_frontmatter(self, service, sample_job_posting_data):
+        service.add_job_posting(sample_job_posting_data, "test-job")
+        record = service.repository.get_job_posting_record("test-job")
+        content = service.repository.load_document(record, "job-posting.md")
+        assert content.startswith("---\nidentifier: test-job\n")
+        assert "path: job-postings/test-job\n" in content
+
     def test_creates_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.add_job_posting(sample_job_posting_data, "test-job")
         md_path = Path(temp_data_dir) / "job-postings" / "test-job" / "job-posting.md"
@@ -308,6 +316,49 @@ class TestGetJobPostings:
         )
 
 
+class TestTransitionFrontmatter:
+    @pytest.mark.parametrize(
+        "method, arguments, location, path",
+        [
+            (
+                "transition_job_posting",
+                ("shortlisted",),
+                "shortlisted",
+                "job-postings/shortlisted/test-job",
+            ),
+            ("archive_job_posting", (), "archived", "job-postings/archived/test-job"),
+            ("unarchive_job_posting", (), None, "job-postings/test-job"),
+            ("mark_applied", ("my-cv",), "applied", "job-postings/applied/test-job"),
+        ],
+    )
+    def test_patches_moved_document_and_returns_persisted_record(
+        self, service, sample_job_posting_data, method, arguments, location, path
+    ):
+        service.add_job_posting(sample_job_posting_data, "test-job")
+        if method == "unarchive_job_posting":
+            service.archive_job_posting("test-job")
+        record = service.repository.get_job_posting_record("test-job")
+        service.repository.add_or_replace_document(
+            record,
+            "job-posting.md",
+            "---\ncustom_tag: keep-me\n---\n# Hand-edited\n\nBody.\n",
+        )
+        result = getattr(service, method)("test-job", *arguments)
+        assert result == service.repository.get_job_posting_record("test-job")
+        assert result.path == path
+        content = service.repository.load_document(result, "job-posting.md")
+        _, metadata, body = content.split("---\n", 2)
+        metadata = yaml.safe_load(metadata)
+        assert metadata["path"] == path
+        assert metadata["location"] == location
+        assert metadata["custom_tag"] == "keep-me"
+        assert body == "# Hand-edited\n\nBody.\n"
+        if method == "mark_applied":
+            assert metadata["applied_with"] == "my-cv"
+        if method in ("archive_job_posting", "unarchive_job_posting"):
+            assert metadata["is_archived"] == (method == "archive_job_posting")
+
+
 class TestArchiveJobPosting:
     def test_delegates_to_repository(self):
         mock_repo = MagicMock()
@@ -318,7 +369,7 @@ class TestArchiveJobPosting:
             "acme-swe", "archived", record_fields={"is_archived": True}
         )
 
-    def test_does_not_call_exporter(self):
+    def test_does_not_regenerate_job_posting_markdown(self):
         mock_repo = MagicMock()
         mock_exporter = MagicMock()
         service = ApplicationService(repository=mock_repo)
@@ -351,7 +402,7 @@ class TestMarkApplied:
         assert kwargs["fields"]["applied_at"] == date.isoformat()
         assert kwargs["record_fields"]["applied_at"] == date.isoformat()
 
-    def test_does_not_call_exporter(self):
+    def test_does_not_regenerate_job_posting_markdown(self):
         mock_repo = MagicMock()
         mock_exporter = MagicMock()
         service = ApplicationService(repository=mock_repo)
@@ -640,6 +691,18 @@ class TestCreateCv:
 
 
 class TestAddDocument:
+    def test_composes_owned_document(self, service, sample_job_posting_data, tmp_path):
+        record = service.repository.add_job_posting(
+            JobPosting(**sample_job_posting_data), "test-job"
+        )
+        source = tmp_path / "job-posting.md"
+        source.write_text("# Imported posting\n")
+        result = service.add_document("job-postings/test-job", str(source))
+        assert result == "job-postings/test-job/job-posting.md"
+        content = service.repository.load_document(record, "job-posting.md")
+        assert content.startswith("---\nidentifier: test-job\n")
+        assert content.endswith("---\n# Imported posting\n")
+
     def test_bare_object_uri_uses_source_filename(
         self, service, sample_job_posting_data, tmp_path
     ):

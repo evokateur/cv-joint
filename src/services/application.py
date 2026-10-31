@@ -219,19 +219,25 @@ class ApplicationService:
         self, identifier: str, location: str, fields: dict | None = None
     ):
         """File a job posting into a named location, recording the transition."""
-        return self.repository.transition_job_posting(identifier, location, fields)
+        record = self.repository.transition_job_posting(identifier, location, fields)
+        self.markdown_exporter.patch_document_frontmatter(record)
+        return record
 
     def archive_job_posting(self, identifier: str):
         """Mark a job posting as archived."""
-        return self.repository.transition_job_posting(
+        record = self.repository.transition_job_posting(
             identifier, "archived", record_fields={"is_archived": True}
         )
+        self.markdown_exporter.patch_document_frontmatter(record)
+        return record
 
     def unarchive_job_posting(self, identifier: str):
         """Return a job posting to the root (active/unfiled)."""
-        return self.repository.transition_job_posting(
+        record = self.repository.transition_job_posting(
             identifier, ".", record_fields={"is_archived": False}
         )
+        self.markdown_exporter.patch_document_frontmatter(record)
+        return record
 
     def mark_applied(
         self, identifier: str, cv_identifier: str, applied_at: Optional[datetime] = None
@@ -242,9 +248,11 @@ class ApplicationService:
             "applied_with": cv_identifier,
             "applied_at": applied_at_dt.isoformat(),
         }
-        return self.repository.transition_job_posting(
+        record = self.repository.transition_job_posting(
             identifier, "applied", fields=denorm, record_fields=denorm
         )
+        self.markdown_exporter.patch_document_frontmatter(record)
+        return record
 
     def analyze_cv(self, content_file: Optional[str] = None) -> dict[str, Any]:
         """
@@ -394,8 +402,11 @@ class ApplicationService:
 
         record = resolve_record(self.repository, base_uri)
         filename = doc_uri.rsplit("/", 1)[1]
+        content = self.markdown_exporter.compose_document(
+            record, filename, Path(file_path).read_text()
+        )
         try:
-            self.repository.add_document(record, filename, Path(file_path).read_text())
+            self.repository.add_document(record, filename, content)
         except DocumentExistsError:
             raise ValueError(f"Document already exists: {doc_uri}") from None
         return doc_uri
