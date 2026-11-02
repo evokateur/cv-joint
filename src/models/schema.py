@@ -14,11 +14,11 @@ class Contact(BaseModel):
     phone: str
     linkedin: Optional[str] = Field(
         default=None,
-        description="The candidate's LinkedIn profile identifier (the part after linkedin.com/in/), without the URL prefix",
+        description="The candidate's LinkedIn profile identifier (the part after linkedin.com/in/)",
     )
     github: Optional[str] = Field(
         default=None,
-        description="The candidate's GitHub username, without the URL prefix",
+        description="The candidate's GitHub username",
     )
 
 
@@ -31,11 +31,9 @@ class Education(BaseModel):
     )
     institution: str
     location: str
-    start_date: str = Field(
-        description="Start date as stated in the source; preserve its precision"
-    )
+    start_date: str = Field(description="Date the candidate began this course of study")
     end_date: str = Field(
-        description="End date as stated in the source; preserve its precision and any indication that study is ongoing"
+        description="Date this course of study ended, or an indication that it is ongoing"
     )
 
 
@@ -45,15 +43,13 @@ class Experience(BaseModel):
     title: str
     company: str
     location: str
-    start_date: str = Field(
-        description="Start date as stated in the source; preserve its precision"
-    )
+    start_date: str = Field(description="Date the candidate began this role")
     end_date: str = Field(
-        description="End date as stated in the source; preserve its precision and any indication that the role is ongoing"
+        description="Date this role ended, or an indication that it is ongoing"
     )
     responsibilities: Optional[List[str]] = Field(
         default=None,
-        description="Duties and achievements in this role, each as a separate item; preserve stated metrics",
+        description="Duties and achievements in this role, including associated metrics",
     )
 
 
@@ -63,11 +59,9 @@ class AdditionalExperience(BaseModel):
     title: str
     company: str
     location: str
-    start_date: str = Field(
-        description="Start date as stated in the source; preserve its precision"
-    )
+    start_date: str = Field(description="Date the candidate began this role")
     end_date: str = Field(
-        description="End date as stated in the source; preserve its precision and any indication that the role is ongoing"
+        description="Date this role ended, or an indication that it is ongoing"
     )
 
 
@@ -85,7 +79,7 @@ class Language(BaseModel):
 
     language: str = Field(description="Name of the human language")
     level: str = Field(
-        description="Proficiency as stated, such as native, fluent, or B2; preserve the source's scale without inferring an equivalent rating"
+        description="The candidate's proficiency in this language, such as native, fluent, or B2"
     )
 
 
@@ -125,7 +119,7 @@ class CoverLetter(BaseModel):
     closing: str
     date: Optional[str] = Field(
         default=None,
-        description="Letter date as stated in the source; preserve its precision and leave null if absent",
+        description="Date of the letter",
     )
     paragraphs: List[str] = Field(
         description="Body paragraphs in reading order, excluding the salutation and closing"
@@ -145,7 +139,7 @@ class JobPosting(BaseModel):
     company: str
     industry: str
     experience_level: str = Field(
-        description="Seniority stated in the posting, such as entry, mid, senior, or lead; use Not specified if absent"
+        description="Seniority of the role, such as entry, mid, senior, or lead"
     )
     description: str = Field(
         description="Prose overview of what the job involves and its context"
@@ -157,7 +151,7 @@ class JobPosting(BaseModel):
     )
     years_experience: Optional[str] = Field(
         default=None,
-        description="Explicit experience-duration requirements, preserving qualifiers such as 5+ years",
+        description="Experience-duration requirements, such as 5+ years",
     )
     hard_requirements: List[str] = Field(
         default=[],
@@ -191,17 +185,17 @@ class JobPosting(BaseModel):
     # Extracted for ATS alignment
     keywords: List[str] = Field(
         default=[],
-        description="ATS-relevant terms from the posting not already captured in skills, tools, responsibilities, or deliverables",
+        description="ATS-relevant terms and phrases from the posting, such as domain terminology and industry keywords",
     )
     tools_and_tech: List[str] = Field(
         default=[],
-        description="All specifically named technologies, platforms, products, and services, including third-party SaaS tools and APIs",
+        description="Technologies, platforms, products, and services named in the posting, including third-party SaaS tools and APIs",
     )
 
     # Application
     application_instructions: Optional[List[str]] = Field(
         default=None,
-        description="Each applicant instruction as a separate item, preserving exact wording; include required materials, questions, secret keywords, and formatting requirements",
+        description="Instructions for applicants, including required materials, questions, secret keywords, and formatting requirements",
     )
 
 
@@ -209,8 +203,8 @@ class CvTransformationPlan(BaseModel):
     """Plan for transforming a CV to align with a job posting."""
 
     # Context - copied from job posting for traceability
-    job_title: str = Field(description="Job title from the posting (copied verbatim)")
-    company: str = Field(description="Company name from the posting (copied verbatim)")
+    job_title: str = Field(description="Job title from the posting")
+    company: str = Field(description="Company name from the posting")
 
     # Alignment analysis - transparency about what matches
     matching_skills: List[str] = Field(
@@ -228,7 +222,7 @@ class CvTransformationPlan(BaseModel):
     # Field-specific transformation instructions
     profession_update: Optional[str] = Field(
         default=None,
-        description="New profession field value, or null if no change needed",
+        description="Proposed replacement for the CV's professional headline",
     )
     core_expertise_updates: List[str] = Field(
         default_factory=list,
@@ -246,14 +240,13 @@ class CvTransformationPlan(BaseModel):
     # ATS optimization
     keyword_insertions: List[str] = Field(
         default_factory=list,
-        description="Specific keywords from job posting to incorporate",
+        description="Keywords from the job posting proposed for inclusion in the CV",
     )
     quantification_suggestions: List[str] = Field(
         default_factory=list,
         description=(
-            "Suggestions to add metrics where a specific, real figure is available in the CV or "
-            "knowledge base. Never include placeholder values like 'X%' or 'N users'. "
-            "Omit entirely if no real figure exists."
+            "Suggested additions of quantitative evidence, based on figures available "
+            "in the CV or knowledge base"
         ),
     )
 
