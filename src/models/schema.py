@@ -4,55 +4,100 @@ from typing import List, Optional
 
 
 class Contact(BaseModel):
-    city: str
-    state: str
+    """The candidate's location and contact information."""
+
+    city: str = Field(description="City where the candidate is based")
+    state: str = Field(
+        description="State, province, or region where the candidate is based"
+    )
     email: str
     phone: str
-    linkedin: Optional[str] = None
-    github: Optional[str] = None
+    linkedin: Optional[str] = Field(
+        default=None, description="URL of the candidate's LinkedIn profile"
+    )
+    github: Optional[str] = Field(
+        default=None, description="URL of the candidate's GitHub profile"
+    )
 
 
 class Education(BaseModel):
+    """An education entry from the candidate's academic history."""
+
     degree: str
-    coursework: str
+    coursework: str = Field(
+        description="Courses or subject areas studied, expressed as a single text value"
+    )
     institution: str
     location: str
-    start_date: str
-    end_date: str
+    start_date: str = Field(
+        description="Start date as stated in the source; preserve its precision"
+    )
+    end_date: str = Field(
+        description="End date as stated in the source; preserve its precision and any indication that study is ongoing"
+    )
 
 
 class Experience(BaseModel):
+    """A role in the candidate's work history, with detailed responsibilities and achievements."""
+
     title: str
     company: str
     location: str
-    start_date: str
-    end_date: str
-    responsibilities: Optional[List[str]] = None
+    start_date: str = Field(
+        description="Start date as stated in the source; preserve its precision"
+    )
+    end_date: str = Field(
+        description="End date as stated in the source; preserve its precision and any indication that the role is ongoing"
+    )
+    responsibilities: Optional[List[str]] = Field(
+        default=None,
+        description="Duties and achievements in this role, each as a separate item; preserve stated metrics",
+    )
 
 
 class AdditionalExperience(BaseModel):
+    """An additional or earlier role listed without detailed responsibilities."""
+
     title: str
     company: str
     location: str
-    start_date: str
-    end_date: str
+    start_date: str = Field(
+        description="Start date as stated in the source; preserve its precision"
+    )
+    end_date: str = Field(
+        description="End date as stated in the source; preserve its precision and any indication that the role is ongoing"
+    )
 
 
 class AreaOfExpertise(BaseModel):
-    name: str
-    skills: List[str]
+    """A named grouping of related skills in the candidate's CV."""
+
+    name: str = Field(description="Category name for this group of skills")
+    skills: List[str] = Field(
+        description="Individual skills belonging to this category"
+    )
 
 
 class Language(BaseModel):
-    language: str
-    level: str
+    """A human language and the candidate's stated proficiency."""
+
+    language: str = Field(description="Name of the human language")
+    level: str = Field(
+        description="Proficiency as stated, such as native, fluent, or B2; preserve the source's scale without inferring an equivalent rating"
+    )
 
 
 class CurriculumVitae(BaseModel):
+    """The candidate's professional profile, qualifications, and career history."""
+
     name: str
     contact: Contact
-    profession: str
-    core_expertise: List[str]
+    profession: str = Field(
+        description="Professional headline describing the candidate's role or specialization"
+    )
+    core_expertise: List[str] = Field(
+        description="Concise highlights of the candidate's principal areas of expertise"
+    )
     qualifications: List[str] = Field(
         description="Summary of qualifications; each item is a full paragraph"
     )
@@ -64,47 +109,97 @@ class CurriculumVitae(BaseModel):
 
 
 class CoverLetter(BaseModel):
+    """A candidate's letter introducing their application to an employer."""
+
     name: str
     contact: Contact
-    company: Optional[str] = None
-    position: Optional[str] = None
+    company: Optional[str] = Field(
+        default=None, description="Employer the letter is addressed to"
+    )
+    position: Optional[str] = Field(
+        default=None, description="Role the candidate is applying for"
+    )
     salutation: str
     closing: str
-    date: Optional[str] = None
-    paragraphs: List[str]
-    alternate_paragraphs: Optional[List[str]] = None
+    date: Optional[str] = Field(
+        default=None,
+        description="Letter date as stated in the source; preserve its precision and leave null if absent",
+    )
+    paragraphs: List[str] = Field(
+        description="Body paragraphs in reading order, excluding the salutation and closing"
+    )
+    alternate_paragraphs: Optional[List[str]] = Field(
+        default=None,
+        description="Optional alternative body paragraphs available for selection",
+    )
 
 
 class JobPosting(BaseModel):
+    """A job posting's role, requirements, and application instructions."""
+
     # Basic metadata
     url: Optional[str] = Field(default=None, description="The job posting URL")
     title: str
     company: str
     industry: str
-    experience_level: str  # entry, mid, senior, etc.
-    description: str  # job description: what the job involves and its context
+    experience_level: str = Field(
+        description="Seniority stated in the posting, such as entry, mid, senior, or lead; use Not specified if absent"
+    )
+    description: str = Field(
+        description="Prose overview of what the job involves and its context"
+    )
 
     # Requirements
-    education: List[str] = []  # degrees, certifications
-    years_experience: Optional[str] = None  # "5+ years"
-    hard_requirements: List[str] = []  # absolute musts (e.g., "CPA license")
+    education: List[str] = Field(
+        default=[], description="Degrees and certifications requested in the posting"
+    )
+    years_experience: Optional[str] = Field(
+        default=None,
+        description="Explicit experience-duration requirements, preserving qualifiers such as 5+ years",
+    )
+    hard_requirements: List[str] = Field(
+        default=[],
+        description="Mandatory qualifications or conditions, such as a required CPA license",
+    )
 
     # Skills (structured)
-    technical_skills: List[str] = []  # e.g., "Python", "AWS", "GraphQL"
-    soft_skills: List[str] = []  # e.g., "leadership", "teamwork"
-    preferred_skills: List[str] = []  # nice-to-have
+    technical_skills: List[str] = Field(
+        default=[],
+        description="Technical skills requested, such as Python, AWS, or GraphQL",
+    )
+    soft_skills: List[str] = Field(
+        default=[],
+        description="Interpersonal and professional skills requested, such as leadership or teamwork",
+    )
+    preferred_skills: List[str] = Field(
+        default=[],
+        description="Skills identified as desirable or nice-to-have rather than mandatory",
+    )
 
     # Responsibilities and deliverables
-    responsibilities: List[str] = []  # day-to-day duties
-    deliverables: List[str] = []  # expected outputs/artifacts
+    responsibilities: List[str] = Field(
+        default=[],
+        description="Specific day-to-day duties and ongoing work expected in the role",
+    )
+    deliverables: List[str] = Field(
+        default=[],
+        description="Concrete outputs or artifacts expected, such as an API integration or technical documentation",
+    )
 
     # Extracted for ATS alignment
-    keywords: List[str] = []  # important phrases/terms from posting
-    tools_and_tech: List[str] = []  # specific stack/tools
+    keywords: List[str] = Field(
+        default=[],
+        description="ATS-relevant terms from the posting not already captured in skills, tools, responsibilities, or deliverables",
+    )
+    tools_and_tech: List[str] = Field(
+        default=[],
+        description="All specifically named technologies, platforms, products, and services, including third-party SaaS tools and APIs",
+    )
 
     # Application
-    application_instructions: Optional[List[str]] = (
-        None  # special requirements, secret keywords, required materials
+    application_instructions: Optional[List[str]] = Field(
+        default=None,
+        description="Each applicant instruction as a separate item, preserving exact wording; include required materials, questions, secret keywords, and formatting requirements",
     )
 
 
@@ -139,7 +234,7 @@ class CvTransformationPlan(BaseModel):
     )
     summary_updates: List[str] = Field(
         default_factory=list,
-        description="Instructions for summary_of_qualifications rewrites",
+        description="Instructions for rewriting the CV's qualifications paragraphs",
     )
     experience_updates: List[str] = Field(
         default_factory=list,
