@@ -13,10 +13,12 @@ class Contact(BaseModel):
     email: str
     phone: str
     linkedin: Optional[str] = Field(
-        default=None, description="URL of the candidate's LinkedIn profile"
+        default=None,
+        description="The candidate's LinkedIn profile identifier (the part after linkedin.com/in/), without the URL prefix",
     )
     github: Optional[str] = Field(
-        default=None, description="URL of the candidate's GitHub profile"
+        default=None,
+        description="The candidate's GitHub username, without the URL prefix",
     )
 
 
