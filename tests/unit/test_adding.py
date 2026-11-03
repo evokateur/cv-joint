@@ -117,6 +117,14 @@ def test_adding_accepts_json_text(service, cv):
     assert service.get(uri) == cv
 
 
+@pytest.mark.parametrize("data", ["[]", "null", '"text"', "42", "true"])
+def test_adding_requires_a_json_object(service, data):
+    with pytest.raises(ValueError, match="^Entity content must be a JSON object$"):
+        service.add("cvs", data, identifier="backend")
+
+    assert service.list("cvs") == []
+
+
 def test_document_addition_preserves_binary_bytes(service, cv):
     service.add_cv(cv.model_dump(), "backend")
     content = b"%PDF-1.7\r\n\x00\xff\xfe\n"
@@ -225,6 +233,17 @@ def test_cli_add_reports_errors_on_stderr(service, cv, tmp_path, arguments, mess
     assert result.exit_code != 0
     assert result.stdout_bytes == b""
     assert f"Error: {message}" in result.stderr
+
+
+def test_cli_reports_non_object_entity_content_on_stderr(service):
+    result = CliRunner(mix_stderr=False).invoke(
+        main, ["add", "cvs", "-", "-i", "backend"], input="[]", obj=service
+    )
+
+    assert result.exit_code == 1
+    assert result.stdout_bytes == b""
+    assert result.stderr == "Error: Entity content must be a JSON object\n"
+    assert service.list("cvs") == []
 
 
 def test_cli_stdin_document_needs_a_document_uri(service, cv):

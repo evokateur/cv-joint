@@ -93,6 +93,8 @@ class ApplicationService:
         """Create one entity in a collection from a dict or JSON text. Returns the entity URI."""
         if isinstance(data, str):
             data = json.loads(data)
+        if not isinstance(data, dict):
+            raise ValueError("Entity content must be a JSON object")
         validate_identifier(identifier)
         entity_uri = f"{collection_uri}/{identifier}"
         if self.object_exists(entity_uri):
