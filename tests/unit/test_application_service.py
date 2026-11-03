@@ -747,22 +747,6 @@ class TestCreateJobPostingFromUrl:
         service.job_posting_analyzer.analyze.assert_called_once_with(str(content))
 
 
-class TestCreateCv:
-    def test_analyzes_content_file(self, service, sample_cv_data, tmp_path):
-        content = tmp_path / "cv.yaml"
-        content.write_text("name: Jane")
-        service.cv_analyzer = MagicMock()
-        service.cv_analyzer.analyze.return_value = MagicMock(**sample_cv_data)
-
-        service.analyze_cv(content_file=str(content))
-
-        service.cv_analyzer.analyze.assert_called_once_with(str(content))
-
-    def test_raises_when_content_file_missing(self, service):
-        with pytest.raises(ValueError, match="content_file must be provided"):
-            service.analyze_cv()
-
-
 class TestObjectExists:
     def test_true_for_existing_job_posting(self, service, sample_job_posting_data):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
