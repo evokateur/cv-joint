@@ -4,11 +4,13 @@ import json
 from pathlib import Path
 
 import pytest
+from click.testing import CliRunner
 
 from models import Contact, CurriculumVitae
 from repositories import FileSystemRepository
 from services import ApplicationService
 from services.analyzers.cv_analyzer import CvAnalyzer
+from ui.cli import main
 
 
 ACME_POSTING = {
@@ -70,6 +72,95 @@ def test_analyzing_a_cv_names_its_content_as_curriculum_vitae_json(
 
     assert outputs == {"curriculum-vitae.json": cv.model_dump(mode="json")}
     assert analysis.read == "Jane Doe, Engineer"
+
+
+@pytest.mark.parametrize("from_stdin", [False, True])
+def test_cli_analyze_cv_prints_named_outputs(
+    service, analysis, cv, tmp_path, from_stdin
+):
+    source = tmp_path / "resume.md"
+    source.write_text("Jane Doe, Engineer")
+    args, stdin = (["-"], source.read_text()) if from_stdin else ([str(source)], None)
+
+    result = CliRunner(mix_stderr=False).invoke(
+        main, ["analyze", "cv", *args], input=stdin, obj=service
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert json.loads(result.stdout) == {
+        "curriculum-vitae.json": cv.model_dump(mode="json")
+    }
+    assert analysis.read == "Jane Doe, Engineer"
+    assert service.list("cvs") == []
+
+
+def test_cli_load_reads_named_outputs_from_stdin_and_prints_the_uri(service, cv):
+    outputs = {"curriculum-vitae.json": cv.model_dump(mode="json"), "notes.md": "x"}
+
+    result = CliRunner(mix_stderr=False).invoke(
+        main,
+        ["load", "cvs", "-i", "backend"],
+        input=json.dumps(outputs),
+        obj=service,
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert result.stdout == "cvs/backend\n"
+    assert service.get("cvs/backend") == cv
+    assert service.get_document("cvs/backend/notes.md") == b"x"
+
+
+@pytest.mark.parametrize(
+    "arguments, stdin, message",
+    [
+        (["cvs"], "{}", "Missing option '-i'"),
+        (["cvs", "-i", "backend"], '{"notes.md": ""}', "Missing curriculum-vitae.json"),
+        (
+            ["cvs", "-i", "backend"],
+            '{"curriculum-vitae.json": {"name": "Jane"}}',
+            "Invalid entity content: contact: Field required (and 8 more)",
+        ),
+        (["cvs", "-i", "backend"], "not json", "Invalid named outputs"),
+    ],
+)
+def test_cli_load_reports_errors_on_stderr(service, arguments, stdin, message):
+    result = CliRunner(mix_stderr=False).invoke(
+        main, ["load", *arguments], input=stdin, obj=service
+    )
+
+    assert result.exit_code != 0
+    assert result.stdout_bytes == b""
+    assert message in result.stderr
+    assert service.list("cvs") == []
+
+
+def test_cli_ingest_cv_analyzes_and_loads_under_the_given_identifier(
+    service, analysis, cv, tmp_path
+):
+    source = tmp_path / "resume.md"
+    source.write_text("Jane Doe, Engineer")
+
+    result = CliRunner(mix_stderr=False).invoke(
+        main, ["ingest", "cv", str(source), "-i", "backend"], obj=service
+    )
+
+    assert result.exit_code == 0, result.stderr
+    assert result.stdout == "cvs/backend\n"
+    assert service.get("cvs/backend") == cv
+    assert analysis.read == "Jane Doe, Engineer"
+
+
+def test_cli_ingest_cv_without_identifier_generates_one_from_the_profession(service):
+    def ingest():
+        return CliRunner(mix_stderr=False).invoke(
+            main, ["ingest", "cv"], input="Jane Doe, Engineer", obj=service
+        )
+
+    first, second = ingest(), ingest()
+
+    assert first.exit_code == 0, first.stderr
+    assert first.stdout == "cvs/engineer\n"
+    assert second.stdout == "cvs/engineer-2\n"
 
 
 def test_loading_into_cvs_creates_a_base_cv_from_its_primary_file(service, cv):

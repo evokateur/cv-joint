@@ -127,7 +127,10 @@ class ApplicationService:
     ) -> str:
         """Create one entity at a destination from named outputs. Returns the entity URI."""
         if isinstance(outputs, str):
-            outputs = json.loads(outputs)
+            try:
+                outputs = json.loads(outputs)
+            except json.JSONDecodeError as error:
+                raise ValueError(f"Invalid named outputs: {error}") from None
         self._validate_load(destination_uri, outputs)
         entity_uri = self.add(
             destination_uri, outputs["curriculum-vitae.json"], identifier=identifier

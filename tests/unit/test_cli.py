@@ -234,44 +234,6 @@ class TestAnalyzeJobPostingCommand:
         assert "analysis failed" in result.output
 
 
-class TestAnalyzeCvCommand:
-    def test_file_calls_service_with_content_file(self, runner, tmp_path):
-        content = tmp_path / "cv.yaml"
-        content.write_text("name: Jane")
-        mock_record = MagicMock()
-        mock_record.identifier = "jane-doe"
-        with patch("services.application.ApplicationService") as MockService:
-            svc = MockService.return_value
-            svc.analyze_cv.return_value = {}
-            svc.generate_default_identifier.return_value = "jane-doe"
-            svc.add_cv.return_value = mock_record
-            result = runner.invoke(main, ["ingest", "cv", str(content)])
-        assert result.exit_code == 0, result.output
-        svc.analyze_cv.assert_called_once_with(str(content))
-        assert "cvs/jane-doe" in result.output
-
-    def test_stdin_buffers_to_tempfile(self, runner):
-        mock_record = MagicMock()
-        mock_record.identifier = "jane-doe"
-        with patch("services.application.ApplicationService") as MockService:
-            svc = MockService.return_value
-            svc.analyze_cv.return_value = {}
-            svc.generate_default_identifier.return_value = "jane-doe"
-            svc.add_cv.return_value = mock_record
-            result = runner.invoke(main, ["ingest", "cv", "-"], input="name: Jane")
-        assert result.exit_code == 0, result.output
-        args = svc.analyze_cv.call_args.args
-        assert args[0] is not None
-
-    def test_service_error_exits_nonzero(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.analyze_cv.side_effect = ValueError(
-                "content_file must be provided"
-            )
-            result = runner.invoke(main, ["ingest", "cv", "-"], input="")
-        assert result.exit_code != 0
-
-
 class TestRenameCommand:
     def test_bare_identifier_passes_through(self, runner):
         with patch("services.application.ApplicationService") as MockService:
