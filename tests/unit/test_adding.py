@@ -149,6 +149,40 @@ def test_document_addition_requires_an_existing_entity(service):
         service.add_document("cvs/missing/notes.md", b"# Notes\n")
 
 
+@pytest.mark.parametrize(
+    "target, filename",
+    [
+        ("cvs/backend/..", None),
+        ("cvs/backend/.", None),
+        ("cvs/backend", ".."),
+        ("cvs/backend", "../../escape.txt"),
+        ("cvs/backend", ""),
+        ("cvs/backend", None),
+    ],
+)
+def test_document_addition_requires_a_valid_filename(
+    service, cv, tmp_path, target, filename
+):
+    service.add("cvs", cv.model_dump(), identifier="backend")
+    before = sorted(tmp_path.rglob("*"))
+
+    with pytest.raises(ValueError, match="illegal filename"):
+        service.add_document(target, b"x", filename=filename)
+
+    assert sorted(tmp_path.rglob("*")) == before
+
+
+def test_document_cannot_take_a_postings_child_collection_name(service, posting, cv):
+    service.add("job-postings", posting.model_dump(), identifier="acme")
+
+    with pytest.raises(
+        ValueError, match="^job-postings/acme/cvs is not a document address$"
+    ):
+        service.add_document("job-postings/acme", b"x", filename="cvs")
+
+    assert service.add("job-postings/acme/cvs", cv.model_dump(), identifier="backend")
+
+
 def test_existing_document_is_a_collision_named_by_logical_uri(service, posting):
     service.add_job_posting(posting.model_dump(), "acme")
     service.archive_job_posting("acme")
@@ -191,6 +225,22 @@ def test_cli_attaches_a_document_byte_for_byte(service, cv, tmp_path, target, ex
     assert result.exit_code == 0, result.output
     assert result.stdout == f"{expected}\n"
     assert service.get_document(expected) == source.read_bytes()
+
+
+def test_cli_rejects_a_document_named_after_a_child_collection(
+    service, posting, tmp_path
+):
+    service.add("job-postings", posting.model_dump(), identifier="acme")
+    source = tmp_path / "cvs"
+    source.write_bytes(b"x")
+
+    result = CliRunner(mix_stderr=False).invoke(
+        main, ["add", "job-postings/acme", str(source)], obj=service
+    )
+
+    assert result.exit_code == 1
+    assert result.stdout_bytes == b""
+    assert result.stderr == "Error: job-postings/acme/cvs is not a document address\n"
 
 
 def test_cli_adds_an_entity_from_stdin(service, posting, cv):
@@ -255,4 +305,4 @@ def test_cli_stdin_document_needs_a_document_uri(service, cv):
 
     assert result.exit_code != 0
     assert "Error: stdin needs a document URI" in result.stderr
-    assert "cvs/backend/<stdin>" not in service.list("cvs/backend")
+    assert "cvs/backend/-" not in service.list("cvs/backend")

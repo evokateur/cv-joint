@@ -24,6 +24,7 @@ from services.addressing import (
     parse_document_uri,
     parse_uri,
     resolve_record,
+    validate_filename,
     validate_identifier,
 )
 from renderers.latex import render_tex, tex_to_pdf
@@ -602,15 +603,16 @@ class ApplicationService:
         self, target_uri: str, content: bytes, *, filename: str | None = None
     ) -> str:
         """Attach raw bytes to an entity as a new document. Returns the document URI."""
-        try:
-            parse_uri(target_uri)
-            base_uri = target_uri
-            doc_uri = f"{target_uri}/{filename}"
-        except ValueError:
-            base_uri, filename = target_uri.rsplit("/", 1)
-            doc_uri = target_uri
+        entity_uri = target_uri
+        document = parse_document_uri(target_uri)
+        if document is not None:
+            entity_uri, filename = document
+        validate_filename(filename)
+        doc_uri = f"{entity_uri}/{filename}"
+        if parse_document_uri(doc_uri) is None:
+            raise ValueError(f"{doc_uri} is not a document address")
 
-        record = resolve_record(self.repository, base_uri)
+        record = resolve_record(self.repository, entity_uri)
         try:
             self.repository.add_document(record, filename, content)
         except DocumentExistsError:

@@ -12,6 +12,15 @@ def validate_identifier(value: str) -> str:
     return value
 
 
+def validate_filename(value: str | None) -> str:
+    """Return value unchanged, or raise if it can't name a file in an entity's directory."""
+    if not value or "/" in value or value in (".", ".."):
+        raise ValueError(
+            f"illegal filename {value!r}: must be non-empty with no '/', not '.' or '..'"
+        )
+    return value
+
+
 def parse_document_uri(uri: str) -> tuple[str, str] | None:
     """Split a document address; other target kinds return None."""
     parts = uri.strip("/").split("/")
