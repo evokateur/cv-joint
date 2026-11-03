@@ -738,6 +738,16 @@ class FileSystemRepository:
     def load_document(self, record: Record, filename: str) -> str:
         return (self.directory_for(record) / filename).read_text()
 
+    def load_document_bytes(self, record: Record, filename: str) -> bytes:
+        """Read a document exactly as stored, including binary content."""
+        return (self.directory_for(record) / filename).read_bytes()
+
+    def list_documents(self, record: Record) -> list[str]:
+        """Name the files directly belonging to an entity."""
+        return sorted(
+            path.name for path in self.directory_for(record).iterdir() if path.is_file()
+        )
+
     def document_exists(self, record: Record, filename: str) -> bool:
         return (self.directory_for(record) / filename).exists()
 
