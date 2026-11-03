@@ -7,6 +7,7 @@ from pathlib import Path
 
 import click
 import yaml
+from pydantic import ValidationError
 
 from services.addressing import parse_document_uri, parse_uri, validate_identifier
 
@@ -575,6 +576,37 @@ def apply(uri, cv_identifier, date):
     click.echo(f"Marked {uri} as applied with {cv_identifier}")
 
 
+def _validation_summary(error: ValidationError) -> str:
+    details = error.errors(include_url=False, include_input=False)
+    first = details[0]
+    field = ".".join(str(part) for part in first["loc"])
+    remaining = f" (and {len(details) - 1} more)" if len(details) > 1 else ""
+    return f"Invalid entity content: {field}: {first['msg']}{remaining}"
+
+
+@main.command("update")
+@click.argument("target", shell_complete=_complete_target)
+@click.argument("file", type=click.Path(exists=True, dir_okay=False, allow_dash=True))
+@click.pass_context
+def update(ctx, target, file):
+    """Replace an entity's content or a document's bytes."""
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    try:
+        with click.open_file(file, "rb") as source:
+            content = source.read()
+        if parse_document_uri(target) is not None:
+            uri = service.update_document(target, content)
+        else:
+            uri = service.update(target, content.decode())
+    except ValidationError as error:
+        raise click.ClickException(_validation_summary(error)) from error
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(uri)
+
+
 @main.command("add")
 @click.argument("target", shell_complete=_complete_target)
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, allow_dash=True))
@@ -598,6 +630,8 @@ def add(ctx, target, file, identifier):
             raise click.UsageError("--identifier is required when adding an entity")
         else:
             uri = service.add(target, content.decode(), identifier=identifier)
+    except ValidationError as error:
+        raise click.ClickException(_validation_summary(error)) from error
     except (ValueError, OSError) as error:
         raise click.ClickException(str(error)) from error
     click.echo(uri)
