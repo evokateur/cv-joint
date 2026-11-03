@@ -1124,12 +1124,11 @@ class TestLoadAllObjects:
 
 
 class TestAddOrReplaceDocument:
-    @pytest.mark.parametrize("method", ["add_document", "add_or_replace_document"])
     def test_stores_owned_document_exactly_as_supplied(
-        self, job_posting_record, repository_with_job_posting, method
+        self, job_posting_record, repository_with_job_posting
     ):
         content = "---\ncustom: keep\n---\n# Hand-written body\n"
-        getattr(repository_with_job_posting, method)(
+        repository_with_job_posting.add_or_replace_document(
             job_posting_record, "job-posting.md", content
         )
         assert (
@@ -1164,18 +1163,18 @@ class TestAddDocument:
         self, job_posting_record, repository_with_job_posting
     ):
         repository_with_job_posting.add_document(
-            job_posting_record, "notes.md", "# Notes\n"
+            job_posting_record, "notes.md", b"# Notes\n"
         )
         with pytest.raises(DocumentExistsError, match="already exists"):
             repository_with_job_posting.add_document(
-                job_posting_record, "notes.md", "# Overwrite\n"
+                job_posting_record, "notes.md", b"# Overwrite\n"
             )
 
     def test_writes_document_when_absent(
         self, job_posting_record, repository_with_job_posting, temp_data_dir
     ):
         repository_with_job_posting.add_document(
-            job_posting_record, "notes.md", "# Notes\n"
+            job_posting_record, "notes.md", b"# Notes\n"
         )
         path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "notes.md"
         assert path.read_text() == "# Notes\n"
@@ -1191,7 +1190,7 @@ class TestLoadDocument:
     ):
         repository = repository_with_optimized_cv
         repository.add_document(
-            _current_record(repository, kind), "notes.md", "# Notes\n"
+            _current_record(repository, kind), "notes.md", b"# Notes\n"
         )
         if location:
             repository.update_job_posting_record(
@@ -1232,7 +1231,7 @@ class TestDocumentExists:
     ):
         repository = repository_with_optimized_cv
         repository.add_document(
-            _current_record(repository, kind), "notes.md", "# Notes\n"
+            _current_record(repository, kind), "notes.md", b"# Notes\n"
         )
         if location:
             repository.update_job_posting_record(

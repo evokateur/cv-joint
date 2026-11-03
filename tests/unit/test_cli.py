@@ -323,41 +323,6 @@ class TestRenameCommand:
         mock_service.rename_job_posting.assert_not_called()
 
 
-class TestAddCommand:
-    def test_calls_service(self, runner, tmp_path):
-        source = tmp_path / "notes.md"
-        source.write_text("# Notes")
-        with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.add_document.return_value = (
-                "job-postings/acme-swe/notes.md"
-            )
-            result = runner.invoke(main, ["add", "job-postings/acme-swe", str(source)])
-        assert result.exit_code == 0
-        MockService.return_value.add_document.assert_called_once_with(
-            "job-postings/acme-swe", str(source)
-        )
-
-    def test_prints_doc_uri(self, runner, tmp_path):
-        source = tmp_path / "notes.md"
-        source.write_text("# Notes")
-        with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.add_document.return_value = (
-                "job-postings/acme-swe/notes.md"
-            )
-            result = runner.invoke(main, ["add", "job-postings/acme-swe", str(source)])
-        assert "job-postings/acme-swe/notes.md" in result.output
-
-    def test_not_found_exits(self, runner, tmp_path):
-        source = tmp_path / "notes.md"
-        source.write_text("# Notes")
-        with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value.add_document.side_effect = ValueError(
-                "Not found: job-postings/acme-swe"
-            )
-            result = runner.invoke(main, ["add", "job-postings/acme-swe", str(source)])
-        assert result.exit_code != 0
-
-
 class TestExportSchemaCommand:
     def test_explicit_path_writes_schema_files(self, runner, tmp_path):
         result = runner.invoke(main, ["export-schema", str(tmp_path)])

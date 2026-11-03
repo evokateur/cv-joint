@@ -6,7 +6,8 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from ui.identifier import identifier_option, resolve_identifier, validate_identifier
+from services.addressing import validate_identifier
+from ui.identifier import identifier_option, resolve_identifier
 
 
 @pytest.fixture
@@ -37,7 +38,7 @@ class TestValidateIdentifier:
 
     @pytest.mark.parametrize("bad", ["", " ", "a b", "a/b", "cvs/foo", " acme"])
     def test_rejects_empty_whitespace_slash(self, bad):
-        with pytest.raises(click.UsageError):
+        with pytest.raises(ValueError, match="illegal identifier"):
             validate_identifier(bad)
 
 

@@ -8,8 +8,7 @@ from pathlib import Path
 import click
 import yaml
 
-from services.addressing import parse_document_uri, parse_uri
-from ui.identifier import validate_identifier
+from services.addressing import parse_document_uri, parse_uri, validate_identifier
 
 
 def _load_collection(name: str) -> list[dict]:
@@ -380,7 +379,7 @@ def rename(uri, new_id):
     new_id = _strip_uri_prefix(uri, parsed["identifier"], new_id)
     try:
         validate_identifier(new_id)
-    except click.UsageError:
+    except ValueError:
         raise click.UsageError(
             f"illegal new identifier '{new_id}'\n"
             "Expected a bare identifier (no '/' or spaces), optionally prefixed with the source collection"
@@ -577,18 +576,39 @@ def apply(uri, cv_identifier, date):
 
 
 @main.command("add")
-@click.argument("uri", shell_complete=_complete_uri)
-@click.argument("file", type=click.Path(exists=True))
-def add(uri, file):
-    """Add a document to an object's directory by URI."""
+@click.argument("target", shell_complete=_complete_target)
+@click.argument("file", type=click.Path(exists=True, dir_okay=False, allow_dash=True))
+@click.option("-i", "--identifier", help="Identifier for a new entity")
+@click.pass_context
+def add(ctx, target, file, identifier):
+    """Create an entity in a collection, or attach a document to an entity."""
     from services.application import ApplicationService
 
-    service = ApplicationService()
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    with click.open_file(file, "rb") as source:
+        content = source.read()
     try:
-        doc_uri = service.add_document(uri, file)
-    except ValueError as e:
-        raise click.UsageError(str(e))
-    click.echo(f"Added {doc_uri}")
+        if parse_document_uri(target) is not None:
+            uri = service.add_document(target, content)
+        elif _is_entity_uri(target):
+            if file == "-":
+                raise click.UsageError("stdin needs a document URI for its filename")
+            uri = service.add_document(target, content, filename=Path(file).name)
+        elif identifier is None:
+            raise click.UsageError("--identifier is required when adding an entity")
+        else:
+            uri = service.add(target, content.decode(), identifier=identifier)
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(uri)
+
+
+def _is_entity_uri(target: str) -> bool:
+    try:
+        parse_uri(target)
+    except ValueError:
+        return False
+    return True
 
 
 def _resolve_content(content: str | None) -> tuple[str | None, bool]:
