@@ -728,12 +728,14 @@ class FileSystemRepository:
 
         path.write_text(content)
 
-    def add_document(self, record: Record, filename: str, content: str) -> None:
+    def add_document(self, record: Record, filename: str, content: bytes) -> None:
         if self.document_exists(record, filename):
             raise DocumentExistsError(
                 f"Document already exists: {record.path}/{filename}"
             )
-        self.add_or_replace_document(record, filename, content)
+        directory = self.directory_for(record)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / filename).write_bytes(content)
 
     def load_document(self, record: Record, filename: str) -> str:
         return (self.directory_for(record) / filename).read_text()

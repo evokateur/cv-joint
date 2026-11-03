@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Callable, Optional
 
 from config.root import get_settings
@@ -20,7 +20,12 @@ from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
 from repositories import DocumentExistsError, FileSystemRepository
-from services.addressing import parse_document_uri, parse_uri, resolve_record
+from services.addressing import (
+    parse_document_uri,
+    parse_uri,
+    resolve_record,
+    validate_identifier,
+)
 from renderers.latex import render_tex, tex_to_pdf
 
 
@@ -81,6 +86,30 @@ class ApplicationService:
                 if record.location is not None
             }
         )
+
+    def add(
+        self, collection_uri: str, data: dict[str, Any] | str, *, identifier: str
+    ) -> str:
+        """Create one entity in a collection from a dict or JSON text. Returns the entity URI."""
+        if isinstance(data, str):
+            data = json.loads(data)
+        validate_identifier(identifier)
+        entity_uri = f"{collection_uri}/{identifier}"
+        if self.object_exists(entity_uri):
+            raise ValueError(f"Already exists: {entity_uri}")
+        parts = collection_uri.strip("/").split("/")
+        if parts == ["job-postings"]:
+            record = self.add_job_posting(data, identifier)
+        elif len(parts) == 3 and parts[0] == "job-postings" and parts[2] == "cvs":
+            resolve_record(self.repository, f"job-postings/{parts[1]}")
+            record = self.add_optimized_cv(
+                parts[1], identifier, None, CurriculumVitae(**data)
+            )
+        elif parts == ["cvs"]:
+            record = self.add_cv(data, identifier)
+        else:
+            raise ValueError(f"Cannot add to {collection_uri}")
+        return self._record_uri(record)
 
     def get(self, target: str, *, recursive=False, query=None):
         """Read content or select collection records by logical address."""
@@ -567,21 +596,19 @@ class ApplicationService:
         """
         return self.markdown_exporter.export(collection_name)
 
-    def add_document(self, uri: str, file_path: str) -> str:
-        """Place a file into an object's data directory. Returns the document URI."""
+    def add_document(
+        self, target_uri: str, content: bytes, *, filename: str | None = None
+    ) -> str:
+        """Attach raw bytes to an entity as a new document. Returns the document URI."""
         try:
-            parse_uri(uri)
-            base_uri = uri
-            doc_uri = f"{uri}/{Path(file_path).name}"
+            parse_uri(target_uri)
+            base_uri = target_uri
+            doc_uri = f"{target_uri}/{filename}"
         except ValueError:
-            base_uri, _ = uri.rsplit("/", 1)
-            doc_uri = uri
+            base_uri, filename = target_uri.rsplit("/", 1)
+            doc_uri = target_uri
 
         record = resolve_record(self.repository, base_uri)
-        filename = doc_uri.rsplit("/", 1)[1]
-        content = self.markdown_exporter.compose_document(
-            record, filename, Path(file_path).read_text()
-        )
         try:
             self.repository.add_document(record, filename, content)
         except DocumentExistsError:

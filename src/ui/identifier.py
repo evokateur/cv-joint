@@ -4,14 +4,15 @@ from collections.abc import Callable
 
 import click
 
+from services.addressing import validate_identifier
 
-def validate_identifier(value: str) -> str:
-    """Return value unchanged, or raise if it is empty, has whitespace, or a '/'."""
-    if not value or "/" in value or any(c.isspace() for c in value):
-        raise click.UsageError(
-            f"illegal identifier {value!r}: must be non-empty with no spaces or '/'"
-        )
-    return value
+
+def _validate_identifier(value: str) -> str:
+    """Validate an identifier, reporting violations as usage errors."""
+    try:
+        return validate_identifier(value)
+    except ValueError as e:
+        raise click.UsageError(str(e)) from None
 
 
 def identifier_option(f):
@@ -39,7 +40,7 @@ def resolve_identifier(
     given None, non-interactive -> require --identifier.
     """
     if given is not None:
-        validate_identifier(given)
+        _validate_identifier(given)
         if exists(given):
             raise click.UsageError(f'identifier "{given}" already exists')
         return given
@@ -48,7 +49,7 @@ def resolve_identifier(
         raise click.UsageError("--identifier is required in non-interactive use")
 
     def check(value: str) -> str:
-        validate_identifier(value)
+        _validate_identifier(value)
         if exists(value):
             raise click.UsageError(f'identifier "{value}" is taken')
         return value

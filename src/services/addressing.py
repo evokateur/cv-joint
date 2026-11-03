@@ -3,6 +3,15 @@
 from repositories.filesystem import FileSystemRepository, Record
 
 
+def validate_identifier(value: str) -> str:
+    """Return value unchanged, or raise if it is empty, has whitespace, or a '/'."""
+    if not value or "/" in value or any(c.isspace() for c in value):
+        raise ValueError(
+            f"illegal identifier {value!r}: must be non-empty with no spaces or '/'"
+        )
+    return value
+
+
 def parse_document_uri(uri: str) -> tuple[str, str] | None:
     """Split a document address; other target kinds return None."""
     parts = uri.strip("/").split("/")

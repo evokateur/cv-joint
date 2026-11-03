@@ -42,7 +42,7 @@ def test_composes_record_frontmatter(exporter, record):
 
 
 def test_patches_metadata_preserving_custom_keys_and_body(exporter, record):
-    exporter.repository.add_document(
+    exporter.repository.add_or_replace_document(
         record,
         "job-posting.md",
         "---\nidentifier: old\ncustom_tag: keep-me\n---\n# Hand-edited\n\nBody.\n",
@@ -60,7 +60,7 @@ def test_patches_metadata_preserving_custom_keys_and_body(exporter, record):
 )
 def test_patch_skips_missing_or_undelimited_frontmatter(exporter, record, content):
     if content is not None:
-        exporter.repository.add_document(record, "job-posting.md", content)
+        exporter.repository.add_or_replace_document(record, "job-posting.md", content)
     exporter.patch_document_frontmatter(record)
     if content is None:
         assert not exporter.repository.document_exists(record, "job-posting.md")

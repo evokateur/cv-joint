@@ -281,7 +281,7 @@ def test_completion_offers_logical_targets_in_every_location(service, posting, c
     ]
 
 
-@pytest.mark.parametrize("command", ["get", "list", "ls"])
+@pytest.mark.parametrize("command", ["get", "list", "ls", "add"])
 def test_cli_completion_uses_canonical_targets(service, posting, command):
     service.add_job_posting(posting.model_dump(), "acme")
     service.transition_job_posting("acme", "applied")
