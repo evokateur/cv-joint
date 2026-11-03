@@ -114,6 +114,34 @@ class ApplicationService:
             raise ValueError(f"Cannot add to {collection_uri}")
         return self._record_uri(record)
 
+    def update(self, entity_uri: str, data: dict[str, Any] | str) -> str:
+        """Replace entity content and refresh its listing record."""
+        if self._select_records(entity_uri) is not None:
+            raise ValueError(
+                f"Cannot update collection, location or view: {entity_uri}"
+            )
+        record = self._entity_record(entity_uri)
+        if isinstance(data, str):
+            data = json.loads(data)
+        if not isinstance(data, dict):
+            raise ValueError("Entity content must be a JSON object")
+        if isinstance(record, JobPostingRecord):
+            content = JobPosting(**data)
+            fields = ("url", "company", "title", "experience_level")
+        else:
+            content = CurriculumVitae(**data)
+            fields = ("name", "profession")
+        summary = {field: getattr(content, field) for field in fields}
+        replacement = record.model_copy(
+            update={**summary, "updated_at": datetime.now()}
+        )
+        self.repository.save_object(record, content)
+        if isinstance(record, JobPostingRecord):
+            self.repository.update_job_posting_record(replacement)
+        else:
+            self.repository.update_cv_record(replacement)
+        return self._record_uri(record)
+
     def get(self, target: str, *, recursive=False, query=None):
         """Read content or select collection records by logical address."""
         records = self._select_records(target, recursive=recursive, query=query)
@@ -186,6 +214,17 @@ class ApplicationService:
         if target.strip("/").split("/")[0] not in ("job-postings", "cvs"):
             raise ValueError(f"Unrecognised target: {target}")
         return resolve_record(self.repository, target)
+
+    def update_document(self, document_uri: str, content: bytes) -> str:
+        """Replace a document's bytes without changing its entity's record."""
+        address = parse_document_uri(document_uri)
+        if address is None:
+            raise ValueError(f"Unrecognised document URI: {document_uri}")
+        entity_uri, filename = address
+        validate_filename(filename)
+        record = self._entity_record(entity_uri)
+        self.repository.update_document(record, filename, content)
+        return f"{self._record_uri(record)}/{filename}"
 
     def get_document(self, document_uri: str) -> bytes:
         """Read an entity's document without decoding or transforming it."""

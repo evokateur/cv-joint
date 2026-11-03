@@ -370,6 +370,33 @@ class FileSystemRepository:
             if item.get("job_posting_identifier") is None
         ]
 
+    def update_cv_record(
+        self, record: CurriculumVitaeRecord | OptimizedCvRecord
+    ) -> None:
+        """Replace a CV record within its owning collection."""
+        optimized = isinstance(record, OptimizedCvRecord)
+        collection_file = (
+            self.optimized_cvs_collection if optimized else self.cvs_collection
+        )
+        collection = self._load_collection(collection_file)
+        stored = next(
+            (
+                item
+                for item in collection
+                if item["identifier"] == record.identifier
+                and (
+                    not optimized
+                    or item["job_posting_identifier"] == record.job_posting_identifier
+                )
+            ),
+            None,
+        )
+        if stored is None:
+            raise ValueError(f"CV not found: {record.identifier}")
+        stored.clear()
+        stored.update(record.model_dump(mode="json"))
+        self._save_collection(collection_file, collection)
+
     def remove_cv(self, identifier: str) -> bool:
         """
         Remove a CV from the collection and delete its data directory.
@@ -736,6 +763,13 @@ class FileSystemRepository:
         directory = self.directory_for(record)
         directory.mkdir(parents=True, exist_ok=True)
         (directory / filename).write_bytes(content)
+
+    def update_document(self, record: Record, filename: str, content: bytes) -> None:
+        """Replace an existing document's bytes."""
+        path = self.directory_for(record) / filename
+        with path.open("r+b") as document:
+            document.write(content)
+            document.truncate()
 
     def load_document(self, record: Record, filename: str) -> str:
         return (self.directory_for(record) / filename).read_text()
