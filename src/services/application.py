@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 import tempfile
 from datetime import datetime
@@ -5,14 +7,20 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from config.root import get_settings
-from models import CurriculumVitae, CvTransformationPlan, JobPosting, JobPostingRecord
+from models import (
+    CurriculumVitae,
+    CvTransformationPlan,
+    JobPosting,
+    JobPostingRecord,
+    OptimizedCvRecord,
+)
 from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter, insert_json_as_frontmatter
 from .exporters import MarkdownExporter
 from repositories import DocumentExistsError, FileSystemRepository
-from services.addressing import parse_uri, resolve_record
+from services.addressing import parse_document_uri, parse_uri, resolve_record
 from renderers.latex import render_tex, tex_to_pdf
 
 
@@ -63,6 +71,130 @@ class ApplicationService:
         self.markdown_exporter = MarkdownExporter(
             self.repository, self.markdown_converter
         )
+
+    def list_locations(self) -> list[str]:
+        """Return locations present in posting records."""
+        return sorted(
+            {
+                record.location
+                for record in self.repository.get_job_posting_records(all=True)
+                if record.location is not None
+            }
+        )
+
+    def get(self, target: str, *, recursive=False, query=None):
+        """Read content or select collection records by logical address."""
+        records = self._select_records(target, recursive=recursive, query=query)
+        if records is not None:
+            return records
+        record = self._entity_record(target)
+        model = JobPosting if isinstance(record, JobPostingRecord) else CurriculumVitae
+        content = self.repository.load_object(record, model)
+        if content is None:
+            raise FileNotFoundError(f"Content not found: {target}")
+        return content
+
+    def _select_records(self, target: str, *, recursive=False, query=None):
+        """Select collection records, or return None for an exact target."""
+        parts = target.strip("/").split("/")
+        if parts == ["job-postings"] or (
+            len(parts) == 2
+            and parts[0] == "job-postings"
+            and parts[1] in self.list_locations()
+        ):
+            location = parts[1] if len(parts) == 2 and not recursive else None
+            records = self.repository.get_job_posting_records(
+                location=location, all=recursive
+            )
+        elif parts == ["cvs"]:
+            records = self.repository.get_cv_records()
+        elif parts == ["optimized-cvs"] or (
+            len(parts) == 2
+            and parts[0] == "optimized-cvs"
+            and parts[1] in self.list_locations()
+        ):
+            location = parts[1] if len(parts) == 2 and not recursive else None
+            parents = {
+                record.identifier
+                for record in self.repository.get_job_posting_records(
+                    location=location, all=recursive
+                )
+            }
+            records = [
+                record
+                for record in self.repository.get_optimized_cv_records()
+                if record.job_posting_identifier in parents
+            ]
+        elif len(parts) == 3 and parts[0] == "job-postings" and parts[2] == "cvs":
+            resolve_record(self.repository, f"job-postings/{parts[1]}")
+            records = self.repository.get_optimized_cv_records(parts[1])
+        else:
+            return None
+        return [
+            record
+            for record in records
+            if not query or query.casefold() in record.model_dump_json().casefold()
+        ]
+
+    def list(self, target: str, *, recursive=False, query=None) -> list[str]:
+        """Name selected records, or an entity's documents and child collections."""
+        records = self._select_records(target, recursive=recursive, query=query)
+        if records is not None:
+            return [self._record_uri(record) for record in records]
+        record = self._entity_record(target)
+        uri = self._record_uri(record)
+        uris = [
+            f"{uri}/{filename}" for filename in self.repository.list_documents(record)
+        ]
+        if isinstance(record, JobPostingRecord):
+            uris.append(f"{uri}/cvs")
+        return uris
+
+    def _entity_record(self, target: str):
+        if target.strip("/").split("/")[0] not in ("job-postings", "cvs"):
+            raise ValueError(f"Unrecognised target: {target}")
+        return resolve_record(self.repository, target)
+
+    def get_document(self, document_uri: str) -> bytes:
+        """Read an entity's document without decoding or transforming it."""
+        address = parse_document_uri(document_uri)
+        if address is None:
+            raise ValueError(f"Unrecognised document URI: {document_uri}")
+        entity_uri, filename = address
+        record = self._entity_record(entity_uri)
+        return self.repository.load_document_bytes(record, filename)
+
+    def complete_targets(self, incomplete: str) -> list[str]:
+        """Complete logical reading targets across every location."""
+        candidates = {"job-postings", "cvs", "optimized-cvs"}
+        for location in self.list_locations():
+            candidates.update((f"job-postings/{location}", f"optimized-cvs/{location}"))
+        records = (
+            self.repository.get_job_posting_records(all=True)
+            + self.repository.get_cv_records()
+            + self.repository.get_optimized_cv_records()
+        )
+        for record in records:
+            uri = self._record_uri(record)
+            candidates.add(uri)
+            candidates.update(
+                f"{uri}/{filename}"
+                for filename in self.repository.list_documents(record)
+            )
+            if isinstance(record, JobPostingRecord):
+                candidates.add(f"{uri}/cvs")
+        return sorted(
+            candidate for candidate in candidates if candidate.startswith(incomplete)
+        )
+
+    @staticmethod
+    def _record_uri(record) -> str:
+        if isinstance(record, OptimizedCvRecord):
+            return (
+                f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
+            )
+        collection = "job-postings" if isinstance(record, JobPostingRecord) else "cvs"
+        return f"{collection}/{record.identifier}"
 
     def object_exists(self, uri: str) -> bool:
         """Whether an object exists at uri. The collision check, keyed on the URI.

@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 import yaml
 
-from services.addressing import parse_uri
+from services.addressing import parse_document_uri, parse_uri
 from ui.identifier import validate_identifier
 
 
@@ -408,71 +408,71 @@ def rename(uri, new_id):
     click.echo(f"Renamed {uri} to {new_id}")
 
 
-def _complete_collection(_ctx, _param, incomplete):
+def _complete_target(ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
+    from services.application import ApplicationService
 
-    base = ["job-postings", "cvs", "curriculum-vitae"]
-    job_postings = _load_collection("job-postings")
-    locations = sorted(
-        {item["location"] for item in job_postings if item.get("location")}
-    )
-    candidates = (
-        base
-        + [f"job-postings/{loc}" for loc in locations]
-        + [
-            f"job-postings/{item['location']}/{item['identifier']}"
-            for item in job_postings
-            if item.get("location") and item.get("identifier")
-        ]
-    )
-    return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [CompletionItem(uri) for uri in service.complete_targets(incomplete)]
 
 
 @main.command("list")
-@click.argument("collection", shell_complete=_complete_collection)
+@click.argument("target", shell_complete=_complete_target)
 @click.option(
     "-r",
     "--recursive",
-    "all_locations",
     is_flag=True,
-    help="Include all locations (job-postings only)",
+    help="Select records across every location",
 )
 @click.option(
     "-q",
     "--query",
     metavar="QUERY",
-    help="Filter by company, title, experience level, or URL",
+    help="Match a case-insensitive substring of the whole record",
 )
-def list_objects(collection, all_locations, query):
-    """List objects by collection and exit."""
+@click.pass_context
+def list_objects(ctx, target, recursive, query):
+    """Print canonical URIs for selected records or an entity's children."""
     from services.application import ApplicationService
 
-    service = ApplicationService()
-
-    if collection == "job-postings" or collection.startswith("job-postings/"):
-        if collection == "job-postings":
-            location, id_prefix = None, None
-        else:
-            parts = collection.split("/", 2)
-            location = parts[1]
-            id_prefix = parts[2] if len(parts) > 2 else None
-        results = service.get_job_postings(
-            location=location, all=all_locations, query=query
-        )
-        if id_prefix:
-            results = [
-                j for j in results if j.get("identifier", "").startswith(id_prefix)
-            ]
-        for j in results:
-            click.echo(f"job-postings/{j.get('identifier', '')}")
-    elif collection in ("cvs", "curriculum-vitae"):
-        for cv in service.get_cvs(query=query):
-            click.echo(f"cvs/{cv.get('identifier', '')}")
-    else:
-        raise click.UsageError(f"Unknown collection: {collection!r}")
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    try:
+        uris = service.list(target, recursive=recursive, query=query)
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+    for uri in uris:
+        click.echo(uri)
 
 
 main.add_command(list_objects, name="ls")
+
+
+@main.command("get")
+@click.argument("target", shell_complete=_complete_target)
+@click.option(
+    "-r", "--recursive", is_flag=True, help="Select records across every location"
+)
+@click.option(
+    "-q", "--query", help="Match a case-insensitive substring of the whole record"
+)
+@click.pass_context
+def get_content(ctx, target, recursive, query):
+    """Print entity JSON, selected records as JSONL, or raw document bytes."""
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    try:
+        if parse_document_uri(target) is not None:
+            click.get_binary_stream("stdout").write(service.get_document(target))
+            return
+        result = service.get(target, recursive=recursive, query=query)
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+    if isinstance(result, list):
+        for record in result:
+            click.echo(record.model_dump_json())
+    else:
+        click.echo(result.model_dump_json())
 
 
 def _complete_location(_ctx, _param, incomplete):
