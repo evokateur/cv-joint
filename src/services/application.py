@@ -426,7 +426,6 @@ class ApplicationService:
             updated_at=now,
         )
         record = self.repository.add_job_posting(record, job_posting)
-        self.markdown_exporter.export_job_posting(record, job_posting)
         return record
 
     def get_job_posting(self, identifier: str):
@@ -480,7 +479,7 @@ class ApplicationService:
         fields: dict | None = None,
         record_fields: dict | None = None,
     ) -> JobPostingRecord:
-        """Build the lifecycle update, persist it, and patch its Markdown metadata."""
+        """Build and persist the lifecycle update."""
         current = self.repository.get_job_posting_record(identifier)
         if current is None:
             raise ValueError(f"Job posting not found: {identifier}")
@@ -505,7 +504,6 @@ class ApplicationService:
             }
         )
         record = self.repository.update_job_posting_record(replacement)
-        self.markdown_exporter.patch_document_frontmatter(record)
         return record
 
     def archive_job_posting(self, identifier: str):
@@ -567,7 +565,6 @@ class ApplicationService:
             updated_at=now,
         )
         record = self.repository.add_cv(record, cv)
-        self.markdown_exporter.export_cv(record, cv)
         return record
 
     def get_cv(self, identifier: str):
@@ -771,8 +768,6 @@ class ApplicationService:
 
         if plan is not None:
             self.repository.save_object(record, plan)
-            self.markdown_exporter.export_cv_transformation_plan(record, plan)
-        self.markdown_exporter.export_cv(record, cv)
 
         return record
 

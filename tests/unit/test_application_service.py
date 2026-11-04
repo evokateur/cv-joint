@@ -1,10 +1,9 @@
 """
-Unit tests for application service markdown generation.
+Application behavior and explicit Markdown export tests.
 """
 
 import json
 import pytest
-import yaml
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -81,9 +80,10 @@ def test_generate_pdf_file_renders_data_to_explicit_output(service, sample_cv_da
     tex_to_pdf.assert_called_once_with("tex source", output_path)
 
 
-class TestSaveJobPostingMarkdown:
+class TestExportJobPostingMarkdown:
     def test_includes_record_frontmatter(self, service, sample_job_posting_data):
         service.add_job_posting(sample_job_posting_data, "test-job")
+        service.export_markdown()
         record = service.repository.get_job_posting_record("test-job")
         content = service.repository.load_document(record, "job-posting.md")
         assert content.startswith("---\nidentifier: test-job\n")
@@ -91,6 +91,7 @@ class TestSaveJobPostingMarkdown:
 
     def test_creates_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.add_job_posting(sample_job_posting_data, "test-job")
+        service.export_markdown()
         md_path = Path(temp_data_dir) / "job-postings" / "test-job" / "job-posting.md"
         assert md_path.exists()
         content = md_path.read_text()
@@ -107,15 +108,17 @@ class TestSaveJobPostingMarkdown:
         ).model_dump()
 
         service.add_job_posting(data, "no-company")
+        service.export_markdown()
         md_path = Path(temp_data_dir) / "job-postings" / "no-company" / "job-posting.md"
         content = md_path.read_text()
         assert "# Developer\n" in content
         assert "at Not specified" not in content
 
 
-class TestSaveCvMarkdown:
+class TestExportCvMarkdown:
     def test_creates_markdown(self, service, sample_cv_data, temp_data_dir):
         service.add_cv(sample_cv_data, "test-cv")
+        service.export_markdown()
         md_path = Path(temp_data_dir) / "cvs" / "test-cv" / "curriculum-vitae.md"
         assert md_path.exists()
         content = md_path.read_text()
@@ -131,8 +134,6 @@ class TestExportMarkdown:
 
         job_md = Path(temp_data_dir) / "job-postings" / "job-1" / "job-posting.md"
         cv_md = Path(temp_data_dir) / "cvs" / "cv-1" / "curriculum-vitae.md"
-        job_md.unlink()
-        cv_md.unlink()
 
         count = service.export_markdown()
         assert count == 2
@@ -147,8 +148,6 @@ class TestExportMarkdown:
 
         job_md = Path(temp_data_dir) / "job-postings" / "job-1" / "job-posting.md"
         cv_md = Path(temp_data_dir) / "cvs" / "cv-1" / "curriculum-vitae.md"
-        job_md.unlink()
-        cv_md.unlink()
 
         count = service.export_markdown(collection_name="job-postings")
         assert count == 1
@@ -222,6 +221,9 @@ class TestRemoveJobPosting:
 
     def test_deletes_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add_document(
+            "job-postings/acme-swe/job-posting.md", b"# Existing document\n"
+        )
         md_path = Path(temp_data_dir) / "job-postings" / "acme-swe" / "job-posting.md"
         assert md_path.exists()
         service.remove_job_posting("acme-swe")
@@ -243,6 +245,9 @@ class TestRemoveCv:
 
     def test_deletes_markdown(self, service, sample_cv_data, temp_data_dir):
         service.add_cv(sample_cv_data, "jane-doe")
+        service.add_document(
+            "cvs/jane-doe/curriculum-vitae.md", b"# Existing document\n"
+        )
         md_path = Path(temp_data_dir) / "cvs" / "jane-doe" / "curriculum-vitae.md"
         assert md_path.exists()
         service.remove_cv("jane-doe")
@@ -268,6 +273,9 @@ class TestRenameJobPosting:
 
     def test_moves_markdown(self, service, sample_job_posting_data, temp_data_dir):
         service.add_job_posting(sample_job_posting_data, "old-id")
+        service.add_document(
+            "job-postings/old-id/job-posting.md", b"# Existing document\n"
+        )
         service.rename_job_posting("old-id", "new-id")
         assert not (Path(temp_data_dir) / "job-postings" / "old-id").exists()
         assert (
@@ -294,6 +302,7 @@ class TestRenameCv:
 
     def test_moves_markdown(self, service, sample_cv_data, temp_data_dir):
         service.add_cv(sample_cv_data, "old-id")
+        service.add_document("cvs/old-id/curriculum-vitae.md", b"# Existing document\n")
         service.rename_cv("old-id", "new-id")
         assert not (Path(temp_data_dir) / "cvs" / "old-id").exists()
         assert (Path(temp_data_dir) / "cvs" / "new-id" / "curriculum-vitae.md").exists()
@@ -337,7 +346,7 @@ class TestGetJobPostings:
         )
 
 
-class TestTransitionFrontmatter:
+class TestTransitionDocuments:
     @pytest.mark.parametrize(
         "method, arguments, location, path",
         [
@@ -352,32 +361,21 @@ class TestTransitionFrontmatter:
             ("mark_applied", ("my-cv",), "applied", "job-postings/applied/test-job"),
         ],
     )
-    def test_patches_moved_document_and_returns_persisted_record(
+    def test_preserves_moved_document_and_returns_persisted_record(
         self, service, sample_job_posting_data, method, arguments, location, path
     ):
         service.add_job_posting(sample_job_posting_data, "test-job")
         if method == "unarchive_job_posting":
             service.archive_job_posting("test-job")
-        record = service.repository.get_job_posting_record("test-job")
-        service.repository.add_or_replace_document(
-            record,
-            "job-posting.md",
-            "---\ncustom_tag: keep-me\n---\n# Hand-edited\n\nBody.\n",
+        content = (
+            b"---\ncustom_tag: keep-me\npath: old-path\n---\n# Hand-edited\n\nBody.\n"
         )
+        service.add_document("job-postings/test-job/job-posting.md", content)
         result = getattr(service, method)("test-job", *arguments)
-        assert result == service.repository.get_job_posting_record("test-job")
+        assert result == service.get_job_posting_record("test-job")
         assert result.path == path
-        content = service.repository.load_document(result, "job-posting.md")
-        _, metadata, body = content.split("---\n", 2)
-        metadata = yaml.safe_load(metadata)
-        assert metadata["path"] == path
-        assert metadata["location"] == location
-        assert metadata["custom_tag"] == "keep-me"
-        assert body == "# Hand-edited\n\nBody.\n"
-        if method == "mark_applied":
-            assert metadata["applied_with"] == "my-cv"
-        if method in ("archive_job_posting", "unarchive_job_posting"):
-            assert metadata["is_archived"] == (method == "archive_job_posting")
+        assert result.location == location
+        assert service.get_document("job-postings/test-job/job-posting.md") == content
 
 
 class TestArchiveJobPosting:
@@ -386,13 +384,6 @@ class TestArchiveJobPosting:
         assert result.is_archived is True
         assert result.location == "archived"
         assert "is_archived" not in result.transitions[-1]
-
-    def test_does_not_regenerate_job_posting_markdown(self, service_with_job_posting):
-        service = service_with_job_posting
-        mock_exporter = MagicMock()
-        service.markdown_exporter = mock_exporter
-        service.archive_job_posting("acme-swe")
-        mock_exporter.export_job_posting.assert_not_called()
 
 
 class TestMarkApplied:
@@ -414,13 +405,6 @@ class TestMarkApplied:
         )
         assert result.applied_at == date
         assert result.transitions[-1]["applied_at"] == "2025-01-15T00:00:00"
-
-    def test_does_not_regenerate_job_posting_markdown(self, service_with_job_posting):
-        service = service_with_job_posting
-        mock_exporter = MagicMock()
-        service.markdown_exporter = mock_exporter
-        service.mark_applied("acme-swe", "my-cv")
-        mock_exporter.export_job_posting.assert_not_called()
 
 
 class TestListingDictionaries:
@@ -594,7 +578,7 @@ class TestRenameOptimizedCv:
 
 
 class TestSaveOptimizedCvUsesParentPath:
-    """add_optimized_cv must write to the parent's stored path and export markdown."""
+    """Optimized CV content and its plan are stored under the parent's current path."""
 
     def test_saves_to_parent_stored_path(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
@@ -605,10 +589,17 @@ class TestSaveOptimizedCvUsesParentPath:
         cv = CurriculumVitae(**sample_cv_data)
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
 
-        service.markdown_exporter = MagicMock()
-        service.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv, plan)
+        record = service.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv, plan)
 
-        service.markdown_exporter.export_cv_transformation_plan.assert_called_once()
+        assert record.path == "job-postings/archived/acme-swe/cvs/opt-1"
+        uri = "job-postings/acme-swe/cvs/opt-1"
+        assert service.get(uri) == cv
+        assert (
+            json.loads(service.get_document(f"{uri}/cv-transformation-plan.json"))[
+                "job_title"
+            ]
+            == "Software Engineer"
+        )
 
 
 class TestExportOptimizationsUsesParentPath:
@@ -863,7 +854,7 @@ class TestAddJobPostingBuildsRecord:
         assert record.created_at == record.updated_at
         assert job_posting == JobPosting(**sample_job_posting_data)
 
-    def test_exports_and_returns_persisted_record(
+    def test_returns_persisted_record(
         self, mock_repository_service, sample_job_posting_data
     ):
         result = mock_repository_service.add_job_posting(
@@ -872,9 +863,6 @@ class TestAddJobPostingBuildsRecord:
 
         persisted = mock_repository_service.repository.add_job_posting.return_value
         assert result is persisted
-        mock_repository_service.markdown_exporter.export_job_posting.assert_called_once_with(
-            persisted, JobPosting(**sample_job_posting_data)
-        )
 
 
 class TestAddCvBuildsRecord:
@@ -889,16 +877,11 @@ class TestAddCvBuildsRecord:
         assert record.created_at == record.updated_at
         assert cv == CurriculumVitae(**sample_cv_data)
 
-    def test_exports_and_returns_persisted_record(
-        self, mock_repository_service, sample_cv_data
-    ):
+    def test_returns_persisted_record(self, mock_repository_service, sample_cv_data):
         result = mock_repository_service.add_cv(sample_cv_data, "jane-doe")
 
         persisted = mock_repository_service.repository.add_cv.return_value
         assert result is persisted
-        mock_repository_service.markdown_exporter.export_cv.assert_called_once_with(
-            persisted, CurriculumVitae(**sample_cv_data)
-        )
 
 
 class TestAddOptimizedCvBuildsRecord:
@@ -937,7 +920,7 @@ class TestAddOptimizedCvBuildsRecord:
         assert record.company == "Initech"
         assert record.created_at == record.updated_at
 
-    def test_saves_and_exports_with_persisted_record(
+    def test_saves_plan_with_persisted_record(
         self, mock_repository_service, parent, sample_cv_data
     ):
         cv = CurriculumVitae(**sample_cv_data)
@@ -947,13 +930,10 @@ class TestAddOptimizedCvBuildsRecord:
         )
 
         persisted = mock_repository_service.repository.add_optimized_cv.return_value
-        exporter = mock_repository_service.markdown_exporter
         assert result is persisted
         mock_repository_service.repository.save_object.assert_called_once_with(
             persisted, plan
         )
-        exporter.export_cv_transformation_plan.assert_called_once_with(persisted, plan)
-        exporter.export_cv.assert_called_once_with(persisted, cv)
 
 
 @pytest.fixture

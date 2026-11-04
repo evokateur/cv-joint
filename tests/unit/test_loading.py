@@ -95,7 +95,10 @@ def test_cli_analyze_cv_prints_named_outputs(
 
 
 def test_cli_load_reads_named_outputs_from_stdin_and_prints_the_uri(service, cv):
-    outputs = {"curriculum-vitae.json": cv.model_dump(mode="json"), "notes.md": "x"}
+    outputs = {
+        "curriculum-vitae.json": cv.model_dump(mode="json"),
+        "curriculum-vitae.md": "# Supplied CV\n",
+    }
 
     result = CliRunner(mix_stderr=False).invoke(
         main,
@@ -107,7 +110,7 @@ def test_cli_load_reads_named_outputs_from_stdin_and_prints_the_uri(service, cv)
     assert result.exit_code == 0, result.stderr
     assert result.stdout == "cvs/backend\n"
     assert service.get("cvs/backend") == cv
-    assert service.get_document("cvs/backend/notes.md") == b"x"
+    assert service.get_document("cvs/backend/curriculum-vitae.md") == b"# Supplied CV\n"
 
 
 @pytest.mark.parametrize(
