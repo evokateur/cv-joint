@@ -30,6 +30,13 @@ from services.addressing import (
 from renderers.latex import render_tex, tex_to_pdf
 
 
+def _document_bytes(content: Any) -> bytes:
+    """Encode a named output: strings as UTF-8 text, anything else as JSON."""
+    if isinstance(content, str):
+        return content.encode()
+    return json.dumps(content, indent=2).encode()
+
+
 def _next_identifier(identifier: str, exists: Callable[[str], Any]) -> str:
     stripped = re.sub(r"-\d+$", "", identifier)
     base = stripped if stripped != identifier and exists(stripped) else identifier
@@ -63,9 +70,10 @@ class ApplicationService:
     def __init__(
         self,
         repository: Optional[FileSystemRepository] = None,
+        cv_analyzer: Optional[CvAnalyzer] = None,
     ):
         self.job_posting_analyzer = JobPostingAnalyzer()
-        self.cv_analyzer = CvAnalyzer()
+        self.cv_analyzer = cv_analyzer or CvAnalyzer()
         self.cv_optimizer = CvOptimizer()
         if repository is None:
             settings = get_settings()
@@ -113,6 +121,37 @@ class ApplicationService:
         else:
             raise ValueError(f"Cannot add to {collection_uri}")
         return self._record_uri(record)
+
+    def load(
+        self, destination_uri: str, outputs: dict[str, Any] | str, *, identifier: str
+    ) -> str:
+        """Create one entity at a destination from named outputs. Returns the entity URI."""
+        if isinstance(outputs, str):
+            try:
+                outputs = json.loads(outputs)
+            except json.JSONDecodeError as error:
+                raise ValueError(f"Invalid named outputs: {error}") from None
+        self._validate_load(destination_uri, outputs)
+        entity_uri = self.add(
+            destination_uri, outputs["curriculum-vitae.json"], identifier=identifier
+        )
+        for filename, content in outputs.items():
+            if filename != "curriculum-vitae.json":
+                self.add_document(
+                    entity_uri, _document_bytes(content), filename=filename
+                )
+        return entity_uri
+
+    def _validate_load(self, destination_uri: str, outputs: dict[str, Any]) -> None:
+        """Reject named outputs that load can't write in full."""
+        if destination_uri != "cvs":
+            raise ValueError(f"Cannot load into {destination_uri}")
+        if "curriculum-vitae.json" not in outputs:
+            raise ValueError("Missing curriculum-vitae.json")
+        if "base_uri" in outputs:
+            raise ValueError("base_uri is not allowed: base CVs have no provenance")
+        for filename in outputs:
+            validate_filename(filename)
 
     def update(self, entity_uri: str, data: dict[str, Any] | str) -> str:
         """Replace entity content and refresh its listing record."""
@@ -387,7 +426,6 @@ class ApplicationService:
             updated_at=now,
         )
         record = self.repository.add_job_posting(record, job_posting)
-        self.markdown_exporter.export_job_posting(record, job_posting)
         return record
 
     def get_job_posting(self, identifier: str):
@@ -441,7 +479,7 @@ class ApplicationService:
         fields: dict | None = None,
         record_fields: dict | None = None,
     ) -> JobPostingRecord:
-        """Build the lifecycle update, persist it, and patch its Markdown metadata."""
+        """Build and persist the lifecycle update."""
         current = self.repository.get_job_posting_record(identifier)
         if current is None:
             raise ValueError(f"Job posting not found: {identifier}")
@@ -466,7 +504,6 @@ class ApplicationService:
             }
         )
         record = self.repository.update_job_posting_record(replacement)
-        self.markdown_exporter.patch_document_frontmatter(record)
         return record
 
     def archive_job_posting(self, identifier: str):
@@ -494,20 +531,13 @@ class ApplicationService:
             identifier, "applied", fields=denorm, record_fields=denorm
         )
 
-    def analyze_cv(self, content_file: Optional[str] = None) -> dict[str, Any]:
-        """
-        Analyze a CV into a structured CurriculumVitae.
-
-        Args:
-            content_file: Path to CV file (JSON, YAML, plain text, etc.)
-
-        Returns:
-            cv_data; pass to add_cv (with an identifier) to persist.
-        """
-        if content_file is None:
-            raise ValueError("content_file must be provided")
-        cv = self.cv_analyzer.analyze(content_file)
-        return cv.model_dump()
+    def analyze_cv(self, content: str) -> dict[str, Any]:
+        """Analyze CV text into named outputs, without saving anything."""
+        with tempfile.NamedTemporaryFile("w", suffix=".txt") as source:
+            source.write(content)
+            source.flush()
+            cv = self.cv_analyzer.analyze(source.name)
+        return {"curriculum-vitae.json": cv.model_dump(mode="json")}
 
     def add_cv(self, cv_data: dict[str, Any], identifier: str):
         """
@@ -535,7 +565,6 @@ class ApplicationService:
             updated_at=now,
         )
         record = self.repository.add_cv(record, cv)
-        self.markdown_exporter.export_cv(record, cv)
         return record
 
     def get_cv(self, identifier: str):
@@ -739,8 +768,6 @@ class ApplicationService:
 
         if plan is not None:
             self.repository.save_object(record, plan)
-            self.markdown_exporter.export_cv_transformation_plan(record, plan)
-        self.markdown_exporter.export_cv(record, cv)
 
         return record
 

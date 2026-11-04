@@ -662,6 +662,49 @@ def _resolve_content(content: str | None) -> tuple[str | None, bool]:
     return content, False
 
 
+@main.group("analyze")
+def analyze():
+    """Analyze external content into named outputs, without saving anything."""
+
+
+@analyze.command("cv")
+@click.argument(
+    "file", default="-", type=click.Path(exists=True, dir_okay=False, allow_dash=True)
+)
+@click.pass_context
+def analyze_cv(ctx, file):
+    """Analyze a CV from a file or stdin (-) and print its named outputs."""
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    with click.open_file(file) as source:
+        content = source.read()
+    click.echo(json.dumps(service.analyze_cv(content), indent=2))
+
+
+@main.command("load")
+@click.argument("destination")
+@click.option("-i", "--identifier", required=True, help="Identifier for the new entity")
+@click.pass_context
+def load(ctx, destination, identifier):
+    """Create one entity at DESTINATION from named outputs on stdin."""
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    outputs = click.get_text_stream("stdin").read()
+    click.echo(_load(service, destination, outputs, identifier))
+
+
+def _load(service, destination: str, outputs, identifier: str) -> str:
+    """Load named outputs, reporting failures as CLI errors."""
+    try:
+        return service.load(destination, outputs, identifier=identifier)
+    except ValidationError as error:
+        raise click.ClickException(_validation_summary(error)) from error
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+
+
 @main.group("ingest")
 def ingest():
     """Analyze external content and persist it as a new object."""
@@ -697,25 +740,23 @@ def ingest_job_posting(url, content):
 
 @ingest.command("cv")
 @click.argument(
-    "content", default="-", type=click.Path(dir_okay=False, allow_dash=True)
+    "file", default="-", type=click.Path(exists=True, dir_okay=False, allow_dash=True)
 )
-def ingest_cv(content):
-    """Analyze a CV from a file path or stdin (-) and persist it."""
+@click.option("-i", "--identifier", help="Identifier for the new CV")
+@click.pass_context
+def ingest_cv(ctx, file, identifier):
+    """Analyze a CV from a file or stdin (-) and load it into cvs."""
     from services.application import ApplicationService
 
-    service = ApplicationService()
-    content_file, is_temp = _resolve_content(content)
-    try:
-        data = service.analyze_cv(content_file)
-        identifier = service.generate_default_identifier("cvs", data)
-        record = service.add_cv(data, identifier)
-    except ValueError as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
-    finally:
-        if is_temp and content_file:
-            os.unlink(content_file)
-    click.echo(f"cvs/{record.identifier}")
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    with click.open_file(file) as source:
+        content = source.read()
+    outputs = service.analyze_cv(content)
+    if identifier is None:
+        identifier = service.generate_default_identifier(
+            "cvs", outputs["curriculum-vitae.json"]
+        )
+    click.echo(_load(service, "cvs", outputs, identifier))
 
 
 @main.command("completion")

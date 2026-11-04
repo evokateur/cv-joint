@@ -30,7 +30,8 @@ def test_update_posting_replaces_content_and_refreshes_record(service, posting):
     service.mark_applied("acme", "backend")
     service.add_document(f"{uri}/notes.txt", b"Keep these notes")
     [before] = service.get("job-postings", recursive=True)
-    markdown = service.get_document(f"{uri}/job-posting.md")
+    markdown = b"# Existing posting\n"
+    service.add_document(f"{uri}/job-posting.md", markdown)
     replacement = {
         "company": "Globex",
         "title": "Architect",

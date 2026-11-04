@@ -445,7 +445,8 @@ def create_app():
                             gr.update(value="", visible=False),
                         )
 
-                    cv_data = service.analyze_cv(file_path)
+                    outputs = service.analyze_cv(Path(file_path).read_text())
+                    cv_data = outputs["curriculum-vitae.json"]
                     identifier = service.generate_default_identifier("cvs", cv_data)
                     cv = CurriculumVitae(**cv_data)
                     cv_md = service.to_markdown(cv)
@@ -526,7 +527,7 @@ def create_app():
 
                     try:
                         identifier = service.unique_new_identifier(f"cvs/{identifier}")
-                        metadata = service.add_cv(cv_data, identifier)
+                        service.add("cvs", cv_data, identifier=identifier)
                         cvs = service.get_cvs()
                         cv_list_data = [
                             [
@@ -540,11 +541,11 @@ def create_app():
                             for c in cvs
                         ]
                         return (
-                            f"✓ CV saved: {metadata.identifier}",
+                            f"✓ CV saved: {identifier}",
                             cv_list_data,
                             True,
                             gr.update(visible=False),
-                            gr.update(value=f"cvs/{metadata.identifier}", visible=True),
+                            gr.update(value=f"cvs/{identifier}", visible=True),
                         )
                     except Exception as e:
                         return (

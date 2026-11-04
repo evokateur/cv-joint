@@ -184,6 +184,9 @@ def test_list_entity_names_documents_and_child_collections(service, posting, cv)
     service.add_job_posting(posting.model_dump(), "acme")
     service.add_cv(cv.model_dump(), "base")
     service.add_optimized_cv("acme", "backend", None, cv)
+    service.add_document("job-postings/acme/job-posting.md", b"# Posting")
+    service.add_document("cvs/base/curriculum-vitae.md", b"# Base CV")
+    service.add_document("job-postings/acme/cvs/backend/curriculum-vitae.md", b"# CV")
     service.transition_job_posting("acme", "applied")
 
     assert service.list("job-postings/acme", recursive=True, query="ignored") == [
@@ -258,6 +261,9 @@ def test_completion_offers_logical_targets_in_every_location(service, posting, c
     service.add_job_posting(posting.model_dump(), "acme")
     service.add_optimized_cv("acme", "backend", None, cv)
     service.add_cv(cv.model_dump(), "base")
+    service.add_document("job-postings/acme/job-posting.md", b"# Posting")
+    service.add_document("cvs/base/curriculum-vitae.md", b"# Base CV")
+    service.add_document("job-postings/acme/cvs/backend/curriculum-vitae.md", b"# CV")
     service.transition_job_posting("acme", "applied")
 
     assert service.complete_targets("job-postings/") == [
@@ -284,6 +290,7 @@ def test_completion_offers_logical_targets_in_every_location(service, posting, c
 @pytest.mark.parametrize("command", ["get", "list", "ls", "add"])
 def test_cli_completion_uses_canonical_targets(service, posting, command):
     service.add_job_posting(posting.model_dump(), "acme")
+    service.add_document("job-postings/acme/job-posting.md", b"# Posting")
     service.transition_job_posting("acme", "applied")
     cli_command = main.commands[command]
     context = click.Context(cli_command, obj=service)
