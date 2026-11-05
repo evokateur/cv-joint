@@ -126,7 +126,13 @@ def create_app():
                         _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
                         content_path = str(_UPLOADS_DIR / Path(content_file).name)
                         shutil.copy2(content_file, content_path)
-                    job_data = service.analyze_job_posting(url, content_path)
+                    if content_path:
+                        outputs = service.analyze_job_posting(
+                            Path(content_path).read_text(), url=url
+                        )
+                    else:
+                        outputs = service.analyze_job_posting_url(url)
+                    job_data = outputs["job-posting.json"]
                     identifier = service.generate_default_entity_uri(
                         "job-postings", job_data
                     ).rsplit("/", 1)[-1]

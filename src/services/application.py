@@ -82,8 +82,9 @@ class ApplicationService:
         self,
         repository: Optional[FileSystemRepository] = None,
         cv_analyzer: Optional[CvAnalyzer] = None,
+        job_posting_analyzer: Optional[JobPostingAnalyzer] = None,
     ):
-        self.job_posting_analyzer = JobPostingAnalyzer()
+        self.job_posting_analyzer = job_posting_analyzer or JobPostingAnalyzer()
         self.cv_analyzer = cv_analyzer or CvAnalyzer()
         self.cv_optimizer = CvOptimizer()
         if repository is None:
@@ -136,27 +137,46 @@ class ApplicationService:
                 outputs = json.loads(outputs)
             except json.JSONDecodeError as error:
                 raise ValueError(f"Invalid named outputs: {error}") from None
-        self._validate_load(entity_uri, outputs)
-        entity_uri = self.add(entity_uri, outputs["curriculum-vitae.json"])
-        for filename, content in outputs.items():
-            if filename != "curriculum-vitae.json":
-                self.add_document(f"{entity_uri}/{filename}", _document_bytes(content))
+        if not isinstance(outputs, dict):
+            raise ValueError("Named outputs must be a JSON object")
+        primary_file = self._validate_load(entity_uri, outputs)
+        try:
+            documents = {
+                filename: _document_bytes(content)
+                for filename, content in outputs.items()
+                if filename != primary_file
+            }
+        except (TypeError, ValueError) as error:
+            raise ValueError(
+                f"Named outputs must be JSON-compatible: {error}"
+            ) from error
+        entity_uri = self.add(entity_uri, outputs[primary_file])
+        for filename, content in documents.items():
+            self.add_document(f"{entity_uri}/{filename}", content)
         return entity_uri
 
-    def _validate_load(self, entity_uri: str, outputs: dict[str, Any]) -> None:
+    def _validate_load(self, entity_uri: str, outputs: dict[str, Any]) -> str:
         """Reject named outputs that load can't write in full."""
         try:
             collection = parse_uri(entity_uri)["collection"]
         except ValueError:
             collection = None
-        if collection != "cvs":
+        if collection not in ("cvs", "job-postings"):
             raise ValueError(f"Cannot load into {entity_uri}")
-        if "curriculum-vitae.json" not in outputs:
-            raise ValueError("Missing curriculum-vitae.json")
+        primary_file = (
+            "job-posting.json"
+            if collection == "job-postings"
+            else "curriculum-vitae.json"
+        )
+        if primary_file not in outputs:
+            raise ValueError(f"Missing {primary_file}")
         if "base_uri" in outputs:
-            raise ValueError("base_uri is not allowed: base CVs have no provenance")
+            raise ValueError(
+                "base_uri is not allowed: base CVs and job postings have no provenance"
+            )
         for filename in outputs:
             validate_filename(filename)
+        return primary_file
 
     def update(self, entity_uri: str, data: dict[str, Any] | str) -> str:
         """Replace entity content and refresh its listing record."""
@@ -390,7 +410,7 @@ class ApplicationService:
             return None
         return self.uniquify_entity_uri(f"{collection_uri}/{slug}")
 
-    def _analyze_job_posting_url(self, url: str) -> JobPosting:
+    def analyze_job_posting_url(self, url: str) -> dict[str, Any]:
         """Fetch a URL and analyze its content as a job posting.
 
         The fetched content lives in a context-managed temp file for the
@@ -403,30 +423,21 @@ class ApplicationService:
         with tempfile.NamedTemporaryFile(suffix=".html") as tmp:
             tmp.write(resp.content)
             tmp.flush()
-            return self.job_posting_analyzer.analyze(tmp.name)
+            posting = self.job_posting_analyzer.analyze(tmp.name)
+        posting = posting.model_copy(update={"url": url})
+        return {"job-posting.json": posting.model_dump(mode="json")}
 
     def analyze_job_posting(
-        self, url: str, content_file: Optional[str] = None
+        self, content: str, *, url: str | None = None
     ) -> dict[str, Any]:
-        """
-        Analyze a job posting into a structured JobPosting.
-
-        Args:
-            url: Job posting URL — stored as provenance. Content is fetched from
-                this URL unless content_file is supplied (e.g. sites that only
-                yield content in a browser). Re-analyzing the same URL is allowed.
-            content_file: Local file path to analyze in lieu of fetching the URL
-
-        Returns:
-            job_posting_data; pass to add_job_posting (with an identifier) to persist.
-        """
-        if content_file is None:
-            job_posting = self._analyze_job_posting_url(url)
-        else:
-            job_posting = self.job_posting_analyzer.analyze(content_file)
-
-        job_posting = job_posting.model_copy(update={"url": url})
-        return job_posting.model_dump()
+        """Analyze supplied text into unsaved posting named outputs."""
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt") as source:
+            source.write(content)
+            source.flush()
+            posting = self.job_posting_analyzer.analyze(source.name)
+        if url is not None:
+            posting = posting.model_copy(update={"url": url})
+        return {"job-posting.json": posting.model_dump(mode="json")}
 
     def add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
