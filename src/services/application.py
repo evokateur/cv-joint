@@ -37,6 +37,17 @@ def _document_bytes(content: Any) -> bytes:
     return json.dumps(content, indent=2).encode()
 
 
+def _parse_new_entity_uri(entity_uri: str) -> dict[str, str]:
+    """Parse an entity URI that add can create, by its shape alone."""
+    try:
+        parsed = parse_uri(entity_uri)
+    except ValueError:
+        raise ValueError(f"Cannot add to {entity_uri}") from None
+    if parsed["collection"] == "cover-letters":
+        raise ValueError(f"Cannot add to {entity_uri}")
+    return parsed
+
+
 def _next_identifier(identifier: str, exists: Callable[[str], Any]) -> str:
     stripped = re.sub(r"-\d+$", "", identifier)
     base = stripped if stripped != identifier and exists(stripped) else identifier
@@ -96,30 +107,26 @@ class ApplicationService:
             }
         )
 
-    def add(
-        self, collection_uri: str, data: dict[str, Any] | str, *, identifier: str
-    ) -> str:
-        """Create one entity in a collection from a dict or JSON text. Returns the entity URI."""
+    def add(self, entity_uri: str, data: dict[str, Any] | str) -> str:
+        """Create exactly the entity at entity_uri from a dict or JSON text. Returns its URI."""
         if isinstance(data, str):
             data = json.loads(data)
         if not isinstance(data, dict):
             raise ValueError("Entity content must be a JSON object")
-        validate_identifier(identifier)
-        entity_uri = f"{collection_uri}/{identifier}"
+        parsed = _parse_new_entity_uri(entity_uri)
+        identifier = validate_identifier(parsed["identifier"])
         if self.object_exists(entity_uri):
             raise ValueError(f"Already exists: {entity_uri}")
-        parts = collection_uri.strip("/").split("/")
-        if parts == ["job-postings"]:
+        if parsed["collection"] == "job-postings":
             record = self.add_job_posting(data, identifier)
-        elif len(parts) == 3 and parts[0] == "job-postings" and parts[2] == "cvs":
-            resolve_record(self.repository, f"job-postings/{parts[1]}")
+        elif parsed["collection"] == "optimized-cvs":
+            posting = parsed["job_posting_identifier"]
+            resolve_record(self.repository, f"job-postings/{posting}")
             record = self.add_optimized_cv(
-                parts[1], identifier, None, CurriculumVitae(**data)
+                posting, identifier, None, CurriculumVitae(**data)
             )
-        elif parts == ["cvs"]:
-            record = self.add_cv(data, identifier)
         else:
-            raise ValueError(f"Cannot add to {collection_uri}")
+            record = self.add_cv(data, identifier)
         return self._record_uri(record)
 
     def load(
@@ -133,13 +140,11 @@ class ApplicationService:
                 raise ValueError(f"Invalid named outputs: {error}") from None
         self._validate_load(destination_uri, outputs)
         entity_uri = self.add(
-            destination_uri, outputs["curriculum-vitae.json"], identifier=identifier
+            f"{destination_uri}/{identifier}", outputs["curriculum-vitae.json"]
         )
         for filename, content in outputs.items():
             if filename != "curriculum-vitae.json":
-                self.add_document(
-                    entity_uri, _document_bytes(content), filename=filename
-                )
+                self.add_document(f"{entity_uri}/{filename}", _document_bytes(content))
         return entity_uri
 
     def _validate_load(self, destination_uri: str, outputs: dict[str, Any]) -> None:
@@ -667,25 +672,20 @@ class ApplicationService:
         """
         return self.markdown_exporter.export(collection_name)
 
-    def add_document(
-        self, target_uri: str, content: bytes, *, filename: str | None = None
-    ) -> str:
-        """Attach raw bytes to an entity as a new document. Returns the document URI."""
-        entity_uri = target_uri
-        document = parse_document_uri(target_uri)
-        if document is not None:
-            entity_uri, filename = document
+    def add_document(self, document_uri: str, content: bytes) -> str:
+        """Create exactly the document at document_uri from raw bytes. Returns its URI."""
+        document = parse_document_uri(document_uri)
+        if document is None:
+            raise ValueError(f"{document_uri} is not a document address")
+        entity_uri, filename = document
         validate_filename(filename)
-        doc_uri = f"{entity_uri}/{filename}"
-        if parse_document_uri(doc_uri) is None:
-            raise ValueError(f"{doc_uri} is not a document address")
 
         record = resolve_record(self.repository, entity_uri)
         try:
             self.repository.add_document(record, filename, content)
         except DocumentExistsError:
-            raise ValueError(f"Document already exists: {doc_uri}") from None
-        return doc_uri
+            raise ValueError(f"Document already exists: {document_uri}") from None
+        return document_uri
 
     def optimize_cv(
         self, job_posting_identifier: str, cv_identifier: str

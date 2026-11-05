@@ -610,39 +610,28 @@ def update(ctx, target, file):
 @main.command("add")
 @click.argument("target", shell_complete=_complete_target)
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, allow_dash=True))
-@click.option("-i", "--identifier", help="Identifier for a new entity")
 @click.pass_context
-def add(ctx, target, file, identifier):
-    """Create an entity in a collection, or attach a document to an entity."""
+def add(ctx, target, file):
+    """Create the entity or document at TARGET, or attach FILE under ENTITY/."""
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
     with click.open_file(file, "rb") as source:
         content = source.read()
     try:
-        if parse_document_uri(target) is not None:
-            uri = service.add_document(target, content)
-        elif _is_entity_uri(target):
+        if target.endswith("/"):
             if file == "-":
                 raise click.UsageError("stdin needs a document URI for its filename")
-            uri = service.add_document(target, content, filename=Path(file).name)
-        elif identifier is None:
-            raise click.UsageError("--identifier is required when adding an entity")
+            uri = service.add_document(f"{target}{Path(file).name}", content)
+        elif parse_document_uri(target) is not None:
+            uri = service.add_document(target, content)
         else:
-            uri = service.add(target, content.decode(), identifier=identifier)
+            uri = service.add(target, content.decode())
     except ValidationError as error:
         raise click.ClickException(_validation_summary(error)) from error
     except (ValueError, OSError) as error:
         raise click.ClickException(str(error)) from error
     click.echo(uri)
-
-
-def _is_entity_uri(target: str) -> bool:
-    try:
-        parse_uri(target)
-    except ValueError:
-        return False
-    return True
 
 
 def _resolve_content(content: str | None) -> tuple[str | None, bool]:

@@ -527,7 +527,7 @@ def create_app():
 
                     try:
                         identifier = service.unique_new_identifier(f"cvs/{identifier}")
-                        service.add("cvs", cv_data, identifier=identifier)
+                        service.add(f"cvs/{identifier}", cv_data)
                         cvs = service.get_cvs()
                         cv_list_data = [
                             [

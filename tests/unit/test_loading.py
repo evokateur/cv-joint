@@ -235,7 +235,7 @@ def test_loading_with_an_invalid_identifier_writes_nothing(service, cv):
 
 
 def test_loading_under_a_taken_identifier_leaves_the_existing_entity_alone(service, cv):
-    service.add("cvs", cv.model_dump(), identifier="backend")
+    service.add("cvs/backend", cv.model_dump())
     outputs = {"curriculum-vitae.json": cv.model_dump(mode="json"), "notes.md": "x"}
 
     with pytest.raises(ValueError, match="Already exists: cvs/backend"):
@@ -248,7 +248,7 @@ def test_loading_under_a_taken_identifier_leaves_the_existing_entity_alone(servi
     "destination", ["job-postings", "job-postings/acme/cvs", "optimized-cvs"]
 )
 def test_loading_outside_cvs_is_not_supported_yet(service, cv, destination):
-    service.add("job-postings", ACME_POSTING, identifier="acme")
+    service.add("job-postings/acme", ACME_POSTING)
     outputs = {"curriculum-vitae.json": cv.model_dump(mode="json")}
 
     with pytest.raises(ValueError, match=f"Cannot load into {destination}"):
