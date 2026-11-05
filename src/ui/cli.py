@@ -673,21 +673,20 @@ def analyze_cv(ctx, file):
 
 @main.command("load")
 @click.argument("destination")
-@click.option("-i", "--identifier", required=True, help="Identifier for the new entity")
 @click.pass_context
-def load(ctx, destination, identifier):
-    """Create one entity at DESTINATION from named outputs on stdin."""
+def load(ctx, destination):
+    """Create exactly the entity at DESTINATION from named outputs on stdin."""
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
     outputs = click.get_text_stream("stdin").read()
-    click.echo(_load(service, destination, outputs, identifier))
+    click.echo(_load(service, destination, outputs))
 
 
-def _load(service, destination: str, outputs, identifier: str) -> str:
+def _load(service, destination: str, outputs) -> str:
     """Load named outputs, reporting failures as CLI errors."""
     try:
-        return service.load(destination, outputs, identifier=identifier)
+        return service.load(destination, outputs)
     except ValidationError as error:
         raise click.ClickException(_validation_summary(error)) from error
     except (ValueError, OSError) as error:
@@ -745,7 +744,7 @@ def ingest_cv(ctx, file, identifier):
         identifier = service.generate_default_identifier(
             "cvs", outputs["curriculum-vitae.json"]
         )
-    click.echo(_load(service, "cvs", outputs, identifier))
+    click.echo(_load(service, f"cvs/{identifier}", outputs))
 
 
 @main.command("completion")

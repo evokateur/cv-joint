@@ -129,28 +129,28 @@ class ApplicationService:
             record = self.add_cv(data, identifier)
         return self._record_uri(record)
 
-    def load(
-        self, destination_uri: str, outputs: dict[str, Any] | str, *, identifier: str
-    ) -> str:
-        """Create one entity at a destination from named outputs. Returns the entity URI."""
+    def load(self, entity_uri: str, outputs: dict[str, Any] | str) -> str:
+        """Create exactly the entity at entity_uri from named outputs. Returns its URI."""
         if isinstance(outputs, str):
             try:
                 outputs = json.loads(outputs)
             except json.JSONDecodeError as error:
                 raise ValueError(f"Invalid named outputs: {error}") from None
-        self._validate_load(destination_uri, outputs)
-        entity_uri = self.add(
-            f"{destination_uri}/{identifier}", outputs["curriculum-vitae.json"]
-        )
+        self._validate_load(entity_uri, outputs)
+        entity_uri = self.add(entity_uri, outputs["curriculum-vitae.json"])
         for filename, content in outputs.items():
             if filename != "curriculum-vitae.json":
                 self.add_document(f"{entity_uri}/{filename}", _document_bytes(content))
         return entity_uri
 
-    def _validate_load(self, destination_uri: str, outputs: dict[str, Any]) -> None:
+    def _validate_load(self, entity_uri: str, outputs: dict[str, Any]) -> None:
         """Reject named outputs that load can't write in full."""
-        if destination_uri != "cvs":
-            raise ValueError(f"Cannot load into {destination_uri}")
+        try:
+            collection = parse_uri(entity_uri)["collection"]
+        except ValueError:
+            collection = None
+        if collection != "cvs":
+            raise ValueError(f"Cannot load into {entity_uri}")
         if "curriculum-vitae.json" not in outputs:
             raise ValueError("Missing curriculum-vitae.json")
         if "base_uri" in outputs:

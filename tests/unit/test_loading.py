@@ -102,7 +102,7 @@ def test_cli_load_reads_named_outputs_from_stdin_and_prints_the_uri(service, cv)
 
     result = CliRunner(mix_stderr=False).invoke(
         main,
-        ["load", "cvs", "-i", "backend"],
+        ["load", "cvs/backend"],
         input=json.dumps(outputs),
         obj=service,
     )
@@ -116,14 +116,14 @@ def test_cli_load_reads_named_outputs_from_stdin_and_prints_the_uri(service, cv)
 @pytest.mark.parametrize(
     "arguments, stdin, message",
     [
-        (["cvs"], "{}", "Missing option '-i'"),
-        (["cvs", "-i", "backend"], '{"notes.md": ""}', "Missing curriculum-vitae.json"),
+        (["cvs"], "{}", "Cannot load into cvs"),
+        (["cvs/backend"], '{"notes.md": ""}', "Missing curriculum-vitae.json"),
         (
-            ["cvs", "-i", "backend"],
+            ["cvs/backend"],
             '{"curriculum-vitae.json": {"name": "Jane"}}',
             "Invalid entity content: contact: Field required (and 8 more)",
         ),
-        (["cvs", "-i", "backend"], "not json", "Invalid named outputs"),
+        (["cvs/backend"], "not json", "Invalid named outputs"),
     ],
 )
 def test_cli_load_reports_errors_on_stderr(service, arguments, stdin, message):
@@ -166,10 +166,10 @@ def test_cli_ingest_cv_without_identifier_generates_one_from_the_profession(serv
     assert second.stdout == "cvs/engineer-2\n"
 
 
-def test_loading_into_cvs_creates_a_base_cv_from_its_primary_file(service, cv):
+def test_loading_a_cv_uri_creates_that_base_cv_from_its_primary_file(service, cv):
     outputs = {"curriculum-vitae.json": cv.model_dump(mode="json")}
 
-    uri = service.load("cvs", outputs, identifier="backend")
+    uri = service.load("cvs/backend", outputs)
 
     assert uri == "cvs/backend"
     assert service.get(uri) == cv
@@ -182,7 +182,7 @@ def test_loading_keeps_other_outputs_as_documents_of_the_entity(service, cv):
         "skills.json": {"languages": ["Python", "Go"]},
     }
 
-    service.load("cvs", outputs, identifier="backend")
+    service.load("cvs/backend", outputs)
 
     assert service.get_document("cvs/backend/notes.md") == b"# Notes\n"
     assert json.loads(service.get_document("cvs/backend/skills.json")) == {
@@ -193,7 +193,7 @@ def test_loading_keeps_other_outputs_as_documents_of_the_entity(service, cv):
 def test_loading_accepts_named_outputs_as_json_text(service, cv):
     outputs = json.dumps({"curriculum-vitae.json": cv.model_dump(mode="json")})
 
-    uri = service.load("cvs", outputs, identifier="backend")
+    uri = service.load("cvs/backend", outputs)
 
     assert service.get(uri) == cv
 
@@ -220,7 +220,7 @@ def test_loading_invalid_outputs_writes_nothing(service, cv, build_outputs, erro
     outputs = build_outputs(cv.model_dump(mode="json"))
 
     with pytest.raises(ValueError, match=error):
-        service.load("cvs", outputs, identifier="backend")
+        service.load("cvs/backend", outputs)
 
     assert service.list("cvs") == []
 
@@ -229,7 +229,7 @@ def test_loading_with_an_invalid_identifier_writes_nothing(service, cv):
     outputs = {"curriculum-vitae.json": cv.model_dump(mode="json")}
 
     with pytest.raises(ValueError, match="identifier"):
-        service.load("cvs", outputs, identifier="back end")
+        service.load("cvs/back end", outputs)
 
     assert service.list("cvs") == []
 
@@ -239,7 +239,7 @@ def test_loading_under_a_taken_identifier_leaves_the_existing_entity_alone(servi
     outputs = {"curriculum-vitae.json": cv.model_dump(mode="json"), "notes.md": "x"}
 
     with pytest.raises(ValueError, match="Already exists: cvs/backend"):
-        service.load("cvs", outputs, identifier="backend")
+        service.load("cvs/backend", outputs)
 
     assert "cvs/backend/notes.md" not in service.list("cvs/backend")
 
@@ -252,6 +252,6 @@ def test_loading_outside_cvs_is_not_supported_yet(service, cv, destination):
     outputs = {"curriculum-vitae.json": cv.model_dump(mode="json")}
 
     with pytest.raises(ValueError, match=f"Cannot load into {destination}"):
-        service.load(destination, outputs, identifier="backend")
+        service.load(f"{destination}/backend", outputs)
 
     assert service.list("job-postings/acme/cvs") == []
