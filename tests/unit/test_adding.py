@@ -43,24 +43,24 @@ def cv():
     )
 
 
-def test_adding_to_cvs_creates_a_base_cv(service, cv):
-    uri = service.add("cvs", cv.model_dump(), identifier="backend")
+def test_adding_a_cv_uri_creates_that_base_cv(service, cv):
+    uri = service.add("cvs/backend", cv.model_dump())
 
     assert uri == "cvs/backend"
     assert service.get(uri) == cv
 
 
 def test_adding_to_job_postings_creates_a_posting(service, posting):
-    uri = service.add("job-postings", posting.model_dump(), identifier="acme")
+    uri = service.add("job-postings/acme", posting.model_dump())
 
     assert uri == "job-postings/acme"
     assert service.get(uri) == posting
 
 
 def test_adding_to_a_postings_cvs_creates_an_optimized_cv(service, posting, cv):
-    service.add("job-postings", posting.model_dump(), identifier="acme")
+    service.add("job-postings/acme", posting.model_dump())
 
-    uri = service.add("job-postings/acme/cvs", cv.model_dump(), identifier="backend")
+    uri = service.add("job-postings/acme/cvs/backend", cv.model_dump())
 
     assert uri == "job-postings/acme/cvs/backend"
     assert service.get(uri) == cv
@@ -70,49 +70,55 @@ def test_adding_to_a_postings_cvs_creates_an_optimized_cv(service, posting, cv):
 
 
 @pytest.mark.parametrize(
-    "target", ["optimized-cvs", "optimized-cvs/applied", "cover-letters", "nowhere"]
+    "target",
+    [
+        "optimized-cvs/backend",
+        "optimized-cvs/applied/backend",
+        "cover-letters/backend",
+        "nowhere/backend",
+    ],
 )
 def test_adding_outside_a_writable_collection_fails(service, cv, target):
     with pytest.raises(ValueError, match=f"Cannot add to {target}"):
-        service.add(target, cv.model_dump(), identifier="backend")
+        service.add(target, cv.model_dump())
 
     assert service.list("cvs") == []
 
 
 def test_adding_an_existing_identifier_is_a_collision(service, posting, cv):
     for identifier in ("acme", "globex"):
-        service.add("job-postings", posting.model_dump(), identifier=identifier)
-    service.add("cvs", cv.model_dump(), identifier="backend")
-    service.add("job-postings/acme/cvs", cv.model_dump(), identifier="backend")
+        service.add(f"job-postings/{identifier}", posting.model_dump())
+    service.add("cvs/backend", cv.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
     renamed = cv.model_copy(update={"name": "Someone Else"}).model_dump()
 
     for collection in ("cvs", "job-postings/acme/cvs"):
         with pytest.raises(ValueError, match=f"^Already exists: {collection}/backend$"):
-            service.add(collection, renamed, identifier="backend")
+            service.add(f"{collection}/backend", renamed)
         assert service.get(f"{collection}/backend") == cv
 
-    assert service.add("job-postings/globex/cvs", renamed, identifier="backend") == (
+    assert service.add("job-postings/globex/cvs/backend", renamed) == (
         "job-postings/globex/cvs/backend"
     )
 
 
-@pytest.mark.parametrize("identifier", ["", " ", "back end", "back/end"])
+@pytest.mark.parametrize("identifier", [" ", "back end"])
 def test_adding_requires_a_valid_identifier(service, cv, identifier):
     with pytest.raises(ValueError, match="illegal identifier"):
-        service.add("cvs", cv.model_dump(), identifier=identifier)
+        service.add(f"cvs/{identifier}", cv.model_dump())
 
     assert service.list("cvs") == []
 
 
 def test_adding_an_optimized_cv_requires_an_existing_posting(service, cv):
     with pytest.raises(ValueError, match="Not found"):
-        service.add("job-postings/missing/cvs", cv.model_dump(), identifier="backend")
+        service.add("job-postings/missing/cvs/backend", cv.model_dump())
 
     assert service.list("optimized-cvs", recursive=True) == []
 
 
 def test_adding_accepts_json_text(service, cv):
-    uri = service.add("cvs", cv.model_dump_json(), identifier="backend")
+    uri = service.add("cvs/backend", cv.model_dump_json())
 
     assert service.get(uri) == cv
 
@@ -120,7 +126,7 @@ def test_adding_accepts_json_text(service, cv):
 @pytest.mark.parametrize("data", ["[]", "null", '"text"', "42", "true"])
 def test_adding_requires_a_json_object(service, data):
     with pytest.raises(ValueError, match="^Entity content must be a JSON object$"):
-        service.add("cvs", data, identifier="backend")
+        service.add("cvs/backend", data)
 
     assert service.list("cvs") == []
 
@@ -135,52 +141,41 @@ def test_document_addition_preserves_binary_bytes(service, cv):
     assert service.get_document(uri) == content
 
 
-def test_document_added_to_entity_uri_takes_the_given_filename(service, cv):
-    service.add_cv(cv.model_dump(), "backend")
-
-    uri = service.add_document("cvs/backend", b"# Notes\n", filename="notes.md")
-
-    assert uri == "cvs/backend/notes.md"
-    assert service.get_document(uri) == b"# Notes\n"
-
-
 def test_document_addition_requires_an_existing_entity(service):
     with pytest.raises(ValueError, match="Not found"):
         service.add_document("cvs/missing/notes.md", b"# Notes\n")
 
 
-@pytest.mark.parametrize(
-    "target, filename",
-    [
-        ("cvs/backend/..", None),
-        ("cvs/backend/.", None),
-        ("cvs/backend", ".."),
-        ("cvs/backend", "../../escape.txt"),
-        ("cvs/backend", ""),
-        ("cvs/backend", None),
-    ],
-)
-def test_document_addition_requires_a_valid_filename(
-    service, cv, tmp_path, target, filename
-):
-    service.add("cvs", cv.model_dump(), identifier="backend")
+@pytest.mark.parametrize("target", ["cvs/backend/..", "cvs/backend/."])
+def test_document_addition_requires_a_valid_filename(service, cv, tmp_path, target):
+    service.add("cvs/backend", cv.model_dump())
     before = sorted(tmp_path.rglob("*"))
 
     with pytest.raises(ValueError, match="illegal filename"):
-        service.add_document(target, b"x", filename=filename)
+        service.add_document(target, b"x")
 
     assert sorted(tmp_path.rglob("*")) == before
 
 
-def test_document_cannot_take_a_postings_child_collection_name(service, posting, cv):
-    service.add("job-postings", posting.model_dump(), identifier="acme")
+@pytest.mark.parametrize(
+    "target",
+    [
+        "job-postings/acme/cvs",
+        "job-postings/acme",
+        "cvs",
+        "cvs/backend/../../escape.txt",
+    ],
+)
+def test_document_addition_requires_a_document_uri(
+    service, posting, cv, tmp_path, target
+):
+    service.add("job-postings/acme", posting.model_dump())
+    before = sorted(tmp_path.rglob("*"))
 
-    with pytest.raises(
-        ValueError, match="^job-postings/acme/cvs is not a document address$"
-    ):
-        service.add_document("job-postings/acme", b"x", filename="cvs")
+    with pytest.raises(ValueError, match=f"^{target} is not a document address$"):
+        service.add_document(target, b"x")
 
-    assert service.add("job-postings/acme/cvs", cv.model_dump(), identifier="backend")
+    assert sorted(tmp_path.rglob("*")) == before
 
 
 def test_existing_document_is_a_collision_named_by_logical_uri(service, posting):
@@ -199,9 +194,7 @@ def test_cli_adds_an_entity_and_prints_only_its_uri(service, cv, tmp_path):
     source = tmp_path / "cv.json"
     source.write_text(cv.model_dump_json())
 
-    result = CliRunner().invoke(
-        main, ["add", "cvs", str(source), "-i", "backend"], obj=service
-    )
+    result = CliRunner().invoke(main, ["add", "cvs/backend", str(source)], obj=service)
 
     assert result.exit_code == 0, result.output
     assert result.stdout == "cvs/backend\n"
@@ -211,12 +204,12 @@ def test_cli_adds_an_entity_and_prints_only_its_uri(service, cv, tmp_path):
 @pytest.mark.parametrize(
     "target, expected",
     [
-        ("cvs/backend", "cvs/backend/export.pdf"),
+        ("cvs/backend/", "cvs/backend/export.pdf"),
         ("cvs/backend/application.pdf", "cvs/backend/application.pdf"),
     ],
 )
 def test_cli_attaches_a_document_byte_for_byte(service, cv, tmp_path, target, expected):
-    service.add("cvs", cv.model_dump(), identifier="backend")
+    service.add("cvs/backend", cv.model_dump())
     source = tmp_path / "export.pdf"
     source.write_bytes(b"%PDF-1.7\r\n\x00\xff\xfe\n")
 
@@ -230,12 +223,12 @@ def test_cli_attaches_a_document_byte_for_byte(service, cv, tmp_path, target, ex
 def test_cli_rejects_a_document_named_after_a_child_collection(
     service, posting, tmp_path
 ):
-    service.add("job-postings", posting.model_dump(), identifier="acme")
+    service.add("job-postings/acme", posting.model_dump())
     source = tmp_path / "cvs"
     source.write_bytes(b"x")
 
     result = CliRunner(mix_stderr=False).invoke(
-        main, ["add", "job-postings/acme", str(source)], obj=service
+        main, ["add", "job-postings/acme/", str(source)], obj=service
     )
 
     assert result.exit_code == 1
@@ -244,11 +237,11 @@ def test_cli_rejects_a_document_named_after_a_child_collection(
 
 
 def test_cli_adds_an_entity_from_stdin(service, posting, cv):
-    service.add("job-postings", posting.model_dump(), identifier="acme")
+    service.add("job-postings/acme", posting.model_dump())
 
     result = CliRunner().invoke(
         main,
-        ["add", "job-postings/acme/cvs", "-", "--identifier", "backend"],
+        ["add", "job-postings/acme/cvs/backend", "-"],
         input=cv.model_dump_json(),
         obj=service,
     )
@@ -259,25 +252,26 @@ def test_cli_adds_an_entity_from_stdin(service, posting, cv):
 
 
 @pytest.mark.parametrize(
-    "arguments, message",
+    "target, message",
     [
-        (["cvs"], "--identifier is required"),
-        (["optimized-cvs", "-i", "other"], "Cannot add to optimized-cvs"),
-        (["cvs", "-i", "backend"], "Already exists: cvs/backend"),
-        (["cvs", "-i", "back/end"], "illegal identifier"),
-        (["cvs/missing"], "Not found"),
-        (["cvs/backend/cv.json"], "Document already exists: cvs/backend/cv.json"),
+        ("cvs", "Cannot add to cvs"),
+        ("job-postings/acme/cvs", "Cannot add to job-postings/acme/cvs"),
+        ("cvs/", "cvs/cv.json is not a document address"),
+        ("optimized-cvs/other", "Cannot add to optimized-cvs/other"),
+        ("cvs/backend", "Already exists: cvs/backend"),
+        ("cvs/back end", "illegal identifier"),
+        ("cvs/missing/", "Not found"),
+        ("cvs/backend/cv.json", "Document already exists: cvs/backend/cv.json"),
     ],
 )
-def test_cli_add_reports_errors_on_stderr(service, cv, tmp_path, arguments, message):
-    service.add("cvs", cv.model_dump(), identifier="backend")
+def test_cli_add_reports_errors_on_stderr(service, cv, tmp_path, target, message):
+    service.add("cvs/backend", cv.model_dump())
     service.add_document("cvs/backend/cv.json", b"{}")
     source = tmp_path / "cv.json"
     source.write_text(cv.model_dump_json())
-    target, *options = arguments
 
     result = CliRunner(mix_stderr=False).invoke(
-        main, ["add", target, str(source), *options], obj=service
+        main, ["add", target, str(source)], obj=service
     )
 
     assert result.exit_code != 0
@@ -287,7 +281,7 @@ def test_cli_add_reports_errors_on_stderr(service, cv, tmp_path, arguments, mess
 
 def test_cli_reports_non_object_entity_content_on_stderr(service):
     result = CliRunner(mix_stderr=False).invoke(
-        main, ["add", "cvs", "-", "-i", "backend"], input="[]", obj=service
+        main, ["add", "cvs/backend", "-"], input="[]", obj=service
     )
 
     assert result.exit_code == 1
@@ -297,10 +291,10 @@ def test_cli_reports_non_object_entity_content_on_stderr(service):
 
 
 def test_cli_stdin_document_needs_a_document_uri(service, cv):
-    service.add("cvs", cv.model_dump(), identifier="backend")
+    service.add("cvs/backend", cv.model_dump())
 
     result = CliRunner(mix_stderr=False).invoke(
-        main, ["add", "cvs/backend", "-"], input="# Notes\n", obj=service
+        main, ["add", "cvs/backend/", "-"], input="# Notes\n", obj=service
     )
 
     assert result.exit_code != 0

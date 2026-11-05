@@ -416,8 +416,28 @@ def _complete_target(ctx, _param, incomplete):
     return [CompletionItem(uri) for uri in service.complete_targets(incomplete)]
 
 
+def _complete_add_destination(ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [
+        CompletionItem(uri) for uri in service.complete_add_destinations(incomplete)
+    ]
+
+
+def _complete_load_destination(ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [
+        CompletionItem(uri) for uri in service.complete_load_destinations(incomplete)
+    ]
+
+
 @main.command("list")
-@click.argument("target", shell_complete=_complete_target)
+@click.argument("uri", shell_complete=_complete_target)
 @click.option(
     "-r",
     "--recursive",
@@ -431,13 +451,13 @@ def _complete_target(ctx, _param, incomplete):
     help="Match a case-insensitive substring of the whole record",
 )
 @click.pass_context
-def list_objects(ctx, target, recursive, query):
+def list_objects(ctx, uri, recursive, query):
     """Print canonical URIs for selected records or an entity's children."""
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
     try:
-        uris = service.list(target, recursive=recursive, query=query)
+        uris = service.list(uri, recursive=recursive, query=query)
     except (ValueError, OSError) as error:
         raise click.ClickException(str(error)) from error
     for uri in uris:
@@ -448,7 +468,7 @@ main.add_command(list_objects, name="ls")
 
 
 @main.command("get")
-@click.argument("target", shell_complete=_complete_target)
+@click.argument("uri", shell_complete=_complete_target)
 @click.option(
     "-r", "--recursive", is_flag=True, help="Select records across every location"
 )
@@ -456,16 +476,16 @@ main.add_command(list_objects, name="ls")
     "-q", "--query", help="Match a case-insensitive substring of the whole record"
 )
 @click.pass_context
-def get_content(ctx, target, recursive, query):
+def get_content(ctx, uri, recursive, query):
     """Print entity JSON, selected records as JSONL, or raw document bytes."""
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
     try:
-        if parse_document_uri(target) is not None:
-            click.get_binary_stream("stdout").write(service.get_document(target))
+        if parse_document_uri(uri) is not None:
+            click.get_binary_stream("stdout").write(service.get_document(uri))
             return
-        result = service.get(target, recursive=recursive, query=query)
+        result = service.get(uri, recursive=recursive, query=query)
     except (ValueError, OSError) as error:
         raise click.ClickException(str(error)) from error
     if isinstance(result, list):
@@ -585,10 +605,10 @@ def _validation_summary(error: ValidationError) -> str:
 
 
 @main.command("update")
-@click.argument("target", shell_complete=_complete_target)
+@click.argument("uri", shell_complete=_complete_target)
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, allow_dash=True))
 @click.pass_context
-def update(ctx, target, file):
+def update(ctx, uri, file):
     """Replace an entity's content or a document's bytes."""
     from services.application import ApplicationService
 
@@ -596,53 +616,42 @@ def update(ctx, target, file):
     try:
         with click.open_file(file, "rb") as source:
             content = source.read()
-        if parse_document_uri(target) is not None:
-            uri = service.update_document(target, content)
+        if parse_document_uri(uri) is not None:
+            affected_uri = service.update_document(uri, content)
         else:
-            uri = service.update(target, content.decode())
+            affected_uri = service.update(uri, content.decode())
     except ValidationError as error:
         raise click.ClickException(_validation_summary(error)) from error
     except (ValueError, OSError) as error:
         raise click.ClickException(str(error)) from error
-    click.echo(uri)
+    click.echo(affected_uri)
 
 
 @main.command("add")
-@click.argument("target", shell_complete=_complete_target)
+@click.argument("uri", shell_complete=_complete_add_destination)
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, allow_dash=True))
-@click.option("-i", "--identifier", help="Identifier for a new entity")
 @click.pass_context
-def add(ctx, target, file, identifier):
-    """Create an entity in a collection, or attach a document to an entity."""
+def add(ctx, uri, file):
+    """Create the entity or document at URI, or attach FILE under ENTITY/."""
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
     with click.open_file(file, "rb") as source:
         content = source.read()
     try:
-        if parse_document_uri(target) is not None:
-            uri = service.add_document(target, content)
-        elif _is_entity_uri(target):
+        if uri.endswith("/"):
             if file == "-":
                 raise click.UsageError("stdin needs a document URI for its filename")
-            uri = service.add_document(target, content, filename=Path(file).name)
-        elif identifier is None:
-            raise click.UsageError("--identifier is required when adding an entity")
+            affected_uri = service.add_document(f"{uri}{Path(file).name}", content)
+        elif parse_document_uri(uri) is not None:
+            affected_uri = service.add_document(uri, content)
         else:
-            uri = service.add(target, content.decode(), identifier=identifier)
+            affected_uri = service.add(uri, content.decode())
     except ValidationError as error:
         raise click.ClickException(_validation_summary(error)) from error
     except (ValueError, OSError) as error:
         raise click.ClickException(str(error)) from error
-    click.echo(uri)
-
-
-def _is_entity_uri(target: str) -> bool:
-    try:
-        parse_uri(target)
-    except ValueError:
-        return False
-    return True
+    click.echo(affected_uri)
 
 
 def _resolve_content(content: str | None) -> tuple[str | None, bool]:
@@ -683,22 +692,21 @@ def analyze_cv(ctx, file):
 
 
 @main.command("load")
-@click.argument("destination")
-@click.option("-i", "--identifier", required=True, help="Identifier for the new entity")
+@click.argument("uri", shell_complete=_complete_load_destination)
 @click.pass_context
-def load(ctx, destination, identifier):
-    """Create one entity at DESTINATION from named outputs on stdin."""
+def load(ctx, uri):
+    """Create exactly the entity at URI from named outputs on stdin."""
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
     outputs = click.get_text_stream("stdin").read()
-    click.echo(_load(service, destination, outputs, identifier))
+    click.echo(_load(service, uri, outputs))
 
 
-def _load(service, destination: str, outputs, identifier: str) -> str:
+def _load(service, uri: str, outputs) -> str:
     """Load named outputs, reporting failures as CLI errors."""
     try:
-        return service.load(destination, outputs, identifier=identifier)
+        return service.load(uri, outputs)
     except ValidationError as error:
         raise click.ClickException(_validation_summary(error)) from error
     except (ValueError, OSError) as error:
@@ -727,8 +735,8 @@ def ingest_job_posting(url, content):
     content_file, is_temp = _resolve_content(content)
     try:
         data = service.analyze_job_posting(url, content_file)
-        identifier = service.generate_default_identifier("job-postings", data)
-        record = service.add_job_posting(data, identifier)
+        entity_uri = service.generate_default_entity_uri("job-postings", data)
+        record = service.add_job_posting(data, entity_uri.rsplit("/", 1)[-1])
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -749,14 +757,21 @@ def ingest_cv(ctx, file, identifier):
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
+    if identifier is not None:
+        try:
+            validate_identifier(identifier)
+        except ValueError as error:
+            raise click.ClickException(str(error)) from error
     with click.open_file(file) as source:
         content = source.read()
     outputs = service.analyze_cv(content)
     if identifier is None:
-        identifier = service.generate_default_identifier(
+        entity_uri = service.generate_default_entity_uri(
             "cvs", outputs["curriculum-vitae.json"]
         )
-    click.echo(_load(service, "cvs", outputs, identifier))
+    else:
+        entity_uri = f"cvs/{identifier}"
+    click.echo(_load(service, entity_uri, outputs))
 
 
 @main.command("completion")

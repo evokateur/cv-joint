@@ -26,7 +26,7 @@ def posting():
 
 
 def test_update_posting_replaces_content_and_refreshes_record(service, posting):
-    uri = service.add("job-postings", posting.model_dump(), identifier="acme")
+    uri = service.add("job-postings/acme", posting.model_dump())
     service.mark_applied("acme", "backend")
     service.add_document(f"{uri}/notes.txt", b"Keep these notes")
     [before] = service.get("job-postings", recursive=True)
@@ -83,12 +83,12 @@ def cv():
 def test_update_cv_refreshes_summary_and_preserves_relationships(
     service, posting, cv, collection
 ):
-    service.add("job-postings", posting.model_dump(), identifier="acme")
-    service.add("job-postings", posting.model_dump(), identifier="other")
-    service.add("cvs", cv.model_dump(), identifier="base")
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("job-postings/other", posting.model_dump())
+    service.add("cvs/base", cv.model_dump())
     service.add_optimized_cv("acme", "backend", "base", cv)
-    service.add("job-postings/other/cvs", cv.model_dump(), identifier="backend")
-    service.add("cvs", cv.model_dump(), identifier="backend")
+    service.add("job-postings/other/cvs/backend", cv.model_dump())
+    service.add("cvs/backend", cv.model_dump())
     service.archive_job_posting("acme")
     uri = f"{collection}/backend"
     before = next(
@@ -125,9 +125,9 @@ def test_update_cv_refreshes_summary_and_preserves_relationships(
 def test_document_update_is_raw_and_leaves_records_unchanged(
     service, posting, cv, document_uri
 ):
-    service.add("job-postings", posting.model_dump(), identifier="acme")
-    service.add("cvs", cv.model_dump(), identifier="backend")
-    service.add("job-postings/acme/cvs", cv.model_dump(), identifier="backend")
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("cvs/backend", cv.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
     service.archive_job_posting("acme")
     service.add_document("cvs/backend/notes.txt", b"old")
     collections = ["job-postings", "cvs", "optimized-cvs"]
@@ -143,8 +143,8 @@ def test_document_update_is_raw_and_leaves_records_unchanged(
 
 
 def test_update_rejects_a_location_even_when_it_matches_a_posting(service, posting):
-    service.add("job-postings", posting.model_dump(), identifier="archived")
-    service.add("job-postings", posting.model_dump(), identifier="acme")
+    service.add("job-postings/archived", posting.model_dump())
+    service.add("job-postings/acme", posting.model_dump())
     service.archive_job_posting("acme")
     before = service.get("job-postings", recursive=True)
 
@@ -170,9 +170,9 @@ def test_cli_updates_from_file_or_stdin(
     from click.testing import CliRunner
     from ui.cli import main
 
-    service.add("job-postings", posting.model_dump(), identifier="acme")
-    service.add("cvs", cv.model_dump(), identifier="backend")
-    service.add("job-postings/acme/cvs", cv.model_dump(), identifier="backend")
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("cvs/backend", cv.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
     service.archive_job_posting("acme")
     if target.endswith(".json"):
         content = b"\xff\x00\r\n"
@@ -211,9 +211,9 @@ def test_cli_validation_error_is_a_short_summary(service, cv, command):
     from click.testing import CliRunner
     from ui.cli import main
 
-    service.add("cvs", cv.model_dump(), identifier="backend")
+    service.add("cvs/backend", cv.model_dump())
     arguments = (
-        ["add", "cvs", "-", "-i", "other"]
+        ["add", "cvs/other", "-"]
         if command == "add"
         else ["update", "cvs/backend", "-"]
     )
@@ -236,7 +236,7 @@ def test_cli_validation_error_is_a_short_summary(service, cv, command):
     "data", ["[]", "null", "true", "42", '"text"', "{", {}, {"name": "Incomplete"}]
 )
 def test_invalid_content_leaves_entity_and_record_unchanged(service, cv, data):
-    uri = service.add("cvs", cv.model_dump(), identifier="backend")
+    uri = service.add("cvs/backend", cv.model_dump())
     before = service.get("cvs")
 
     with pytest.raises(ValueError):
@@ -263,8 +263,8 @@ def test_invalid_content_leaves_entity_and_record_unchanged(service, cv, data):
     ],
 )
 def test_update_requires_an_existing_writable_entity(service, posting, cv, target):
-    service.add("job-postings", posting.model_dump(), identifier="acme")
-    service.add("cvs", cv.model_dump(), identifier="backend")
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("cvs/backend", cv.model_dump())
     service.archive_job_posting("acme")
     before = service.get("cvs")
 
@@ -289,7 +289,7 @@ def test_update_requires_an_existing_writable_entity(service, posting, cv, targe
     ],
 )
 def test_document_update_requires_an_existing_writable_document(service, cv, target):
-    service.add("cvs", cv.model_dump(), identifier="backend")
+    service.add("cvs/backend", cv.model_dump())
     before = service.list("cvs/backend")
 
     with pytest.raises((ValueError, OSError)):
@@ -316,7 +316,7 @@ def test_cli_errors_go_to_stderr_without_mutating_content(
     from click.testing import CliRunner
     from ui.cli import main
 
-    service.add("cvs", cv.model_dump(), identifier="backend")
+    service.add("cvs/backend", cv.model_dump())
     before = service.get("cvs")
 
     result = CliRunner(mix_stderr=False).invoke(

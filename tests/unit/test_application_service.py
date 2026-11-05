@@ -758,47 +758,49 @@ class TestObjectExists:
         assert service.object_exists("cvs/jane-doe/resume.pdf") is False
 
 
-class TestUniqueNewIdentifier:
-    def test_returns_terminal_when_free(self, service):
-        assert service.unique_new_identifier("cvs/jane-doe") == "jane-doe"
+class TestUniquifyEntityUri:
+    def test_returns_the_uri_when_free(self, service):
+        assert service.uniquify_entity_uri("cvs/jane-doe") == "cvs/jane-doe"
 
     def test_bumps_to_2_on_collision(self, service, sample_cv_data):
         service.add_cv(sample_cv_data, "jane-doe")
-        assert service.unique_new_identifier("cvs/jane-doe") == "jane-doe-2"
+        assert service.uniquify_entity_uri("cvs/jane-doe") == "cvs/jane-doe-2"
 
     def test_bumps_past_existing_suffix(self, service, sample_cv_data):
         service.add_cv(sample_cv_data, "jane-doe")
         service.add_cv(sample_cv_data, "jane-doe-2")
-        assert service.unique_new_identifier("cvs/jane-doe") == "jane-doe-3"
+        assert service.uniquify_entity_uri("cvs/jane-doe") == "cvs/jane-doe-3"
 
     def test_scoped_per_namespace(
         self, service, sample_job_posting_data, sample_cv_data
     ):
         service.add_cv(sample_cv_data, "shared")
         # same identifier in a different namespace does not collide
-        assert service.unique_new_identifier("job-postings/shared") == "shared"
+        assert (
+            service.uniquify_entity_uri("job-postings/shared") == "job-postings/shared"
+        )
 
 
-class TestGenerateDefaultIdentifier:
+class TestGenerateDefaultEntityUri:
     def test_job_posting_slugifies_company_and_title(
         self, service, sample_job_posting_data
     ):
         assert (
-            service.generate_default_identifier("job-postings", sample_job_posting_data)
-            == "acme-corp-software-engineer"
+            service.generate_default_entity_uri("job-postings", sample_job_posting_data)
+            == "job-postings/acme-corp-software-engineer"
         )
 
     def test_cv_slugifies_profession(self, service, sample_cv_data):
         assert (
-            service.generate_default_identifier("cvs", sample_cv_data)
-            == "software-engineer"
+            service.generate_default_entity_uri("cvs", sample_cv_data)
+            == "cvs/software-engineer"
         )
 
     def test_avoids_collision(self, service, sample_cv_data):
         service.add_cv(sample_cv_data, "software-engineer")
         assert (
-            service.generate_default_identifier("cvs", sample_cv_data)
-            == "software-engineer-2"
+            service.generate_default_entity_uri("cvs", sample_cv_data)
+            == "cvs/software-engineer-2"
         )
 
     def test_not_specified_company_omitted(self, service):
@@ -810,10 +812,13 @@ class TestGenerateDefaultIdentifier:
             description="A job",
             experience_level="Senior",
         ).model_dump()
-        assert service.generate_default_identifier("job-postings", data) == "developer"
+        assert (
+            service.generate_default_entity_uri("job-postings", data)
+            == "job-postings/developer"
+        )
 
     def test_unrecognized_collection_returns_none(self, service):
-        assert service.generate_default_identifier("widgets", {}) is None
+        assert service.generate_default_entity_uri("widgets", {}) is None
 
 
 class TestAddRaisesOnCollision:
