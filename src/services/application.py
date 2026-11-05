@@ -338,32 +338,31 @@ class ApplicationService:
             )
         return False
 
-    def unique_new_identifier(self, uri: str) -> str:
-        """A free identifier in uri's namespace: its terminal segment, or a
-        -N variant when that collides."""
-        prefix, terminal = uri.rsplit("/", 1)
+    def uniquify_entity_uri(self, new_uri: str) -> str:
+        """new_uri when it's free, or with a -N suffix when it's taken. Reserves nothing."""
+        prefix, terminal = new_uri.rsplit("/", 1)
 
         def exists(identifier: str) -> bool:
             return self.object_exists(f"{prefix}/{identifier}")
 
         if not exists(terminal):
-            return terminal
-        return _next_identifier(terminal, exists)
+            return new_uri
+        return f"{prefix}/{_next_identifier(terminal, exists)}"
 
-    def generate_default_identifier(
-        self, collection: str, data: dict[str, Any]
+    def generate_default_entity_uri(
+        self, collection_uri: str, data: dict[str, Any]
     ) -> str | None:
-        """A collision-free default identifier derived from an object's fields.
+        """A free entity URI in collection_uri derived from the content's fields.
 
         None when the collection has no default identifier defined.
         """
-        if collection == "job-postings":
+        if collection_uri == "job-postings":
             slug = _slugify_job(data["company"], data["title"])
-        elif collection == "cvs":
+        elif collection_uri == "cvs":
             slug = _slugify(data["profession"])
         else:
             return None
-        return self.unique_new_identifier(f"{collection}/{slug}")
+        return self.uniquify_entity_uri(f"{collection_uri}/{slug}")
 
     def _analyze_job_posting_url(self, url: str) -> JobPosting:
         """Fetch a URL and analyze its content as a job posting.

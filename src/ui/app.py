@@ -127,9 +127,9 @@ def create_app():
                         content_path = str(_UPLOADS_DIR / Path(content_file).name)
                         shutil.copy2(content_file, content_path)
                     job_data = service.analyze_job_posting(url, content_path)
-                    identifier = service.generate_default_identifier(
+                    identifier = service.generate_default_entity_uri(
                         "job-postings", job_data
-                    )
+                    ).rsplit("/", 1)[-1]
                     job_posting = JobPosting(**job_data)
                     job_md = service.to_markdown(job_posting)
                     is_saved = False
@@ -211,9 +211,9 @@ def create_app():
                         )
 
                     try:
-                        identifier = service.unique_new_identifier(
+                        identifier = service.uniquify_entity_uri(
                             f"job-postings/{identifier}"
-                        )
+                        ).rsplit("/", 1)[-1]
                         metadata = service.add_job_posting(job_data, identifier)
                         jobs = service.get_job_postings()
                         job_list_data = [
@@ -447,7 +447,9 @@ def create_app():
 
                     outputs = service.analyze_cv(Path(file_path).read_text())
                     cv_data = outputs["curriculum-vitae.json"]
-                    identifier = service.generate_default_identifier("cvs", cv_data)
+                    identifier = service.generate_default_entity_uri(
+                        "cvs", cv_data
+                    ).rsplit("/", 1)[-1]
                     cv = CurriculumVitae(**cv_data)
                     cv_md = service.to_markdown(cv)
                     is_saved = False
@@ -526,8 +528,9 @@ def create_app():
                         )
 
                     try:
-                        identifier = service.unique_new_identifier(f"cvs/{identifier}")
-                        service.add(f"cvs/{identifier}", cv_data)
+                        entity_uri = service.uniquify_entity_uri(f"cvs/{identifier}")
+                        identifier = entity_uri.rsplit("/", 1)[-1]
+                        service.add(entity_uri, cv_data)
                         cvs = service.get_cvs()
                         cv_list_data = [
                             [

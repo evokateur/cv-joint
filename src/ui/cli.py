@@ -715,8 +715,8 @@ def ingest_job_posting(url, content):
     content_file, is_temp = _resolve_content(content)
     try:
         data = service.analyze_job_posting(url, content_file)
-        identifier = service.generate_default_identifier("job-postings", data)
-        record = service.add_job_posting(data, identifier)
+        entity_uri = service.generate_default_entity_uri("job-postings", data)
+        record = service.add_job_posting(data, entity_uri.rsplit("/", 1)[-1])
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -741,10 +741,12 @@ def ingest_cv(ctx, file, identifier):
         content = source.read()
     outputs = service.analyze_cv(content)
     if identifier is None:
-        identifier = service.generate_default_identifier(
+        entity_uri = service.generate_default_entity_uri(
             "cvs", outputs["curriculum-vitae.json"]
         )
-    click.echo(_load(service, f"cvs/{identifier}", outputs))
+    else:
+        entity_uri = f"cvs/{identifier}"
+    click.echo(_load(service, entity_uri, outputs))
 
 
 @main.command("completion")

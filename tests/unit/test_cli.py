@@ -177,7 +177,7 @@ class TestAnalyzeJobPostingCommand:
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
             svc.analyze_job_posting.return_value = {}
-            svc.generate_default_identifier.return_value = "acme-swe"
+            svc.generate_default_entity_uri.return_value = "job-postings/acme-swe"
             svc.add_job_posting.return_value = mock_record
             result = runner.invoke(main, ["ingest", "job-posting", url])
         assert result.exit_code == 0, result.output
@@ -193,7 +193,7 @@ class TestAnalyzeJobPostingCommand:
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
             svc.analyze_job_posting.return_value = {}
-            svc.generate_default_identifier.return_value = "acme-swe"
+            svc.generate_default_entity_uri.return_value = "job-postings/acme-swe"
             svc.add_job_posting.return_value = mock_record
             result = runner.invoke(main, ["ingest", "job-posting", url, str(content)])
         assert result.exit_code == 0, result.output
@@ -207,7 +207,7 @@ class TestAnalyzeJobPostingCommand:
         with patch("services.application.ApplicationService") as MockService:
             svc = MockService.return_value
             svc.analyze_job_posting.return_value = {}
-            svc.generate_default_identifier.return_value = "acme-swe"
+            svc.generate_default_entity_uri.return_value = "job-postings/acme-swe"
             svc.add_job_posting.return_value = mock_record
             result = runner.invoke(
                 main, ["ingest", "job-posting", url, "-"], input="# Job Posting"
