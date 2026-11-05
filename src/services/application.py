@@ -279,7 +279,7 @@ class ApplicationService:
         record = self._entity_record(entity_uri)
         return self.repository.load_document_bytes(record, filename)
 
-    def complete_add_targets(self, incomplete: str) -> list[str]:
+    def complete_add_destinations(self, incomplete: str) -> list[str]:
         """Complete add destinations: collection prefixes and entities, ending in '/'."""
         entities = {f"{self._record_uri(record)}/" for record in self._entity_records()}
         candidates = self._collection_prefixes() | entities

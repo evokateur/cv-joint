@@ -313,7 +313,7 @@ def test_add_completion_offers_destination_prefixes_ending_in_a_slash(
     service.add_cv(cv.model_dump(), "base")
     service.transition_job_posting("acme", "applied")
 
-    assert service.complete_add_targets("") == [
+    assert service.complete_add_destinations("") == [
         "cvs/",
         "cvs/base/",
         "job-postings/",
@@ -321,7 +321,7 @@ def test_add_completion_offers_destination_prefixes_ending_in_a_slash(
         "job-postings/acme/cvs/",
         "job-postings/acme/cvs/backend/",
     ]
-    assert service.complete_add_targets("job-postings/acme/c") == [
+    assert service.complete_add_destinations("job-postings/acme/c") == [
         "job-postings/acme/cvs/",
         "job-postings/acme/cvs/backend/",
     ]
