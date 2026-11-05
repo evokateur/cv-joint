@@ -755,6 +755,11 @@ def ingest_cv(ctx, file, identifier):
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
+    if identifier is not None:
+        try:
+            validate_identifier(identifier)
+        except ValueError as error:
+            raise click.ClickException(str(error)) from error
     with click.open_file(file) as source:
         content = source.read()
     outputs = service.analyze_cv(content)

@@ -153,6 +153,16 @@ def test_cli_ingest_cv_analyzes_and_loads_under_the_given_identifier(
     assert analysis.read == "Jane Doe, Engineer"
 
 
+def test_cli_ingest_cv_rejects_an_identifier_with_a_slash(service):
+    result = CliRunner(mix_stderr=False).invoke(
+        main, ["ingest", "cv", "-", "-i", "back/end"], input="Jane", obj=service
+    )
+
+    assert result.exit_code != 0
+    assert "illegal identifier" in result.stderr
+    assert service.list("cvs") == []
+
+
 def test_cli_ingest_cv_without_identifier_generates_one_from_the_profession(service):
     def ingest():
         return CliRunner(mix_stderr=False).invoke(
