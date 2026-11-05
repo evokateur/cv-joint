@@ -279,17 +279,43 @@ class ApplicationService:
         record = self._entity_record(entity_uri)
         return self.repository.load_document_bytes(record, filename)
 
+    def complete_add_targets(self, incomplete: str) -> list[str]:
+        """Complete add destinations: collection prefixes and entities, ending in '/'."""
+        entities = {f"{self._record_uri(record)}/" for record in self._entity_records()}
+        candidates = self._collection_prefixes() | entities
+        return sorted(
+            candidate for candidate in candidates if candidate.startswith(incomplete)
+        )
+
+    def complete_load_destinations(self, incomplete: str) -> list[str]:
+        """Complete load destinations: collection prefixes ending in '/'."""
+        return sorted(
+            candidate
+            for candidate in self._collection_prefixes()
+            if candidate.startswith(incomplete)
+        )
+
+    def _collection_prefixes(self) -> set[str]:
+        """Writable collections as URI prefixes ending in '/'."""
+        postings = self.repository.get_job_posting_records(all=True)
+        return {"cvs/", "job-postings/"} | {
+            f"job-postings/{record.identifier}/cvs/" for record in postings
+        }
+
+    def _entity_records(self) -> list:
+        """Records of every entity in every location."""
+        return (
+            self.repository.get_job_posting_records(all=True)
+            + self.repository.get_cv_records()
+            + self.repository.get_optimized_cv_records()
+        )
+
     def complete_targets(self, incomplete: str) -> list[str]:
         """Complete logical reading targets across every location."""
         candidates = {"job-postings", "cvs", "optimized-cvs"}
         for location in self.list_locations():
             candidates.update((f"job-postings/{location}", f"optimized-cvs/{location}"))
-        records = (
-            self.repository.get_job_posting_records(all=True)
-            + self.repository.get_cv_records()
-            + self.repository.get_optimized_cv_records()
-        )
-        for record in records:
+        for record in self._entity_records():
             uri = self._record_uri(record)
             candidates.add(uri)
             candidates.update(

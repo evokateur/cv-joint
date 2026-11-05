@@ -416,6 +416,24 @@ def _complete_target(ctx, _param, incomplete):
     return [CompletionItem(uri) for uri in service.complete_targets(incomplete)]
 
 
+def _complete_add_target(ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [CompletionItem(uri) for uri in service.complete_add_targets(incomplete)]
+
+
+def _complete_load_destination(ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [
+        CompletionItem(uri) for uri in service.complete_load_destinations(incomplete)
+    ]
+
+
 @main.command("list")
 @click.argument("target", shell_complete=_complete_target)
 @click.option(
@@ -608,7 +626,7 @@ def update(ctx, target, file):
 
 
 @main.command("add")
-@click.argument("target", shell_complete=_complete_target)
+@click.argument("target", shell_complete=_complete_add_target)
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, allow_dash=True))
 @click.pass_context
 def add(ctx, target, file):
@@ -672,7 +690,7 @@ def analyze_cv(ctx, file):
 
 
 @main.command("load")
-@click.argument("destination")
+@click.argument("destination", shell_complete=_complete_load_destination)
 @click.pass_context
 def load(ctx, destination):
     """Create exactly the entity at DESTINATION from named outputs on stdin."""

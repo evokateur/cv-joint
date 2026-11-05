@@ -287,7 +287,7 @@ def test_completion_offers_logical_targets_in_every_location(service, posting, c
     ]
 
 
-@pytest.mark.parametrize("command", ["get", "list", "ls", "add"])
+@pytest.mark.parametrize("command", ["get", "list", "ls"])
 def test_cli_completion_uses_canonical_targets(service, posting, command):
     service.add_job_posting(posting.model_dump(), "acme")
     service.add_document("job-postings/acme/job-posting.md", b"# Posting")
@@ -302,6 +302,67 @@ def test_cli_completion_uses_canonical_targets(service, posting, command):
         "job-postings/acme/job-posting.json",
         "job-postings/acme/job-posting.md",
         "job-postings/applied",
+    ]
+
+
+def test_add_completion_offers_destination_prefixes_ending_in_a_slash(
+    service, posting, cv
+):
+    service.add_job_posting(posting.model_dump(), "acme")
+    service.add_optimized_cv("acme", "backend", None, cv)
+    service.add_cv(cv.model_dump(), "base")
+    service.transition_job_posting("acme", "applied")
+
+    assert service.complete_add_targets("") == [
+        "cvs/",
+        "cvs/base/",
+        "job-postings/",
+        "job-postings/acme/",
+        "job-postings/acme/cvs/",
+        "job-postings/acme/cvs/backend/",
+    ]
+    assert service.complete_add_targets("job-postings/acme/c") == [
+        "job-postings/acme/cvs/",
+        "job-postings/acme/cvs/backend/",
+    ]
+
+
+def test_load_completion_offers_collection_prefixes_ending_in_a_slash(
+    service, posting, cv
+):
+    service.add_job_posting(posting.model_dump(), "acme")
+    service.add_cv(cv.model_dump(), "base")
+    service.transition_job_posting("acme", "applied")
+
+    assert service.complete_load_destinations("") == [
+        "cvs/",
+        "job-postings/",
+        "job-postings/acme/cvs/",
+    ]
+
+
+def test_cli_load_completion_uses_collection_prefixes(service, posting):
+    service.add_job_posting(posting.model_dump(), "acme")
+    cli_command = main.commands["load"]
+    context = click.Context(cli_command, obj=service)
+
+    candidates = cli_command.params[0].shell_complete(context, "job-postings/")
+    assert [candidate.value for candidate in candidates] == [
+        "job-postings/",
+        "job-postings/acme/cvs/",
+    ]
+
+
+def test_cli_add_completion_uses_destination_prefixes(service, posting):
+    service.add_job_posting(posting.model_dump(), "acme")
+    cli_command = main.commands["add"]
+    context = click.Context(cli_command, obj=service)
+
+    candidates = cli_command.params[0].shell_complete(context, "job-postings/")
+    assert [candidate.value for candidate in candidates] == [
+        "job-postings/",
+        "job-postings/acme/",
+        "job-postings/acme/cvs/",
     ]
 
 
