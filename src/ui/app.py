@@ -12,6 +12,7 @@ from renderers.latex import load_data
 from ui.components import front_matter_to_code_block
 from models import JobPosting, CurriculumVitae, CvTransformationPlan
 from services import ApplicationService
+from services.application import PRIMARY_FILES
 from services import KnowledgeChatService
 from config.root import get_settings
 
@@ -121,18 +122,13 @@ def create_app():
                             gr.update(value="", visible=False),
                         )
 
-                    content_path = None
                     if content_file:
-                        _UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-                        content_path = str(_UPLOADS_DIR / Path(content_file).name)
-                        shutil.copy2(content_file, content_path)
-                    if content_path:
                         outputs = service.analyze_job_posting(
-                            Path(content_path).read_text(), url=url
+                            Path(content_file).read_text(), url=url
                         )
                     else:
                         outputs = service.analyze_job_posting_url(url)
-                    job_data = outputs["job-posting.json"]
+                    job_data = outputs[PRIMARY_FILES["job-postings"]]
                     identifier = service.generate_default_entity_uri(
                         "job-postings", job_data
                     ).rsplit("/", 1)[-1]
@@ -452,7 +448,7 @@ def create_app():
                         )
 
                     outputs = service.analyze_cv(Path(file_path).read_text())
-                    cv_data = outputs["curriculum-vitae.json"]
+                    cv_data = outputs[PRIMARY_FILES["cvs"]]
                     identifier = service.generate_default_entity_uri(
                         "cvs", cv_data
                     ).rsplit("/", 1)[-1]

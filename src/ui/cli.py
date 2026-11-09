@@ -663,7 +663,7 @@ def _analyze_posting(service, source, url):
     """Read posting input and report input or analysis failures as CLI errors."""
     try:
         if source.startswith(("https://", "http://")):
-            return service.analyze_job_posting_url(source)
+            return service.analyze_job_posting_url(source, url=url)
         with click.open_file(source) as content:
             return service.analyze_job_posting(content.read(), url=url)
     except (ValueError, OSError) as error:
@@ -672,7 +672,7 @@ def _analyze_posting(service, source, url):
 
 @analyze.command("job-posting")
 @click.argument("source", default="-")
-@click.option("--url", help="Posting URL for file or stdin input")
+@click.option("--url", help="Posting URL to store; overrides a URL source")
 @click.pass_context
 def analyze_job_posting(ctx, source, url):
     """Analyze a posting from a URL, file or stdin into named outputs."""
@@ -724,9 +724,31 @@ def ingest():
     """Analyze external content and persist it as a new object."""
 
 
+def _ingest(service, collection: str, identifier: str | None, analyze) -> str:
+    """Analyze and load into collection, at identifier or a generated free URI.
+
+    An explicit identifier is validated before any analysis runs.
+    """
+    from services.application import PRIMARY_FILES
+
+    if identifier is not None:
+        try:
+            validate_identifier(identifier)
+        except ValueError as error:
+            raise click.ClickException(str(error)) from error
+    outputs = analyze()
+    if identifier is None:
+        entity_uri = service.generate_default_entity_uri(
+            collection, outputs[PRIMARY_FILES[collection]]
+        )
+    else:
+        entity_uri = f"{collection}/{identifier}"
+    return _load(service, entity_uri, outputs)
+
+
 @ingest.command("job-posting")
 @click.argument("source", default="-")
-@click.option("--url", help="Posting URL for file or stdin input")
+@click.option("--url", help="Posting URL to store; overrides a URL source")
 @click.option("-i", "--identifier", help="Identifier for the new posting")
 @click.pass_context
 def ingest_job_posting(ctx, source, url, identifier):
@@ -734,19 +756,14 @@ def ingest_job_posting(ctx, source, url, identifier):
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
-    if identifier is not None:
-        try:
-            validate_identifier(identifier)
-        except ValueError as error:
-            raise click.ClickException(str(error)) from error
-    outputs = _analyze_posting(service, source, url)
-    if identifier is None:
-        entity_uri = service.generate_default_entity_uri(
-            "job-postings", outputs["job-posting.json"]
+    click.echo(
+        _ingest(
+            service,
+            "job-postings",
+            identifier,
+            lambda: _analyze_posting(service, source, url),
         )
-    else:
-        entity_uri = f"job-postings/{identifier}"
-    click.echo(_load(service, entity_uri, outputs))
+    )
 
 
 @ingest.command("cv")
@@ -760,21 +777,12 @@ def ingest_cv(ctx, file, identifier):
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
-    if identifier is not None:
-        try:
-            validate_identifier(identifier)
-        except ValueError as error:
-            raise click.ClickException(str(error)) from error
-    with click.open_file(file) as source:
-        content = source.read()
-    outputs = service.analyze_cv(content)
-    if identifier is None:
-        entity_uri = service.generate_default_entity_uri(
-            "cvs", outputs["curriculum-vitae.json"]
-        )
-    else:
-        entity_uri = f"cvs/{identifier}"
-    click.echo(_load(service, entity_uri, outputs))
+
+    def analyze_file():
+        with click.open_file(file) as source:
+            return service.analyze_cv(source.read())
+
+    click.echo(_ingest(service, "cvs", identifier, analyze_file))
 
 
 @main.command("completion")

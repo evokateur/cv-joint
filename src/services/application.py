@@ -29,6 +29,12 @@ from services.addressing import (
 )
 from renderers.latex import render_tex, tex_to_pdf
 
+# The named output holding each loadable collection's entity content.
+PRIMARY_FILES = {
+    "cvs": "curriculum-vitae.json",
+    "job-postings": "job-posting.json",
+}
+
 
 def _document_bytes(content: Any) -> bytes:
     """Encode a named output: strings as UTF-8 text, anything else as JSON."""
@@ -161,13 +167,9 @@ class ApplicationService:
             collection = parse_uri(entity_uri)["collection"]
         except ValueError:
             collection = None
-        if collection not in ("cvs", "job-postings"):
+        if collection not in PRIMARY_FILES:
             raise ValueError(f"Cannot load into {entity_uri}")
-        primary_file = (
-            "job-posting.json"
-            if collection == "job-postings"
-            else "curriculum-vitae.json"
-        )
+        primary_file = PRIMARY_FILES[collection]
         if primary_file not in outputs:
             raise ValueError(f"Missing {primary_file}")
         if "base_uri" in outputs:
@@ -410,22 +412,25 @@ class ApplicationService:
             return None
         return self.uniquify_entity_uri(f"{collection_uri}/{slug}")
 
-    def analyze_job_posting_url(self, url: str) -> dict[str, Any]:
-        """Fetch a URL and analyze its content as a job posting.
+    def analyze_job_posting_url(
+        self, source_url: str, *, url: str | None = None
+    ) -> dict[str, Any]:
+        """Fetch source_url and analyze its content as a job posting.
 
-        The fetched content lives in a context-managed temp file for the
-        duration of the analysis, then is cleaned up automatically.
+        The posting's url is url when given, otherwise source_url. The fetched
+        content lives in a context-managed temp file for the duration of the
+        analysis, then is cleaned up automatically.
         """
         import requests
 
-        resp = requests.get(url, timeout=30)
+        resp = requests.get(source_url, timeout=30)
         resp.raise_for_status()
         with tempfile.NamedTemporaryFile(suffix=".html") as tmp:
             tmp.write(resp.content)
             tmp.flush()
             posting = self.job_posting_analyzer.analyze(tmp.name)
-        posting = posting.model_copy(update={"url": url})
-        return {"job-posting.json": posting.model_dump(mode="json")}
+        posting = posting.model_copy(update={"url": url or source_url})
+        return {PRIMARY_FILES["job-postings"]: posting.model_dump(mode="json")}
 
     def analyze_job_posting(
         self, content: str, *, url: str | None = None
@@ -437,14 +442,14 @@ class ApplicationService:
             posting = self.job_posting_analyzer.analyze(source.name)
         if url is not None:
             posting = posting.model_copy(update={"url": url})
-        return {"job-posting.json": posting.model_dump(mode="json")}
+        return {PRIMARY_FILES["job-postings"]: posting.model_dump(mode="json")}
 
     def add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
         Add a job posting to the repository under identifier.
 
         Args:
-            job_posting_data: Job posting data dict (from analyze_job_posting)
+            job_posting_data: Job posting data dict
             identifier: Identifier to use for this job posting
 
         Returns:
@@ -578,7 +583,7 @@ class ApplicationService:
             source.write(content)
             source.flush()
             cv = self.cv_analyzer.analyze(source.name)
-        return {"curriculum-vitae.json": cv.model_dump(mode="json")}
+        return {PRIMARY_FILES["cvs"]: cv.model_dump(mode="json")}
 
     def add_cv(self, cv_data: dict[str, Any], identifier: str):
         """

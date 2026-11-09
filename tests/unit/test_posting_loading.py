@@ -115,6 +115,15 @@ def test_cli_analyze_posting_url_fetches_source(service, analysis, fetched_page)
     assert analysis.read == "<h1>Build tools</h1>"
 
 
+def test_cli_explicit_url_overrides_fetched_source_url(service, fetched_page):
+    canonical = "https://example.com/careers/engineer"
+    result = CliRunner(mix_stderr=False).invoke(
+        main, ["analyze", "job-posting", URL, "--url", canonical], obj=service
+    )
+    assert result.exit_code == 0, result.stderr
+    assert json.loads(result.stdout)["job-posting.json"]["url"] == canonical
+
+
 def test_cli_ingest_posting_loads_analyzed_text_at_explicit_uri(service, analysis):
     result = CliRunner(mix_stderr=False).invoke(
         main,
