@@ -696,48 +696,6 @@ class TestGetCvOptimizationUsesParentPath:
         assert plan_data != {}
 
 
-class TestCreateJobPostingFromUrl:
-    def test_analyzes_fetched_url_when_no_content_file(
-        self, service, sample_job_posting_data
-    ):
-        service._analyze_job_posting_url = MagicMock(
-            return_value=JobPosting(**sample_job_posting_data)
-        )
-
-        service.analyze_job_posting(url="https://example.com/job/new")
-
-        service._analyze_job_posting_url.assert_called_once_with(
-            "https://example.com/job/new"
-        )
-
-    def test_url_injected_over_analyzer_value(self, service, sample_job_posting_data):
-        service._analyze_job_posting_url = MagicMock(
-            return_value=JobPosting(
-                **{**sample_job_posting_data, "url": "Not specified"}
-            )
-        )
-
-        data = service.analyze_job_posting(url="https://example.com/job/new")
-
-        assert data["url"] == "https://example.com/job/new"
-
-    def test_uses_content_file_when_provided(
-        self, service, sample_job_posting_data, tmp_path
-    ):
-        content = tmp_path / "job.md"
-        content.write_text("# Job")
-        service.job_posting_analyzer = MagicMock()
-        service.job_posting_analyzer.analyze.return_value = JobPosting(
-            **sample_job_posting_data
-        )
-
-        service.analyze_job_posting(
-            url="https://example.com/job/123", content_file=str(content)
-        )
-
-        service.job_posting_analyzer.analyze.assert_called_once_with(str(content))
-
-
 class TestObjectExists:
     def test_true_for_existing_job_posting(self, service, sample_job_posting_data):
         service.add_job_posting(sample_job_posting_data, "acme-swe")

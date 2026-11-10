@@ -654,26 +654,32 @@ def add(ctx, uri, file):
     click.echo(affected_uri)
 
 
-def _resolve_content(content: str | None) -> tuple[str | None, bool]:
-    """Resolve a content argument to (file_path, is_temp).
-
-    None -> (None, False)    caller fetches from URL
-    '-'  -> stdin written to a temp file (is_temp=True)
-    else -> (content, False) file path
-    """
-    if content is None:
-        return None, False
-    if content == "-":
-        data = sys.stdin.buffer.read()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
-            tmp.write(data)
-            return tmp.name, True
-    return content, False
-
-
 @main.group("analyze")
 def analyze():
     """Analyze external content into named outputs, without saving anything."""
+
+
+def _analyze_posting(service, source, url):
+    """Read posting input and report input or analysis failures as CLI errors."""
+    try:
+        if source.startswith(("https://", "http://")):
+            return service.analyze_job_posting_url(source, url=url)
+        with click.open_file(source) as content:
+            return service.analyze_job_posting(content.read(), url=url)
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+
+
+@analyze.command("job-posting")
+@click.argument("source", default="-")
+@click.option("--url", help="Posting URL to store; overrides a URL source")
+@click.pass_context
+def analyze_job_posting(ctx, source, url):
+    """Analyze a posting from a URL, file or stdin into named outputs."""
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    click.echo(json.dumps(_analyze_posting(service, source, url), indent=2))
 
 
 @analyze.command("cv")
@@ -718,32 +724,46 @@ def ingest():
     """Analyze external content and persist it as a new object."""
 
 
-@ingest.command("job-posting")
-@click.argument("url")
-@click.argument(
-    "content", required=False, type=click.Path(dir_okay=False, allow_dash=True)
-)
-def ingest_job_posting(url, content):
-    """Analyze a job posting and persist it.
+def _ingest(service, collection: str, identifier: str | None, analyze) -> str:
+    """Analyze and load into collection, at identifier or a generated free URI.
 
-    URL is required and stored as the posting's identity. Content is fetched from
-    the URL unless a file path or '-' (stdin) is given.
+    An explicit identifier is validated before any analysis runs.
     """
+    from services.application import PRIMARY_FILES
+
+    if identifier is not None:
+        try:
+            validate_identifier(identifier)
+        except ValueError as error:
+            raise click.ClickException(str(error)) from error
+    outputs = analyze()
+    if identifier is None:
+        entity_uri = service.generate_default_entity_uri(
+            collection, outputs[PRIMARY_FILES[collection]]
+        )
+    else:
+        entity_uri = f"{collection}/{identifier}"
+    return _load(service, entity_uri, outputs)
+
+
+@ingest.command("job-posting")
+@click.argument("source", default="-")
+@click.option("--url", help="Posting URL to store; overrides a URL source")
+@click.option("-i", "--identifier", help="Identifier for the new posting")
+@click.pass_context
+def ingest_job_posting(ctx, source, url, identifier):
+    """Analyze a posting from a URL, file or stdin and load it."""
     from services.application import ApplicationService
 
-    service = ApplicationService()
-    content_file, is_temp = _resolve_content(content)
-    try:
-        data = service.analyze_job_posting(url, content_file)
-        entity_uri = service.generate_default_entity_uri("job-postings", data)
-        record = service.add_job_posting(data, entity_uri.rsplit("/", 1)[-1])
-    except ValueError as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
-    finally:
-        if is_temp and content_file:
-            os.unlink(content_file)
-    click.echo(f"job-postings/{record.identifier}")
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    click.echo(
+        _ingest(
+            service,
+            "job-postings",
+            identifier,
+            lambda: _analyze_posting(service, source, url),
+        )
+    )
 
 
 @ingest.command("cv")
@@ -757,21 +777,12 @@ def ingest_cv(ctx, file, identifier):
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
-    if identifier is not None:
-        try:
-            validate_identifier(identifier)
-        except ValueError as error:
-            raise click.ClickException(str(error)) from error
-    with click.open_file(file) as source:
-        content = source.read()
-    outputs = service.analyze_cv(content)
-    if identifier is None:
-        entity_uri = service.generate_default_entity_uri(
-            "cvs", outputs["curriculum-vitae.json"]
-        )
-    else:
-        entity_uri = f"cvs/{identifier}"
-    click.echo(_load(service, entity_uri, outputs))
+
+    def analyze_file():
+        with click.open_file(file) as source:
+            return service.analyze_cv(source.read())
+
+    click.echo(_ingest(service, "cvs", identifier, analyze_file))
 
 
 @main.command("completion")
