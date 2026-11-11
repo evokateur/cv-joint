@@ -254,8 +254,8 @@ def test_loading_under_a_taken_identifier_leaves_the_existing_entity_alone(servi
     assert "cvs/backend/notes.md" not in service.list("cvs/backend")
 
 
-@pytest.mark.parametrize("destination", ["job-postings/acme/cvs", "optimized-cvs"])
-def test_loading_optimized_cvs_is_not_supported_yet(service, cv, destination):
+@pytest.mark.parametrize("destination", ["optimized-cvs"])
+def test_loading_through_the_optimized_cvs_view_is_rejected(service, cv, destination):
     service.add("job-postings/acme", ACME_POSTING)
     outputs = {"curriculum-vitae.json": cv.model_dump(mode="json")}
 
