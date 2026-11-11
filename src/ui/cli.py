@@ -697,6 +697,22 @@ def analyze_cv(ctx, file):
     click.echo(json.dumps(service.analyze_cv(content), indent=2))
 
 
+@main.command("optimize")
+@click.argument("cv_uri", shell_complete=_complete_uri)
+@click.argument("job_posting_uri", shell_complete=_complete_job_posting_uri)
+@click.pass_context
+def optimize(ctx, cv_uri, job_posting_uri):
+    """Optimize a base CV for a posting and print unsaved named outputs."""
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    try:
+        outputs = service.optimize(cv_uri, job_posting_uri)
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(json.dumps(outputs, indent=2))
+
+
 @main.command("load")
 @click.argument("uri", shell_complete=_complete_load_destination)
 @click.pass_context

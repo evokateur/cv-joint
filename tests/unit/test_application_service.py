@@ -589,7 +589,14 @@ class TestSaveOptimizedCvUsesParentPath:
         cv = CurriculumVitae(**sample_cv_data)
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
 
-        record = service.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv, plan)
+        service.load(
+            "job-postings/acme-swe/cvs/opt-1",
+            {
+                "curriculum-vitae.json": cv.model_dump(mode="json"),
+                "cv-transformation-plan.json": plan.model_dump(mode="json"),
+            },
+        )
+        record = service.get("job-postings/acme-swe/cvs")[0]
 
         assert record.path == "job-postings/archived/acme-swe/cvs/opt-1"
         uri = "job-postings/acme-swe/cvs/opt-1"
@@ -845,58 +852,6 @@ class TestAddCvBuildsRecord:
 
         persisted = mock_repository_service.repository.add_cv.return_value
         assert result is persisted
-
-
-class TestAddOptimizedCvBuildsRecord:
-    @pytest.fixture
-    def parent(self, mock_repository_service, build_job_posting_record):
-        parent = build_job_posting_record(
-            "acme-swe",
-            path="job-postings/acme-swe",
-            title="Staff Engineer",
-            company="Initech",
-        )
-        mock_repository_service.repository.get_job_posting_record.return_value = parent
-        return parent
-
-    def test_builds_unpersisted_record_under_parent(
-        self, mock_repository_service, parent, sample_cv_data
-    ):
-        cv = CurriculumVitae(**sample_cv_data)
-        mock_repository_service.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
-
-        mock_repository_service.repository.get_job_posting_record.assert_called_once_with(
-            "acme-swe"
-        )
-        passed_parent, record, passed_cv = (
-            mock_repository_service.repository.add_optimized_cv.call_args.args
-        )
-        assert passed_parent is parent
-        assert passed_cv is cv
-        assert record.identifier == "opt-1"
-        assert record.path is None
-        assert record.job_posting_identifier == "acme-swe"
-        assert record.base_cv_identifier == "jane-doe"
-        assert record.name == "Jane Doe"
-        assert record.profession == "Software Engineer"
-        assert record.job_title == "Staff Engineer"
-        assert record.company == "Initech"
-        assert record.created_at == record.updated_at
-
-    def test_saves_plan_with_persisted_record(
-        self, mock_repository_service, parent, sample_cv_data
-    ):
-        cv = CurriculumVitae(**sample_cv_data)
-        plan = CvTransformationPlan(job_title="Staff Engineer", company="Initech")
-        result = mock_repository_service.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", cv, plan
-        )
-
-        persisted = mock_repository_service.repository.add_optimized_cv.return_value
-        assert result is persisted
-        mock_repository_service.repository.save_object.assert_called_once_with(
-            persisted, plan
-        )
 
 
 @pytest.fixture

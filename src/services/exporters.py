@@ -115,9 +115,8 @@ class MarkdownExporter:
                 if cv:
                     self.export_cv(record, cv)
                     count += 1
-                for obj in self.repository.load_all_objects(record).values():
-                    if isinstance(obj, CurriculumVitae):
-                        continue  # already exported via export_cv
-                    self._save(record, obj)
+                plan = self.repository.load_object(record, CvTransformationPlan)
+                if plan is not None:
+                    self.export_cv_transformation_plan(record, plan)
                     count += 1
         return count

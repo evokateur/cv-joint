@@ -5,6 +5,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+from datetime import date
 
 import gradio as gr
 import validators
@@ -19,10 +20,10 @@ from config.root import get_settings
 _UPLOADS_DIR = Path(__file__).parent.parent.parent / "uploads"
 
 
-def create_app():
+def create_app(service: ApplicationService | None = None):
     """Create and configure the Gradio application."""
 
-    service = ApplicationService()
+    service = service if service is not None else ApplicationService()
     settings = get_settings()
     chat_config = settings.chat
     mcp_available = settings.mcpServers.get("rag-knowledge") is not None
@@ -772,7 +773,14 @@ def create_app():
                             "",
                         )
 
-                    plan_data, cv_data, identifiers = service.optimize_cv(job_id, cv_id)
+                    outputs = service.optimize(f"cvs/{cv_id}", f"job-postings/{job_id}")
+                    plan_data = outputs.get("cv-transformation-plan.json", {})
+                    cv_data = outputs["curriculum-vitae.json"]
+                    identifiers = {
+                        "job_posting_identifier": job_id,
+                        "identifier": f"{cv_id}-{date.today()}",
+                        "base_cv_identifier": cv_id,
+                    }
                     plan = CvTransformationPlan(**plan_data) if plan_data else None
                     cv = CurriculumVitae(**cv_data) if cv_data else None
 
@@ -875,14 +883,15 @@ def create_app():
                         )
 
                     try:
-                        cv = CurriculumVitae(**cv_data)
-                        plan = CvTransformationPlan(**plan_data) if plan_data else None
-                        record = service.add_optimized_cv(
-                            identifiers["job_posting_identifier"],
-                            identifiers["identifier"],
-                            identifiers["base_cv_identifier"],
-                            cv,
-                            plan,
+                        outputs = {
+                            "curriculum-vitae.json": cv_data,
+                            "base_uri": f"cvs/{identifiers['base_cv_identifier']}",
+                        }
+                        if plan_data:
+                            outputs["cv-transformation-plan.json"] = plan_data
+                        uri = service.load(
+                            f"job-postings/{identifiers['job_posting_identifier']}/cvs/{identifiers['identifier']}",
+                            outputs,
                         )
                         opts = service.get_optimized_cvs()
                         opt_list_data = [
@@ -898,12 +907,12 @@ def create_app():
                             for o in opts
                         ]
                         return (
-                            f"✓ Optimization saved: {record.identifier}",
+                            f"✓ Optimization saved: {identifiers['identifier']}",
                             True,
                             gr.update(visible=False),
                             opt_list_data,
                             gr.update(
-                                value=f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}",
+                                value=uri,
                                 visible=True,
                             ),
                         )
