@@ -9,7 +9,7 @@ from typing import Any, Callable, Optional
 from config.root import get_settings
 from models import (
     CurriculumVitae,
-    CvTransformationPlan,
+    CurriculumVitaeRecord,
     JobPosting,
     JobPostingRecord,
     OptimizedCvRecord,
@@ -18,7 +18,7 @@ from services.analyzers import JobPostingAnalyzer
 from services.analyzers import CvAnalyzer
 from services.analyzers import CvOptimizer
 from .converters import MarkdownConverter, insert_json_as_frontmatter
-from .exporters import MarkdownExporter
+from .exporters import MarkdownExporter, read_transformation_plan
 from repositories import DocumentExistsError, FileSystemRepository
 from services.addressing import (
     parse_document_uri,
@@ -33,6 +33,7 @@ from renderers.latex import render_tex, tex_to_pdf
 PRIMARY_FILES = {
     "cvs": "curriculum-vitae.json",
     "job-postings": "job-posting.json",
+    "optimized-cvs": "curriculum-vitae.json",
 }
 
 
@@ -89,10 +90,11 @@ class ApplicationService:
         repository: Optional[FileSystemRepository] = None,
         cv_analyzer: Optional[CvAnalyzer] = None,
         job_posting_analyzer: Optional[JobPostingAnalyzer] = None,
+        cv_optimizer: Optional[CvOptimizer] = None,
     ):
         self.job_posting_analyzer = job_posting_analyzer or JobPostingAnalyzer()
         self.cv_analyzer = cv_analyzer or CvAnalyzer()
-        self.cv_optimizer = CvOptimizer()
+        self.cv_optimizer = cv_optimizer or CvOptimizer()
         if repository is None:
             settings = get_settings()
             repository = FileSystemRepository(
@@ -116,6 +118,16 @@ class ApplicationService:
 
     def add(self, entity_uri: str, data: dict[str, Any] | str) -> str:
         """Create exactly the entity at entity_uri from a dict or JSON text. Returns its URI."""
+        return self._add(entity_uri, data)
+
+    def _add(
+        self,
+        entity_uri: str,
+        data: dict[str, Any] | str,
+        *,
+        base_cv_identifier: str | None = None,
+    ) -> str:
+        """Create an entity, recording the base CV an optimized CV came from."""
         if isinstance(data, str):
             data = json.loads(data)
         if not isinstance(data, dict):
@@ -125,15 +137,15 @@ class ApplicationService:
         if self.object_exists(entity_uri):
             raise ValueError(f"Already exists: {entity_uri}")
         if parsed["collection"] == "job-postings":
-            record = self.add_job_posting(data, identifier)
+            record = self._add_job_posting(data, identifier)
         elif parsed["collection"] == "optimized-cvs":
             posting = parsed["job_posting_identifier"]
             resolve_record(self.repository, f"job-postings/{posting}")
-            record = self.add_optimized_cv(
-                posting, identifier, None, CurriculumVitae(**data)
+            record = self._add_optimized_cv(
+                posting, identifier, base_cv_identifier, CurriculumVitae(**data)
             )
         else:
-            record = self.add_cv(data, identifier)
+            record = self._add_cv(data, identifier)
         return self._record_uri(record)
 
     def load(self, entity_uri: str, outputs: dict[str, Any] | str) -> str:
@@ -146,20 +158,43 @@ class ApplicationService:
         if not isinstance(outputs, dict):
             raise ValueError("Named outputs must be a JSON object")
         primary_file = self._validate_load(entity_uri, outputs)
+        base_cv_identifier = self._base_cv_identifier(outputs.get("base_cv_uri"))
         try:
             documents = {
                 filename: _document_bytes(content)
                 for filename, content in outputs.items()
-                if filename != primary_file
+                if filename not in (primary_file, "base_cv_uri")
             }
         except (TypeError, ValueError) as error:
             raise ValueError(
                 f"Named outputs must be JSON-compatible: {error}"
             ) from error
-        entity_uri = self.add(entity_uri, outputs[primary_file])
+        entity_uri = self._add(
+            entity_uri, outputs[primary_file], base_cv_identifier=base_cv_identifier
+        )
         for filename, content in documents.items():
             self.add_document(f"{entity_uri}/{filename}", content)
         return entity_uri
+
+    def _require_record(self, uri: Any, record_type: type, kind: str):
+        """The record of the existing entity of record_type that uri names."""
+        try:
+            record = resolve_record(self.repository, uri)
+        except (AttributeError, ValueError):
+            record = None
+        if not isinstance(record, record_type):
+            raise ValueError(f"Not an existing {kind}: {uri}")
+        return record
+
+    def _base_cv_identifier(self, base_cv_uri: Any) -> str | None:
+        """Identifier of the existing base CV that base_cv_uri names, if any."""
+        if base_cv_uri is None:
+            return None
+        try:
+            record = self._require_record(base_cv_uri, CurriculumVitaeRecord, "base CV")
+        except ValueError as error:
+            raise ValueError(f"base_cv_uri: {error}") from None
+        return record.identifier
 
     def _validate_load(self, entity_uri: str, outputs: dict[str, Any]) -> str:
         """Reject named outputs that load can't write in full."""
@@ -172,10 +207,6 @@ class ApplicationService:
         primary_file = PRIMARY_FILES[collection]
         if primary_file not in outputs:
             raise ValueError(f"Missing {primary_file}")
-        if "base_uri" in outputs:
-            raise ValueError(
-                "base_uri is not allowed: base CVs and job postings have no provenance"
-            )
         for filename in outputs:
             validate_filename(filename)
         return primary_file
@@ -444,7 +475,7 @@ class ApplicationService:
             posting = posting.model_copy(update={"url": url})
         return {PRIMARY_FILES["job-postings"]: posting.model_dump(mode="json")}
 
-    def add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
+    def _add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
         Add a job posting to the repository under identifier.
 
@@ -585,7 +616,7 @@ class ApplicationService:
             cv = self.cv_analyzer.analyze(source.name)
         return {PRIMARY_FILES["cvs"]: cv.model_dump(mode="json")}
 
-    def add_cv(self, cv_data: dict[str, Any], identifier: str):
+    def _add_cv(self, cv_data: dict[str, Any], identifier: str):
         """
         Add a CV to the repository under identifier.
 
@@ -728,64 +759,40 @@ class ApplicationService:
             raise ValueError(f"Document already exists: {document_uri}") from None
         return document_uri
 
-    def optimize_cv(
-        self, job_posting_identifier: str, cv_identifier: str
-    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
-        """
-        Analyze a CV optimization for a job posting.
-
-        Args:
-            job_posting_identifier: Identifier of the job posting
-            cv_identifier: Identifier of the base CV
-
-        Returns:
-            tuple of (plan_data, cv_data, identifiers_dict); pass to add_optimized_cv to persist.
-            identifiers_dict contains job_posting_identifier, identifier, base_cv_identifier
-        """
-        import datetime
-
-        cv = self.repository.get_cv(cv_identifier)
-        job_posting = self.repository.get_job_posting(job_posting_identifier)
-
-        if cv is None or job_posting is None:
-            raise ValueError(
-                f"CV or job posting not found: {cv_identifier}, {job_posting_identifier}"
-            )
-
-        identifier = f"{cv_identifier}-{datetime.date.today()}"
-
-        output = self.cv_optimizer.optimize(cv, job_posting)
-        plan = output.artifacts.get("transformation-plan")
-
-        identifiers = {
-            "job_posting_identifier": job_posting_identifier,
-            "identifier": identifier,
-            "base_cv_identifier": cv_identifier,
+    def optimize(self, cv_uri: str, job_posting_uri: str) -> dict[str, Any]:
+        """Optimize a base CV for a posting into named outputs, without saving anything."""
+        cv_record = self._require_record(cv_uri, CurriculumVitaeRecord, "base CV")
+        posting_record = self._require_record(
+            job_posting_uri, JobPostingRecord, "job posting"
+        )
+        output = self.cv_optimizer.optimize(
+            self.repository.load_object(cv_record, CurriculumVitae),
+            self.repository.load_object(posting_record, JobPosting),
+        )
+        return {
+            "base_cv_uri": cv_uri,
+            PRIMARY_FILES["cvs"]: output.cv.model_dump(mode="json"),
+            **{
+                filename: artifact.model_dump(mode="json")
+                for filename, artifact in output.artifacts.items()
+            },
         }
 
-        return (
-            plan.model_dump() if plan else {},
-            output.cv.model_dump(),
-            identifiers,
-        )
-
-    def add_optimized_cv(
+    def _add_optimized_cv(
         self,
         job_posting_identifier: str,
         identifier: str,
         base_cv_identifier: str | None,
         cv: CurriculumVitae,
-        plan: CvTransformationPlan | None = None,
     ):
         """
-        Add a CV optimization to the repository.
+        Add an optimized CV to the repository.
 
         Args:
             job_posting_identifier: Identifier of the job posting
-            identifier: Identifier for this optimization
+            identifier: Identifier for this optimized CV
             base_cv_identifier: Identifier of the base CV, or None if not recorded
             cv: The optimized CV
-            plan: The transformation plan, if any
 
         Returns:
             OptimizedCvRecord
@@ -805,12 +812,7 @@ class ApplicationService:
             created_at=now,
             updated_at=now,
         )
-        record = self.repository.add_optimized_cv(parent, record, cv)
-
-        if plan is not None:
-            self.repository.save_object(record, plan)
-
-        return record
+        return self.repository.add_optimized_cv(parent, record, cv)
 
     def get_optimized_cvs(self) -> list[dict[str, Any]]:
         """
@@ -845,11 +847,7 @@ class ApplicationService:
         record = self.repository.get_optimized_cv_record(
             job_posting_identifier, identifier
         )
-        plan = (
-            self.repository.load_object(record, CvTransformationPlan)
-            if record
-            else None
-        )
+        plan = read_transformation_plan(self.repository, record) if record else None
         cv = self.repository.get_optimized_cv(job_posting_identifier, identifier)
 
         return (

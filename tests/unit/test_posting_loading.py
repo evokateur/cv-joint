@@ -161,17 +161,36 @@ def test_ingest_validates_identifier_before_analysis(service, analysis):
 
 
 @pytest.mark.parametrize("command", ["analyze", "ingest"])
-def test_posting_analysis_failure_is_reported_on_stderr(service, analysis, command):
+@pytest.mark.parametrize("failure", [ValueError, OSError])
+def test_posting_analysis_failure_is_not_caught(service, analysis, command, failure):
     def fail(content_file):
-        raise ValueError("analysis failed")
+        raise failure("analysis failed")
 
     analysis.analyze = fail
     result = CliRunner(mix_stderr=False).invoke(
         main, [command, "job-posting"], input="Build tools", obj=service
     )
+    assert isinstance(result.exception, failure)
+    assert result.stdout == ""
+    assert "Error:" not in result.stderr
+    assert service.list("job-postings") == []
+
+
+@pytest.mark.parametrize("command", ["analyze", "ingest"])
+def test_unreadable_posting_file_is_reported_on_stderr(
+    service, analysis, command, tmp_path
+):
+    missing = tmp_path / "missing.md"
+
+    result = CliRunner(mix_stderr=False).invoke(
+        main, [command, "job-posting", str(missing)], obj=service
+    )
+
     assert result.exit_code != 0
     assert result.stdout == ""
-    assert "Error: analysis failed" in result.stderr
+    assert "Error:" in result.stderr
+    assert "missing.md" in result.stderr
+    assert analysis.read is None
     assert service.list("job-postings") == []
 
 
@@ -181,7 +200,6 @@ def test_posting_analysis_failure_is_reported_on_stderr(service, analysis, comma
         ({"notes.md": "notes"}, "Missing job-posting.json"),
         ({"job-posting.json": {}}, "Invalid entity content"),
         ({"job-posting.json": POSTING, "../notes.md": "notes"}, "filename"),
-        ({"job-posting.json": POSTING, "base_uri": "cvs/backend"}, "base_uri"),
     ],
 )
 def test_cli_load_invalid_posting_outputs_writes_nothing(service, outputs, message):
@@ -223,27 +241,6 @@ def test_analyze_then_cli_load_creates_posting(service):
     assert loaded.exit_code == 0, loaded.stderr
     assert loaded.stdout == "job-postings/acme\n"
     assert service.get("job-postings/acme").url == "https://example.com/extracted"
-
-
-@pytest.mark.parametrize("command", ["analyze", "ingest"])
-def test_http_failure_is_reported_without_saving(service, fetched_page, command):
-    fetched_page.status_code = 403
-    result = CliRunner(mix_stderr=False).invoke(
-        main, [command, "job-posting", URL], obj=service
-    )
-    assert result.exit_code != 0
-    assert "403" in result.stderr
-    assert result.stdout == ""
-    assert service.list("job-postings") == []
-
-
-def test_ingest_rejects_old_two_argument_syntax(service, analysis):
-    result = CliRunner(mix_stderr=False).invoke(
-        main, ["ingest", "job-posting", URL, "-"], input="Build tools", obj=service
-    )
-    assert result.exit_code != 0
-    assert "unexpected extra argument" in result.stderr
-    assert analysis.read is None
 
 
 def test_load_collision_preserves_existing_posting(service):

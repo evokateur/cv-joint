@@ -1,8 +1,9 @@
+import logging
 import re
 from typing import Optional
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from models import (
     CoverLetterRecord,
@@ -14,6 +15,34 @@ from models import (
     OptimizedCvRecord,
 )
 from .converters import MarkdownConverter, insert_json_as_frontmatter
+
+logger = logging.getLogger(__name__)
+
+PLAN_FILENAME = "cv-transformation-plan.json"
+
+
+def parse_transformation_plan(content, source: str) -> Optional[CvTransformationPlan]:
+    """A transformation plan from JSON text or data, or None if it doesn't parse."""
+    try:
+        if isinstance(content, (str, bytes)):
+            return CvTransformationPlan.model_validate_json(content)
+        return CvTransformationPlan.model_validate(content)
+    except ValidationError:
+        logger.warning(
+            "Skipping %s of %s: not a transformation plan", PLAN_FILENAME, source
+        )
+        return None
+
+
+def read_transformation_plan(
+    repository, record: OptimizedCvRecord
+) -> Optional[CvTransformationPlan]:
+    """An optimized CV's transformation plan, found by filename, if it parses."""
+    if not repository.document_exists(record, PLAN_FILENAME):
+        return None
+    return parse_transformation_plan(
+        repository.load_document(record, PLAN_FILENAME), record.identifier
+    )
 
 
 RECORD_DOCUMENTS: dict[type, set[str]] = {
@@ -115,9 +144,8 @@ class MarkdownExporter:
                 if cv:
                     self.export_cv(record, cv)
                     count += 1
-                for obj in self.repository.load_all_objects(record).values():
-                    if isinstance(obj, CurriculumVitae):
-                        continue  # already exported via export_cv
-                    self._save(record, obj)
+                plan = read_transformation_plan(self.repository, record)
+                if plan:
+                    self.export_cv_transformation_plan(record, plan)
                     count += 1
         return count

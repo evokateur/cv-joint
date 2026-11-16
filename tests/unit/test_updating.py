@@ -86,7 +86,10 @@ def test_update_cv_refreshes_summary_and_preserves_relationships(
     service.add("job-postings/acme", posting.model_dump())
     service.add("job-postings/other", posting.model_dump())
     service.add("cvs/base", cv.model_dump())
-    service.add_optimized_cv("acme", "backend", "base", cv)
+    service.load(
+        "job-postings/acme/cvs/backend",
+        {"base_cv_uri": "cvs/base", "curriculum-vitae.json": cv.model_dump()},
+    )
     service.add("job-postings/other/cvs/backend", cv.model_dump())
     service.add("cvs/backend", cv.model_dump())
     service.archive_job_posting("acme")

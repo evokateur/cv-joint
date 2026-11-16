@@ -13,6 +13,9 @@ _OUTPUT_TYPES: dict[str, type[BaseModel]] = {
     "transformation-plan": CvTransformationPlan,
 }
 
+# The named output each supporting crew file is emitted as.
+_ARTIFACT_FILENAMES = {"transformation-plan": "cv-transformation-plan.json"}
+
 
 class CvOptimizer:
     """Lightweight facade for CV optimization."""
@@ -48,7 +51,7 @@ class OutputLoader:
             if stem == "cv" and isinstance(obj, CurriculumVitae):
                 optimized_cv = obj
             else:
-                artifacts[stem] = obj
+                artifacts[_ARTIFACT_FILENAMES[stem]] = obj
 
         if optimized_cv is None:
             raise ValueError("Crew did not produce a cv.json output")

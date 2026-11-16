@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 import threading
 import time
+from datetime import date
 from pathlib import Path
 
 import gradio as gr
@@ -13,6 +14,7 @@ from ui.components import front_matter_to_code_block
 from models import JobPosting, CurriculumVitae, CvTransformationPlan
 from services import ApplicationService
 from services.application import PRIMARY_FILES
+from services.exporters import PLAN_FILENAME, parse_transformation_plan
 from services import KnowledgeChatService
 from config.root import get_settings
 
@@ -213,10 +215,11 @@ def create_app():
                         )
 
                     try:
-                        identifier = service.uniquify_entity_uri(
+                        entity_uri = service.uniquify_entity_uri(
                             f"job-postings/{identifier}"
-                        ).rsplit("/", 1)[-1]
-                        metadata = service.add_job_posting(job_data, identifier)
+                        )
+                        identifier = entity_uri.rsplit("/", 1)[-1]
+                        service.add(entity_uri, job_data)
                         jobs = service.get_job_postings()
                         job_list_data = [
                             [
@@ -231,12 +234,12 @@ def create_app():
                             for j in jobs
                         ]
                         return (
-                            f"✓ Job posting saved: {metadata.identifier}",
+                            f"✓ Job posting saved: {identifier}",
                             job_list_data,
                             True,
                             gr.update(visible=False),
                             gr.update(
-                                value=f"job-postings/{metadata.identifier}",
+                                value=entity_uri,
                                 visible=True,
                             ),
                         )
@@ -772,9 +775,24 @@ def create_app():
                             "",
                         )
 
-                    plan_data, cv_data, identifiers = service.optimize_cv(job_id, cv_id)
-                    plan = CvTransformationPlan(**plan_data) if plan_data else None
-                    cv = CurriculumVitae(**cv_data) if cv_data else None
+                    outputs = service.optimize(f"cvs/{cv_id}", f"job-postings/{job_id}")
+                    plan_output = outputs.get(PLAN_FILENAME)
+                    plan = (
+                        parse_transformation_plan(plan_output, cv_id)
+                        if plan_output is not None
+                        else None
+                    )
+                    plan_data = plan.model_dump() if plan else {}
+                    cv_data = outputs[PRIMARY_FILES["optimized-cvs"]]
+                    cv = CurriculumVitae(**cv_data)
+                    entity_uri = service.uniquify_entity_uri(
+                        f"job-postings/{job_id}/cvs/{cv_id}-{date.today()}"
+                    )
+                    identifiers = {
+                        "job_posting_identifier": job_id,
+                        "identifier": entity_uri.rsplit("/", 1)[-1],
+                        "outputs": outputs,
+                    }
 
                     plan_md = service.to_markdown(plan) if plan else ""
                     cv_md = service.to_markdown(cv) if cv else ""
@@ -855,7 +873,7 @@ def create_app():
                         "",
                     )
 
-                def save_optimization(identifiers, is_saved, plan_data, cv_data):
+                def save_optimization(identifiers, is_saved):
                     if is_saved:
                         return (
                             "ℹ Optimization is already saved",
@@ -875,14 +893,10 @@ def create_app():
                         )
 
                     try:
-                        cv = CurriculumVitae(**cv_data)
-                        plan = CvTransformationPlan(**plan_data) if plan_data else None
-                        record = service.add_optimized_cv(
-                            identifiers["job_posting_identifier"],
-                            identifiers["identifier"],
-                            identifiers["base_cv_identifier"],
-                            cv,
-                            plan,
+                        entity_uri = service.load(
+                            f"job-postings/{identifiers['job_posting_identifier']}"
+                            f"/cvs/{identifiers['identifier']}",
+                            identifiers["outputs"],
                         )
                         opts = service.get_optimized_cvs()
                         opt_list_data = [
@@ -898,14 +912,11 @@ def create_app():
                             for o in opts
                         ]
                         return (
-                            f"✓ Optimization saved: {record.identifier}",
+                            f"✓ Optimization saved: {identifiers['identifier']}",
                             True,
                             gr.update(visible=False),
                             opt_list_data,
-                            gr.update(
-                                value=f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}",
-                                visible=True,
-                            ),
+                            gr.update(value=entity_uri, visible=True),
                         )
                     except Exception as e:
                         return (
@@ -990,7 +1001,7 @@ def create_app():
 
                 save_opt_btn.click(
                     fn=save_optimization,
-                    inputs=[opt_identifiers, opt_is_saved, opt_plan_json, opt_cv_json],
+                    inputs=[opt_identifiers, opt_is_saved],
                     outputs=[
                         opt_status,
                         opt_is_saved,

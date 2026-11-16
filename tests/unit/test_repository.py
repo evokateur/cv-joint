@@ -1081,48 +1081,6 @@ class TestLoadObject:
         assert result is None
 
 
-class TestLoadAllObjects:
-    def test_returns_dict_keyed_by_stem(
-        self, optimized_cv_record, repository_with_optimized_cv, sample_plan
-    ):
-        repository_with_optimized_cv.save_object(optimized_cv_record, sample_plan)
-        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
-        assert "cv-transformation-plan" in result
-        assert "curriculum-vitae" in result
-
-    def test_deserializes_to_correct_types(
-        self, optimized_cv_record, repository_with_optimized_cv, sample_plan
-    ):
-        repository_with_optimized_cv.save_object(optimized_cv_record, sample_plan)
-        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
-        assert isinstance(result["cv-transformation-plan"], CvTransformationPlan)
-
-    def test_skips_files_without_type_field(
-        self, optimized_cv_record, repository_with_optimized_cv
-    ):
-        directory = repository_with_optimized_cv.directory_for(optimized_cv_record)
-        (directory / "no-type.json").write_text('{"foo": "bar"}')
-        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
-        assert "no-type" not in result
-
-    def test_skips_files_with_unrecognised_type(
-        self, optimized_cv_record, repository_with_optimized_cv
-    ):
-        directory = repository_with_optimized_cv.directory_for(optimized_cv_record)
-        (directory / "unknown.json").write_text(
-            '{"_type": "SomeUnknownClass", "data": 1}'
-        )
-        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
-        assert "unknown" not in result
-
-    def test_returns_empty_dict_for_nonexistent_directory(
-        self, optimized_cv_record, repository_with_optimized_cv
-    ):
-        shutil.rmtree(repository_with_optimized_cv.directory_for(optimized_cv_record))
-        result = repository_with_optimized_cv.load_all_objects(optimized_cv_record)
-        assert result == {}
-
-
 class TestAddOrReplaceDocument:
     def test_stores_owned_document_exactly_as_supplied(
         self, job_posting_record, repository_with_job_posting

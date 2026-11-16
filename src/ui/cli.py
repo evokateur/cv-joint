@@ -660,14 +660,15 @@ def analyze():
 
 
 def _analyze_posting(service, source, url):
-    """Read posting input and report input or analysis failures as CLI errors."""
+    """Analyze posting input, reporting an unreadable file as a CLI error."""
+    if source.startswith(("https://", "http://")):
+        return service.analyze_job_posting_url(source, url=url)
     try:
-        if source.startswith(("https://", "http://")):
-            return service.analyze_job_posting_url(source, url=url)
         with click.open_file(source) as content:
-            return service.analyze_job_posting(content.read(), url=url)
-    except (ValueError, OSError) as error:
+            text = content.read()
+    except OSError as error:
         raise click.ClickException(str(error)) from error
+    return service.analyze_job_posting(text, url=url)
 
 
 @analyze.command("job-posting")
@@ -695,6 +696,43 @@ def analyze_cv(ctx, file):
     with click.open_file(file) as source:
         content = source.read()
     click.echo(json.dumps(service.analyze_cv(content), indent=2))
+
+
+def _existing_entity(collection: str, kind: str):
+    """Click callback requiring the URI of an existing entity in collection."""
+
+    def callback(ctx, _param, uri):
+        from services.application import ApplicationService
+
+        if ctx.obj is None:
+            ctx.obj = ApplicationService()
+        try:
+            parsed = parse_uri(uri)
+        except ValueError:
+            parsed = {}
+        if parsed.get("collection") != collection or not ctx.obj.object_exists(uri):
+            raise click.BadParameter(f"not an existing {kind}: {uri}")
+        return uri
+
+    return callback
+
+
+@main.command("optimize")
+@click.argument(
+    "cv_uri",
+    callback=_existing_entity("cvs", "base CV"),
+    shell_complete=_complete_uri,
+)
+@click.argument(
+    "job_posting_uri",
+    callback=_existing_entity("job-postings", "job posting"),
+    shell_complete=_complete_job_posting_uri,
+)
+@click.pass_context
+def optimize(ctx, cv_uri, job_posting_uri):
+    """Optimize a base CV for a job posting and print its named outputs."""
+    outputs = ctx.obj.optimize(cv_uri, job_posting_uri)
+    click.echo(json.dumps(outputs, indent=2))
 
 
 @main.command("load")
