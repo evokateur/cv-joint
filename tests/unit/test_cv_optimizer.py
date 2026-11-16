@@ -113,8 +113,8 @@ class TestCvOptimizerInterface:
         )
         result = optimizer.optimize(sample_cv, sample_job_posting)
 
-        assert "transformation-plan" in result.artifacts
-        assert isinstance(result.artifacts["transformation-plan"], CvTransformationPlan)
+        plan = result.artifacts["cv-transformation-plan.json"]
+        assert isinstance(plan, CvTransformationPlan)
 
     def test_optimize_passes_domain_objects_as_serialized_files(
         self, sample_cv, sample_job_posting, sample_plan

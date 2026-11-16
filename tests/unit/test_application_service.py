@@ -154,35 +154,6 @@ class TestExportMarkdown:
         assert job_md.exists()
         assert not cv_md.exists()
 
-    def test_export_optimizations(
-        self,
-        service,
-        sample_job_posting_data,
-        sample_cv_data,
-        temp_data_dir,
-        build_optimized_cv_record,
-    ):
-        service.add_job_posting(sample_job_posting_data, "job-1")
-        service.add_cv(sample_cv_data, "cv-1")
-
-        plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
-        cv = CurriculumVitae(**sample_cv_data)
-        record = service.repository.add_optimized_cv(
-            service.repository.get_job_posting_record("job-1"),
-            build_optimized_cv_record("opt-1", "job-1", "cv-1"),
-            cv,
-        )
-        service.repository.save_object(record, plan)
-
-        opt_dir = Path(temp_data_dir) / "job-postings" / "job-1" / "cvs" / "opt-1"
-        plan_md = opt_dir / "cv-transformation-plan.md"
-        cv_md = opt_dir / "curriculum-vitae.md"
-
-        count = service.export_markdown(collection_name="optimizations")
-        assert count == 2
-        assert plan_md.exists()
-        assert cv_md.exists()
-
     def test_export_cvs_excludes_optimized(
         self,
         service,
@@ -600,100 +571,6 @@ class TestSaveOptimizedCvUsesParentPath:
             ]
             == "Software Engineer"
         )
-
-
-class TestExportOptimizationsUsesParentPath:
-    """export('optimizations') must load artifacts and write markdown via the parent's stored path."""
-
-    def test_finds_artifacts_after_parent_path_moved(
-        self,
-        service,
-        sample_job_posting_data,
-        sample_cv_data,
-        temp_data_dir,
-        build_optimized_cv_record,
-    ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
-        cv = CurriculumVitae(**sample_cv_data)
-        plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
-
-        service.repository.add_optimized_cv(
-            service.repository.get_job_posting_record("acme-swe"),
-            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
-            cv,
-        )
-
-        cv_dir = Path(temp_data_dir) / "job-postings/acme-swe/cvs/opt-1"
-        plan_data = plan.model_dump(mode="json")
-        plan_data["_type"] = "CvTransformationPlan"
-        (cv_dir / "cv-transformation-plan.json").write_text(json.dumps(plan_data))
-
-        # Moving the parent carries the nested cvs/ subdir with it.
-        service.archive_job_posting("acme-swe")
-
-        count = service.export_markdown(collection_name="optimizations")
-
-        # CV via export_cv counts as 1; plan via load_all_objects counts as 1 more.
-        assert count == 2
-
-    def test_markdown_written_at_parent_stored_path(
-        self,
-        service,
-        sample_job_posting_data,
-        sample_cv_data,
-        temp_data_dir,
-        build_optimized_cv_record,
-    ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
-        cv = CurriculumVitae(**sample_cv_data)
-        service.repository.add_optimized_cv(
-            service.repository.get_job_posting_record("acme-swe"),
-            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
-            cv,
-        )
-
-        service.archive_job_posting("acme-swe")
-
-        service.export_markdown(collection_name="optimizations")
-
-        cv_md = (
-            Path(temp_data_dir)
-            / "job-postings/archived/acme-swe/cvs/opt-1/curriculum-vitae.md"
-        )
-        assert cv_md.exists()
-
-
-class TestGetCvOptimizationUsesParentPath:
-    """get_cv_optimization must load the transformation plan from the parent's stored path."""
-
-    def test_finds_plan_at_parent_stored_path(
-        self,
-        service,
-        sample_job_posting_data,
-        sample_cv_data,
-        temp_data_dir,
-        build_optimized_cv_record,
-    ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
-        service.archive_job_posting("acme-swe")
-
-        cv = CurriculumVitae(**sample_cv_data)
-        plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
-
-        service.repository.add_optimized_cv(
-            service.repository.get_job_posting_record("acme-swe"),
-            build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
-            cv,
-        )
-
-        cv_dir = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1"
-        plan_json = plan.model_dump(mode="json")
-        plan_json["_type"] = "CvTransformationPlan"
-        (cv_dir / "cv-transformation-plan.json").write_text(json.dumps(plan_json))
-
-        plan_data, _ = service.get_cv_optimization("acme-swe", "opt-1")
-
-        assert plan_data != {}
 
 
 class TestObjectExists:

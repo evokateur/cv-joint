@@ -697,6 +697,43 @@ def analyze_cv(ctx, file):
     click.echo(json.dumps(service.analyze_cv(content), indent=2))
 
 
+def _existing_entity(collection: str, kind: str):
+    """Click callback requiring the URI of an existing entity in collection."""
+
+    def callback(ctx, _param, uri):
+        from services.application import ApplicationService
+
+        if ctx.obj is None:
+            ctx.obj = ApplicationService()
+        try:
+            parsed = parse_uri(uri)
+        except ValueError:
+            parsed = {}
+        if parsed.get("collection") != collection or not ctx.obj.object_exists(uri):
+            raise click.BadParameter(f"not an existing {kind}: {uri}")
+        return uri
+
+    return callback
+
+
+@main.command("optimize")
+@click.argument(
+    "cv_uri",
+    callback=_existing_entity("cvs", "base CV"),
+    shell_complete=_complete_uri,
+)
+@click.argument(
+    "job_posting_uri",
+    callback=_existing_entity("job-postings", "job posting"),
+    shell_complete=_complete_job_posting_uri,
+)
+@click.pass_context
+def optimize(ctx, cv_uri, job_posting_uri):
+    """Optimize a base CV for a job posting and print its named outputs."""
+    outputs = ctx.obj.optimize(cv_uri, job_posting_uri)
+    click.echo(json.dumps(outputs, indent=2))
+
+
 @main.command("load")
 @click.argument("uri", shell_complete=_complete_load_destination)
 @click.pass_context

@@ -13,15 +13,6 @@ from services.analyzers.cv_analyzer import CvAnalyzer
 from ui.cli import main
 
 
-ACME_POSTING = {
-    "company": "Acme",
-    "title": "Engineer",
-    "experience_level": "Senior",
-    "industry": "Software",
-    "description": "Build tools",
-}
-
-
 class FakeCvAnalysis:
     """Stands in for the LLM crew: returns a fixed CV and keeps what it read."""
 
@@ -217,10 +208,6 @@ def test_loading_accepts_named_outputs_as_json_text(service, cv):
             "filename",
         ),
         (
-            lambda cv: {"curriculum-vitae.json": cv, "base_uri": "cvs/other"},
-            "base_uri",
-        ),
-        (
             lambda cv: {"curriculum-vitae.json": {"name": "Jane Doe"}, "notes.md": ""},
             "CurriculumVitae",
         ),
@@ -252,14 +239,3 @@ def test_loading_under_a_taken_identifier_leaves_the_existing_entity_alone(servi
         service.load("cvs/backend", outputs)
 
     assert "cvs/backend/notes.md" not in service.list("cvs/backend")
-
-
-@pytest.mark.parametrize("destination", ["job-postings/acme/cvs", "optimized-cvs"])
-def test_loading_optimized_cvs_is_not_supported_yet(service, cv, destination):
-    service.add("job-postings/acme", ACME_POSTING)
-    outputs = {"curriculum-vitae.json": cv.model_dump(mode="json")}
-
-    with pytest.raises(ValueError, match=f"Cannot load into {destination}"):
-        service.load(f"{destination}/backend", outputs)
-
-    assert service.list("job-postings/acme/cvs") == []

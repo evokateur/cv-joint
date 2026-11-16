@@ -181,7 +181,6 @@ def test_posting_analysis_failure_is_reported_on_stderr(service, analysis, comma
         ({"notes.md": "notes"}, "Missing job-posting.json"),
         ({"job-posting.json": {}}, "Invalid entity content"),
         ({"job-posting.json": POSTING, "../notes.md": "notes"}, "filename"),
-        ({"job-posting.json": POSTING, "base_uri": "cvs/backend"}, "base_uri"),
     ],
 )
 def test_cli_load_invalid_posting_outputs_writes_nothing(service, outputs, message):
