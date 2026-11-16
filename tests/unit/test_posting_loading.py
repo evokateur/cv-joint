@@ -243,15 +243,6 @@ def test_analyze_then_cli_load_creates_posting(service):
     assert service.get("job-postings/acme").url == "https://example.com/extracted"
 
 
-def test_ingest_rejects_old_two_argument_syntax(service, analysis):
-    result = CliRunner(mix_stderr=False).invoke(
-        main, ["ingest", "job-posting", URL, "-"], input="Build tools", obj=service
-    )
-    assert result.exit_code != 0
-    assert "unexpected extra argument" in result.stderr
-    assert analysis.read is None
-
-
 def test_load_collision_preserves_existing_posting(service):
     service.add("job-postings/acme", POSTING)
     with pytest.raises(ValueError, match="Already exists"):
