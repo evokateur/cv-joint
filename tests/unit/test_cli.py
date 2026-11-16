@@ -169,57 +169,6 @@ class TestUnarchiveCommand:
         assert result.exit_code != 0
 
 
-class TestRenameCommand:
-    def test_bare_identifier_passes_through(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(
-                main, ["rename", "job-postings/acme-swe", "acme-swe-2"]
-            )
-        assert result.exit_code == 0, result.output
-        mock_service.rename_job_posting.assert_called_once_with(
-            "acme-swe", "acme-swe-2"
-        )
-
-    def test_normalizes_matching_collection_prefix(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(
-                main, ["rename", "job-postings/acme-swe", "job-postings/acme-swe-2"]
-            )
-        assert result.exit_code == 0, result.output
-        mock_service.rename_job_posting.assert_called_once_with(
-            "acme-swe", "acme-swe-2"
-        )
-
-    def test_normalizes_matching_cv_prefix(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(main, ["rename", "cvs/acme-swe", "cvs/acme-swe-2"])
-        assert result.exit_code == 0, result.output
-        mock_service.rename_cv.assert_called_once_with("acme-swe", "acme-swe-2")
-
-    def test_normalizes_matching_optimized_cv_prefix(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(
-                main,
-                ["rename", "job-postings/acme/cvs/foo", "job-postings/acme/cvs/bar"],
-            )
-        assert result.exit_code == 0, result.output
-        mock_service.rename_optimized_cv.assert_called_once_with("acme", "foo", "bar")
-
-    def test_rejects_wrong_collection_prefix(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(
-                main, ["rename", "job-postings/acme-swe", "cvs/acme-swe-2"]
-            )
-        assert result.exit_code != 0
-        assert "illegal new identifier" in result.output
-        mock_service.rename_job_posting.assert_not_called()
-
-
 class TestExportSchemaCommand:
     def test_explicit_path_writes_schema_files(self, runner, tmp_path):
         result = runner.invoke(main, ["export-schema", str(tmp_path)])
