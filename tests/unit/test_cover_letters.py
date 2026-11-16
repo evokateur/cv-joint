@@ -7,7 +7,7 @@ import yaml
 from click.testing import CliRunner
 from click.shell_completion import ShellComplete
 
-from models import CoverLetter
+from models import CoverLetter, CurriculumVitae, JobPosting
 from repositories import FileSystemRepository
 from services import ApplicationService
 from ui.cli import main
@@ -33,6 +33,33 @@ def letter():
         salutation="Dear hiring team,",
         paragraphs=["I build reliable tools.", "I would welcome a conversation."],
         closing="Sincerely,",
+    )
+
+
+@pytest.fixture
+def posting():
+    return JobPosting(
+        company="Acme",
+        title="Engineer",
+        experience_level="Senior",
+        industry="Software",
+        description="Build tools",
+    )
+
+
+@pytest.fixture
+def cv(letter):
+    return CurriculumVitae(
+        name="Jane Doe",
+        profession="Engineer",
+        contact=letter.contact,
+        core_expertise=[],
+        qualifications=[],
+        education=[],
+        experience=[],
+        additional_experience=[],
+        areas_of_expertise=[],
+        languages=[],
     )
 
 
@@ -321,6 +348,16 @@ def test_cli_rejects_invalid_cover_letter_destinations(service, letter, target):
     assert service.list("cover-letters") == []
 
 
+def test_cover_letters_cannot_be_loaded(service, letter):
+    outputs = {"cover-letter.json": letter.model_dump(mode="json")}
+
+    with pytest.raises(ValueError, match="Cannot load into cover-letters/draft"):
+        service.load("cover-letters/draft", outputs)
+
+    assert service.list("cover-letters") == []
+    assert "cover-letters/" not in service.complete_load_destinations("")
+
+
 def test_primary_cover_letter_document_mutations_are_raw(service, letter):
     uri = service.add("cover-letters/draft", letter.model_dump())
     before = service.get("cover-letters")
@@ -360,35 +397,12 @@ def test_cli_exports_cover_letters_from_configured_repository(
     ],
 )
 def test_stored_rendering_preserves_default_filenames(
-    service, letter, tmp_path, monkeypatch, uri, filename
+    service, letter, posting, cv, tmp_path, monkeypatch, uri, filename
 ):
-    if uri.startswith("cover-letters/"):
-        content = letter.model_dump()
-    else:
-        content = {
-            "name": "Jane Doe",
-            "profession": "Engineer",
-            "contact": letter.contact.model_dump(),
-            "core_expertise": [],
-            "qualifications": [],
-            "education": [],
-            "experience": [],
-            "additional_experience": [],
-            "areas_of_expertise": [],
-            "languages": [],
-        }
+    content = letter if uri.startswith("cover-letters/") else cv
     if uri.startswith("job-postings/"):
-        service.add(
-            "job-postings/acme",
-            {
-                "company": "Acme",
-                "title": "Engineer",
-                "experience_level": "Senior",
-                "industry": "Software",
-                "description": "Build tools",
-            },
-        )
-    service.add(uri, content)
+        service.add("job-postings/acme", posting.model_dump())
+    service.add(uri, content.model_dump())
     monkeypatch.chdir(tmp_path)
 
     result = CliRunner().invoke(main, ["render", uri, "-f", "tex"], obj=service)

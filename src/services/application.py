@@ -31,12 +31,15 @@ from services.addressing import (
 )
 from renderers.latex import render_tex, tex_to_pdf
 
-# The named output holding each loadable collection's entity content.
-PRIMARY_FILES = {
+# The named output holding the entity content in a producer's outputs.
+PRODUCER_OUTPUT_PRIMARY_FILES = {
     "cvs": "curriculum-vitae.json",
     "job-postings": "job-posting.json",
     "optimized-cvs": "curriculum-vitae.json",
 }
+
+# Collections load accepts. Cover letters have no producer yet.
+LOADABLE_COLLECTIONS = {"cvs", "job-postings", "optimized-cvs"}
 
 
 def _document_bytes(content: Any) -> bytes:
@@ -204,9 +207,9 @@ class ApplicationService:
             collection = parse_uri(entity_uri)["collection"]
         except ValueError:
             collection = None
-        if collection not in PRIMARY_FILES:
+        if collection not in LOADABLE_COLLECTIONS:
             raise ValueError(f"Cannot load into {entity_uri}")
-        primary_file = PRIMARY_FILES[collection]
+        primary_file = PRODUCER_OUTPUT_PRIMARY_FILES[collection]
         if primary_file not in outputs:
             raise ValueError(f"Missing {primary_file}")
         for filename in outputs:
@@ -252,12 +255,12 @@ class ApplicationService:
         if records is not None:
             return records
         record = self._entity_record(target)
-        if isinstance(record, CoverLetterRecord):
+        if isinstance(record, JobPostingRecord):
+            model = JobPosting
+        elif isinstance(record, CoverLetterRecord):
             model = CoverLetter
         else:
-            model = (
-                JobPosting if isinstance(record, JobPostingRecord) else CurriculumVitae
-            )
+            model = CurriculumVitae
         content = self.repository.load_object(record, model)
         if content is None:
             raise FileNotFoundError(f"Content not found: {target}")
@@ -379,24 +382,29 @@ class ApplicationService:
     def complete_add_destinations(self, incomplete: str) -> list[str]:
         """Complete add destinations: collection prefixes and entities, ending in '/'."""
         entities = {f"{self._record_uri(record)}/" for record in self._entity_records()}
-        candidates = self._collection_prefixes() | {"cover-letters/"} | entities
+        candidates = self._collection_prefixes().keys() | entities
         return sorted(
             candidate for candidate in candidates if candidate.startswith(incomplete)
         )
 
     def complete_load_destinations(self, incomplete: str) -> list[str]:
-        """Complete load destinations: collection prefixes ending in '/'."""
+        """Complete load destinations: loadable collection prefixes ending in '/'."""
         return sorted(
-            candidate
-            for candidate in self._collection_prefixes()
-            if candidate.startswith(incomplete)
+            prefix
+            for prefix, collection in self._collection_prefixes().items()
+            if collection in LOADABLE_COLLECTIONS and prefix.startswith(incomplete)
         )
 
-    def _collection_prefixes(self) -> set[str]:
-        """Writable collections as URI prefixes ending in '/'."""
+    def _collection_prefixes(self) -> dict[str, str]:
+        """Writable collections, keyed by URI prefix ending in '/'."""
         postings = self.repository.get_job_posting_records(all=True)
-        return {"cvs/", "job-postings/"} | {
-            f"job-postings/{record.identifier}/cvs/" for record in postings
+        return {
+            "cvs/": "cvs",
+            "job-postings/": "job-postings",
+            "cover-letters/": "cover-letters",
+        } | {
+            f"job-postings/{record.identifier}/cvs/": "optimized-cvs"
+            for record in postings
         }
 
     def _entity_records(self) -> list:
@@ -519,7 +527,11 @@ class ApplicationService:
             tmp.flush()
             posting = self.job_posting_analyzer.analyze(tmp.name)
         posting = posting.model_copy(update={"url": url or source_url})
-        return {PRIMARY_FILES["job-postings"]: posting.model_dump(mode="json")}
+        return {
+            PRODUCER_OUTPUT_PRIMARY_FILES["job-postings"]: posting.model_dump(
+                mode="json"
+            )
+        }
 
     def analyze_job_posting(
         self, content: str, *, url: str | None = None
@@ -531,7 +543,11 @@ class ApplicationService:
             posting = self.job_posting_analyzer.analyze(source.name)
         if url is not None:
             posting = posting.model_copy(update={"url": url})
-        return {PRIMARY_FILES["job-postings"]: posting.model_dump(mode="json")}
+        return {
+            PRODUCER_OUTPUT_PRIMARY_FILES["job-postings"]: posting.model_dump(
+                mode="json"
+            )
+        }
 
     def _add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
@@ -672,7 +688,7 @@ class ApplicationService:
             source.write(content)
             source.flush()
             cv = self.cv_analyzer.analyze(source.name)
-        return {PRIMARY_FILES["cvs"]: cv.model_dump(mode="json")}
+        return {PRODUCER_OUTPUT_PRIMARY_FILES["cvs"]: cv.model_dump(mode="json")}
 
     def _add_cv(self, cv_data: dict[str, Any], identifier: str):
         """
@@ -886,7 +902,7 @@ class ApplicationService:
         )
         return {
             "base_cv_uri": cv_uri,
-            PRIMARY_FILES["cvs"]: output.cv.model_dump(mode="json"),
+            PRODUCER_OUTPUT_PRIMARY_FILES["cvs"]: output.cv.model_dump(mode="json"),
             **{
                 filename: artifact.model_dump(mode="json")
                 for filename, artifact in output.artifacts.items()

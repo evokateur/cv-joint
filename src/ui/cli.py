@@ -159,8 +159,9 @@ def _complete_render_target(ctx, _param, incomplete):
         from services.application import ApplicationService
 
         service = ctx.obj if ctx.obj is not None else ApplicationService()
-        candidates = list(RENDERERS) + service.complete_render_targets(incomplete)
-        return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+        types = [name for name in RENDERERS if name.startswith(incomplete)]
+        candidates = types + service.complete_render_targets(incomplete)
+        return [CompletionItem(c) for c in candidates]
     if len(typed) == 1 and typed[0] in RENDERERS:
         # position 2, file mode: stdin sentinel + hand off to shell file globbing
         items = []
@@ -714,7 +715,7 @@ def _ingest(service, collection: str, identifier: str | None, analyze) -> str:
 
     An explicit identifier is validated before any analysis runs.
     """
-    from services.application import PRIMARY_FILES
+    from services.application import PRODUCER_OUTPUT_PRIMARY_FILES
 
     if identifier is not None:
         try:
@@ -724,7 +725,7 @@ def _ingest(service, collection: str, identifier: str | None, analyze) -> str:
     outputs = analyze()
     if identifier is None:
         entity_uri = service.generate_default_entity_uri(
-            collection, outputs[PRIMARY_FILES[collection]]
+            collection, outputs[PRODUCER_OUTPUT_PRIMARY_FILES[collection]]
         )
     else:
         entity_uri = f"{collection}/{identifier}"
