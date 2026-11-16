@@ -660,14 +660,15 @@ def analyze():
 
 
 def _analyze_posting(service, source, url):
-    """Read posting input and report input or analysis failures as CLI errors."""
+    """Analyze posting input, reporting an unreadable file as a CLI error."""
+    if source.startswith(("https://", "http://")):
+        return service.analyze_job_posting_url(source, url=url)
     try:
-        if source.startswith(("https://", "http://")):
-            return service.analyze_job_posting_url(source, url=url)
         with click.open_file(source) as content:
-            return service.analyze_job_posting(content.read(), url=url)
-    except (ValueError, OSError) as error:
+            text = content.read()
+    except OSError as error:
         raise click.ClickException(str(error)) from error
+    return service.analyze_job_posting(text, url=url)
 
 
 @analyze.command("job-posting")
