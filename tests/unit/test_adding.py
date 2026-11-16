@@ -48,13 +48,32 @@ def test_adding_a_cv_uri_creates_that_base_cv(service, cv):
 
     assert uri == "cvs/backend"
     assert service.get(uri) == cv
+    [record] = service.get("cvs")
+    assert (record.identifier, record.name, record.profession) == (
+        "backend",
+        "Jane Doe",
+        "Engineer",
+    )
+    assert record.created_at == record.updated_at
 
 
 def test_adding_to_job_postings_creates_a_posting(service, posting):
+    posting = posting.model_copy(update={"url": "https://example.com/jobs/123"})
+
     uri = service.add("job-postings/acme", posting.model_dump())
 
     assert uri == "job-postings/acme"
     assert service.get(uri) == posting
+    [record] = service.get("job-postings")
+    assert record.identifier == "acme"
+    assert record.url == "https://example.com/jobs/123"
+    assert (record.company, record.title, record.experience_level) == (
+        "Acme",
+        "Engineer",
+        "Senior",
+    )
+    assert record.location is None
+    assert record.created_at == record.updated_at
 
 
 def test_adding_to_a_postings_cvs_creates_an_optimized_cv(service, posting, cv):
@@ -67,6 +86,9 @@ def test_adding_to_a_postings_cvs_creates_an_optimized_cv(service, posting, cv):
     [record] = service.get("job-postings/acme/cvs")
     assert record.job_posting_identifier == "acme"
     assert record.base_cv_identifier is None
+    assert (record.name, record.profession) == ("Jane Doe", "Engineer")
+    assert (record.job_title, record.company) == ("Engineer", "Acme")
+    assert record.created_at == record.updated_at
 
 
 @pytest.mark.parametrize(
@@ -132,7 +154,7 @@ def test_adding_requires_a_json_object(service, data):
 
 
 def test_document_addition_preserves_binary_bytes(service, cv):
-    service.add_cv(cv.model_dump(), "backend")
+    service.add("cvs/backend", cv.model_dump())
     content = b"%PDF-1.7\r\n\x00\xff\xfe\n"
 
     uri = service.add_document("cvs/backend/application.pdf", content)
@@ -179,7 +201,7 @@ def test_document_addition_requires_a_document_uri(
 
 
 def test_existing_document_is_a_collision_named_by_logical_uri(service, posting):
-    service.add_job_posting(posting.model_dump(), "acme")
+    service.add("job-postings/acme", posting.model_dump())
     service.archive_job_posting("acme")
     service.add_document("job-postings/acme/notes.md", b"# Notes\n")
 

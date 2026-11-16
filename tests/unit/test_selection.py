@@ -47,8 +47,8 @@ def cv():
 
 
 def test_get_and_list_select_unfiled_postings(service, posting):
-    service.add_job_posting(posting.model_dump(), "active")
-    service.add_job_posting(posting.model_dump(), "filed")
+    service.add("job-postings/active", posting.model_dump())
+    service.add("job-postings/filed", posting.model_dump())
     service.transition_job_posting("filed", "applied")
 
     assert [record.identifier for record in service.get("job-postings")] == ["active"]
@@ -57,7 +57,7 @@ def test_get_and_list_select_unfiled_postings(service, posting):
 
 def test_location_selection_and_recursive_scope(service, posting):
     for identifier in ("active", "filed", "old"):
-        service.add_job_posting(posting.model_dump(), identifier)
+        service.add(f"job-postings/{identifier}", posting.model_dump())
     service.transition_job_posting("filed", "applied")
     service.transition_job_posting("old", "archived")
 
@@ -75,7 +75,7 @@ def test_location_selection_and_recursive_scope(service, posting):
 
 @pytest.mark.parametrize("query", ["REFERRAL", '"channel":"referral"', "transitions"])
 def test_query_matches_the_whole_serialized_record(service, posting, query):
-    service.add_job_posting(posting.model_dump(), "filed")
+    service.add("job-postings/filed", posting.model_dump())
     service.transition_job_posting("filed", "applied", fields={"channel": "Referral"})
 
     assert [
@@ -89,7 +89,7 @@ def test_query_matches_the_whole_serialized_record(service, posting, query):
 
 
 def test_base_cv_collection_selects_records_and_canonical_uris(service, cv):
-    service.add_cv(cv.model_dump(), "backend")
+    service.add("cvs/backend", cv.model_dump())
 
     assert [record.identifier for record in service.get("cvs", query="JANE")] == [
         "backend"
@@ -113,8 +113,8 @@ def test_optimized_cv_selection_follows_parent_scope(
     service, posting, cv, target, recursive, parents
 ):
     for identifier in ("active", "filed"):
-        service.add_job_posting(posting.model_dump(), identifier)
-        service.add_optimized_cv(identifier, "backend", None, cv)
+        service.add(f"job-postings/{identifier}", posting.model_dump())
+        service.add(f"job-postings/{identifier}/cvs/backend", cv.model_dump())
     service.transition_job_posting("filed", "applied")
 
     assert [
@@ -130,9 +130,9 @@ def test_optimized_cv_selection_follows_parent_scope(
 def test_exact_entity_reads_content_regardless_of_location_or_flags(
     service, posting, cv
 ):
-    service.add_job_posting(posting.model_dump(), "acme")
-    service.add_cv(cv.model_dump(), "base")
-    service.add_optimized_cv("acme", "backend", None, cv)
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("cvs/base", cv.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
     service.transition_job_posting("acme", "applied")
 
     for target, content in [
@@ -145,7 +145,7 @@ def test_exact_entity_reads_content_regardless_of_location_or_flags(
 
 def test_location_wins_over_posting_with_same_identifier(service, posting):
     for identifier in ("applied", "acme"):
-        service.add_job_posting(posting.model_dump(), identifier)
+        service.add(f"job-postings/{identifier}", posting.model_dump())
     service.transition_job_posting("acme", "applied")
     assert [record.identifier for record in service.get("job-postings/applied")] == [
         "acme"
@@ -172,7 +172,7 @@ def test_empty_collection_has_no_records_or_uris(service, target):
 def test_missing_and_legacy_targets_fail_instead_of_prefix_matching(
     service, posting, target
 ):
-    service.add_job_posting(posting.model_dump(), "acme")
+    service.add("job-postings/acme", posting.model_dump())
     service.transition_job_posting("acme", "applied")
     with pytest.raises(ValueError):
         service.get(target)
@@ -181,9 +181,9 @@ def test_missing_and_legacy_targets_fail_instead_of_prefix_matching(
 
 
 def test_list_entity_names_documents_and_child_collections(service, posting, cv):
-    service.add_job_posting(posting.model_dump(), "acme")
-    service.add_cv(cv.model_dump(), "base")
-    service.add_optimized_cv("acme", "backend", None, cv)
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("cvs/base", cv.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
     service.add_document("job-postings/acme/job-posting.md", b"# Posting")
     service.add_document("cvs/base/curriculum-vitae.md", b"# Base CV")
     service.add_document("job-postings/acme/cvs/backend/curriculum-vitae.md", b"# CV")
@@ -205,11 +205,10 @@ def test_list_entity_names_documents_and_child_collections(service, posting, cv)
 
 
 def test_document_read_preserves_binary_bytes_after_parent_moves(service, posting, cv):
-    service.add_job_posting(posting.model_dump(), "acme")
-    record = service.add_optimized_cv("acme", "backend", None, cv)
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
     content = b"%PDF-1.7\r\n\x00\xff\xfe\n"
-    # Seed an externally supplied binary file; document writing is a later phase.
-    (service.repository.directory_for(record) / "application.pdf").write_bytes(content)
+    service.add_document("job-postings/acme/cvs/backend/application.pdf", content)
     service.transition_job_posting("acme", "applied")
 
     assert (
@@ -220,7 +219,7 @@ def test_document_read_preserves_binary_bytes_after_parent_moves(service, postin
 
 
 def test_cli_get_and_list_render_the_same_selection(service, posting):
-    service.add_job_posting(posting.model_dump(), "acme")
+    service.add("job-postings/acme", posting.model_dump())
     service.transition_job_posting("acme", "applied", fields={"channel": "Referral"})
     runner = CliRunner()
 
@@ -247,8 +246,8 @@ def test_cli_get_and_list_render_the_same_selection(service, posting):
     ],
 )
 def test_cli_document_output_is_always_raw_bytes(service, cv, content):
-    record = service.add_cv(cv.model_dump(), "base")
-    (service.repository.directory_for(record) / "attachment").write_bytes(content)
+    service.add("cvs/base", cv.model_dump())
+    service.add_document("cvs/base/attachment", content)
 
     result = CliRunner().invoke(
         main, ["get", "cvs/base/attachment", "-r", "-q", "ignored"], obj=service
@@ -258,9 +257,9 @@ def test_cli_document_output_is_always_raw_bytes(service, cv, content):
 
 
 def test_completion_offers_logical_targets_in_every_location(service, posting, cv):
-    service.add_job_posting(posting.model_dump(), "acme")
-    service.add_optimized_cv("acme", "backend", None, cv)
-    service.add_cv(cv.model_dump(), "base")
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
+    service.add("cvs/base", cv.model_dump())
     service.add_document("job-postings/acme/job-posting.md", b"# Posting")
     service.add_document("cvs/base/curriculum-vitae.md", b"# Base CV")
     service.add_document("job-postings/acme/cvs/backend/curriculum-vitae.md", b"# CV")
@@ -289,7 +288,7 @@ def test_completion_offers_logical_targets_in_every_location(service, posting, c
 
 @pytest.mark.parametrize("command", ["get", "list", "ls"])
 def test_cli_completion_uses_canonical_targets(service, posting, command):
-    service.add_job_posting(posting.model_dump(), "acme")
+    service.add("job-postings/acme", posting.model_dump())
     service.add_document("job-postings/acme/job-posting.md", b"# Posting")
     service.transition_job_posting("acme", "applied")
     cli_command = main.commands[command]
@@ -308,9 +307,9 @@ def test_cli_completion_uses_canonical_targets(service, posting, command):
 def test_add_completion_offers_destination_prefixes_ending_in_a_slash(
     service, posting, cv
 ):
-    service.add_job_posting(posting.model_dump(), "acme")
-    service.add_optimized_cv("acme", "backend", None, cv)
-    service.add_cv(cv.model_dump(), "base")
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
+    service.add("cvs/base", cv.model_dump())
     service.transition_job_posting("acme", "applied")
 
     assert service.complete_add_destinations("") == [
@@ -330,8 +329,8 @@ def test_add_completion_offers_destination_prefixes_ending_in_a_slash(
 def test_load_completion_offers_collection_prefixes_ending_in_a_slash(
     service, posting, cv
 ):
-    service.add_job_posting(posting.model_dump(), "acme")
-    service.add_cv(cv.model_dump(), "base")
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("cvs/base", cv.model_dump())
     service.transition_job_posting("acme", "applied")
 
     assert service.complete_load_destinations("") == [
@@ -342,7 +341,7 @@ def test_load_completion_offers_collection_prefixes_ending_in_a_slash(
 
 
 def test_cli_load_completion_uses_collection_prefixes(service, posting):
-    service.add_job_posting(posting.model_dump(), "acme")
+    service.add("job-postings/acme", posting.model_dump())
     cli_command = main.commands["load"]
     context = click.Context(cli_command, obj=service)
 
@@ -354,7 +353,7 @@ def test_cli_load_completion_uses_collection_prefixes(service, posting):
 
 
 def test_cli_add_completion_uses_destination_prefixes(service, posting):
-    service.add_job_posting(posting.model_dump(), "acme")
+    service.add("job-postings/acme", posting.model_dump())
     cli_command = main.commands["add"]
     context = click.Context(cli_command, obj=service)
 
@@ -388,7 +387,7 @@ def test_cli_empty_selection_prints_nothing(service, command, target):
 def test_cli_missing_or_invalid_target_reports_error_on_stderr(
     service, posting, command, target
 ):
-    service.add_job_posting(posting.model_dump(), "acme")
+    service.add("job-postings/acme", posting.model_dump())
     service.transition_job_posting("acme", "applied")
     result = CliRunner(mix_stderr=False).invoke(main, [command, target], obj=service)
     assert result.exit_code != 0
@@ -397,7 +396,7 @@ def test_cli_missing_or_invalid_target_reports_error_on_stderr(
 
 
 def test_cli_exact_entity_prints_content_and_ignores_selection_flags(service, cv):
-    service.add_cv(cv.model_dump(), "base")
+    service.add("cvs/base", cv.model_dump())
     result = CliRunner().invoke(
         main, ["get", "cvs/base", "-r", "-q", "ignored"], obj=service
     )

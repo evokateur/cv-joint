@@ -21,23 +21,28 @@ logger = logging.getLogger(__name__)
 PLAN_FILENAME = "cv-transformation-plan.json"
 
 
+def parse_transformation_plan(content, source: str) -> Optional[CvTransformationPlan]:
+    """A transformation plan from JSON text or data, or None if it doesn't parse."""
+    try:
+        if isinstance(content, (str, bytes)):
+            return CvTransformationPlan.model_validate_json(content)
+        return CvTransformationPlan.model_validate(content)
+    except ValidationError:
+        logger.warning(
+            "Skipping %s of %s: not a transformation plan", PLAN_FILENAME, source
+        )
+        return None
+
+
 def read_transformation_plan(
     repository, record: OptimizedCvRecord
 ) -> Optional[CvTransformationPlan]:
     """An optimized CV's transformation plan, found by filename, if it parses."""
     if not repository.document_exists(record, PLAN_FILENAME):
         return None
-    try:
-        return CvTransformationPlan.model_validate_json(
-            repository.load_document(record, PLAN_FILENAME)
-        )
-    except ValidationError:
-        logger.warning(
-            "Skipping %s of %s: not a transformation plan",
-            PLAN_FILENAME,
-            record.identifier,
-        )
-        return None
+    return parse_transformation_plan(
+        repository.load_document(record, PLAN_FILENAME), record.identifier
+    )
 
 
 RECORD_DOCUMENTS: dict[type, set[str]] = {

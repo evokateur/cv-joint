@@ -14,7 +14,6 @@ from models import (
     CurriculumVitaeRecord,
     CoverLetter,
     CoverLetterRecord,
-    DOMAIN_OBJECT_REGISTRY,
     OptimizedCvRecord,
 )
 
@@ -723,24 +722,6 @@ class FileSystemRepository:
         data = json.loads(path.read_text())
         data.pop("_type", None)
         return model_class(**data)
-
-    def load_all_objects(self, record: Record) -> dict[str, BaseModel]:
-        directory = self.directory_for(record)
-        if not directory.exists():
-            return {}
-        results: dict[str, BaseModel] = {}
-        for json_file in directory.glob("*.json"):
-            try:
-                data = json.loads(json_file.read_text())
-            except (json.JSONDecodeError, OSError):
-                continue
-            type_name = data.get("_type")
-            if not type_name or type_name not in DOMAIN_OBJECT_REGISTRY:
-                continue
-            model_class = DOMAIN_OBJECT_REGISTRY[type_name]
-            payload = {k: v for k, v in data.items() if k != "_type"}
-            results[json_file.stem] = model_class(**payload)
-        return results
 
     # -------------------------------------------------------------------------
     # Document storage (record-addressed, raw text)

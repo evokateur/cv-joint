@@ -10,7 +10,6 @@ from config.root import get_settings
 from models import (
     CurriculumVitae,
     CurriculumVitaeRecord,
-    CvTransformationPlan,
     JobPosting,
     JobPostingRecord,
     OptimizedCvRecord,
@@ -138,15 +137,15 @@ class ApplicationService:
         if self.object_exists(entity_uri):
             raise ValueError(f"Already exists: {entity_uri}")
         if parsed["collection"] == "job-postings":
-            record = self.add_job_posting(data, identifier)
+            record = self._add_job_posting(data, identifier)
         elif parsed["collection"] == "optimized-cvs":
             posting = parsed["job_posting_identifier"]
             resolve_record(self.repository, f"job-postings/{posting}")
-            record = self.add_optimized_cv(
+            record = self._add_optimized_cv(
                 posting, identifier, base_cv_identifier, CurriculumVitae(**data)
             )
         else:
-            record = self.add_cv(data, identifier)
+            record = self._add_cv(data, identifier)
         return self._record_uri(record)
 
     def load(self, entity_uri: str, outputs: dict[str, Any] | str) -> str:
@@ -476,7 +475,7 @@ class ApplicationService:
             posting = posting.model_copy(update={"url": url})
         return {PRIMARY_FILES["job-postings"]: posting.model_dump(mode="json")}
 
-    def add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
+    def _add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
         Add a job posting to the repository under identifier.
 
@@ -617,7 +616,7 @@ class ApplicationService:
             cv = self.cv_analyzer.analyze(source.name)
         return {PRIMARY_FILES["cvs"]: cv.model_dump(mode="json")}
 
-    def add_cv(self, cv_data: dict[str, Any], identifier: str):
+    def _add_cv(self, cv_data: dict[str, Any], identifier: str):
         """
         Add a CV to the repository under identifier.
 
@@ -779,64 +778,21 @@ class ApplicationService:
             },
         }
 
-    def optimize_cv(
-        self, job_posting_identifier: str, cv_identifier: str
-    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
-        """
-        Analyze a CV optimization for a job posting.
-
-        Args:
-            job_posting_identifier: Identifier of the job posting
-            cv_identifier: Identifier of the base CV
-
-        Returns:
-            tuple of (plan_data, cv_data, identifiers_dict); pass to add_optimized_cv to persist.
-            identifiers_dict contains job_posting_identifier, identifier, base_cv_identifier
-        """
-        import datetime
-
-        cv = self.repository.get_cv(cv_identifier)
-        job_posting = self.repository.get_job_posting(job_posting_identifier)
-
-        if cv is None or job_posting is None:
-            raise ValueError(
-                f"CV or job posting not found: {cv_identifier}, {job_posting_identifier}"
-            )
-
-        identifier = f"{cv_identifier}-{datetime.date.today()}"
-
-        output = self.cv_optimizer.optimize(cv, job_posting)
-        plan = output.artifacts.get("cv-transformation-plan.json")
-
-        identifiers = {
-            "job_posting_identifier": job_posting_identifier,
-            "identifier": identifier,
-            "base_cv_identifier": cv_identifier,
-        }
-
-        return (
-            plan.model_dump() if plan else {},
-            output.cv.model_dump(),
-            identifiers,
-        )
-
-    def add_optimized_cv(
+    def _add_optimized_cv(
         self,
         job_posting_identifier: str,
         identifier: str,
         base_cv_identifier: str | None,
         cv: CurriculumVitae,
-        plan: CvTransformationPlan | None = None,
     ):
         """
-        Add a CV optimization to the repository.
+        Add an optimized CV to the repository.
 
         Args:
             job_posting_identifier: Identifier of the job posting
-            identifier: Identifier for this optimization
+            identifier: Identifier for this optimized CV
             base_cv_identifier: Identifier of the base CV, or None if not recorded
             cv: The optimized CV
-            plan: The transformation plan, if any
 
         Returns:
             OptimizedCvRecord
@@ -856,12 +812,7 @@ class ApplicationService:
             created_at=now,
             updated_at=now,
         )
-        record = self.repository.add_optimized_cv(parent, record, cv)
-
-        if plan is not None:
-            self.repository.save_object(record, plan)
-
-        return record
+        return self.repository.add_optimized_cv(parent, record, cv)
 
     def get_optimized_cvs(self) -> list[dict[str, Any]]:
         """

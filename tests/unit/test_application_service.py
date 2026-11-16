@@ -82,7 +82,7 @@ def test_generate_pdf_file_renders_data_to_explicit_output(service, sample_cv_da
 
 class TestExportJobPostingMarkdown:
     def test_includes_record_frontmatter(self, service, sample_job_posting_data):
-        service.add_job_posting(sample_job_posting_data, "test-job")
+        service.add("job-postings/test-job", sample_job_posting_data)
         service.export_markdown()
         record = service.repository.get_job_posting_record("test-job")
         content = service.repository.load_document(record, "job-posting.md")
@@ -90,7 +90,7 @@ class TestExportJobPostingMarkdown:
         assert "path: job-postings/test-job\n" in content
 
     def test_creates_markdown(self, service, sample_job_posting_data, temp_data_dir):
-        service.add_job_posting(sample_job_posting_data, "test-job")
+        service.add("job-postings/test-job", sample_job_posting_data)
         service.export_markdown()
         md_path = Path(temp_data_dir) / "job-postings" / "test-job" / "job-posting.md"
         assert md_path.exists()
@@ -107,7 +107,7 @@ class TestExportJobPostingMarkdown:
             experience_level="Senior",
         ).model_dump()
 
-        service.add_job_posting(data, "no-company")
+        service.add("job-postings/no-company", data)
         service.export_markdown()
         md_path = Path(temp_data_dir) / "job-postings" / "no-company" / "job-posting.md"
         content = md_path.read_text()
@@ -117,7 +117,7 @@ class TestExportJobPostingMarkdown:
 
 class TestExportCvMarkdown:
     def test_creates_markdown(self, service, sample_cv_data, temp_data_dir):
-        service.add_cv(sample_cv_data, "test-cv")
+        service.add("cvs/test-cv", sample_cv_data)
         service.export_markdown()
         md_path = Path(temp_data_dir) / "cvs" / "test-cv" / "curriculum-vitae.md"
         assert md_path.exists()
@@ -129,8 +129,8 @@ class TestExportMarkdown:
     def test_export_all(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
     ):
-        service.add_job_posting(sample_job_posting_data, "job-1")
-        service.add_cv(sample_cv_data, "cv-1")
+        service.add("job-postings/job-1", sample_job_posting_data)
+        service.add("cvs/cv-1", sample_cv_data)
 
         job_md = Path(temp_data_dir) / "job-postings" / "job-1" / "job-posting.md"
         cv_md = Path(temp_data_dir) / "cvs" / "cv-1" / "curriculum-vitae.md"
@@ -143,8 +143,8 @@ class TestExportMarkdown:
     def test_export_by_collection(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
     ):
-        service.add_job_posting(sample_job_posting_data, "job-1")
-        service.add_cv(sample_cv_data, "cv-1")
+        service.add("job-postings/job-1", sample_job_posting_data)
+        service.add("cvs/cv-1", sample_cv_data)
 
         job_md = Path(temp_data_dir) / "job-postings" / "job-1" / "job-posting.md"
         cv_md = Path(temp_data_dir) / "cvs" / "cv-1" / "curriculum-vitae.md"
@@ -161,8 +161,8 @@ class TestExportMarkdown:
         sample_cv_data,
         build_optimized_cv_record,
     ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
+        service.add("cvs/jane-doe", sample_cv_data)
         service.repository.add_optimized_cv(
             service.repository.get_job_posting_record("acme-swe"),
             build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
@@ -179,19 +179,19 @@ class TestExportMarkdown:
 
 class TestRemoveJobPosting:
     def test_returns_true_when_found(self, service, sample_job_posting_data):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
         assert service.remove_job_posting("acme-swe") is True
 
     def test_returns_false_when_not_found(self, service):
         assert service.remove_job_posting("nonexistent") is False
 
     def test_removes_from_repository(self, service, sample_job_posting_data):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
         service.remove_job_posting("acme-swe")
         assert service.get_job_posting("acme-swe") is None
 
     def test_deletes_markdown(self, service, sample_job_posting_data, temp_data_dir):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
         service.add_document(
             "job-postings/acme-swe/job-posting.md", b"# Existing document\n"
         )
@@ -203,19 +203,19 @@ class TestRemoveJobPosting:
 
 class TestRemoveCv:
     def test_returns_true_when_found(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("cvs/jane-doe", sample_cv_data)
         assert service.remove_cv("jane-doe") is True
 
     def test_returns_false_when_not_found(self, service):
         assert service.remove_cv("nonexistent") is False
 
     def test_removes_from_repository(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("cvs/jane-doe", sample_cv_data)
         service.remove_cv("jane-doe")
         assert service.get_cv("jane-doe") is None
 
     def test_deletes_markdown(self, service, sample_cv_data, temp_data_dir):
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("cvs/jane-doe", sample_cv_data)
         service.add_document(
             "cvs/jane-doe/curriculum-vitae.md", b"# Existing document\n"
         )
@@ -231,19 +231,19 @@ class TestRenameJobPosting:
             service.rename_job_posting("nonexistent", "new-id")
 
     def test_raises_on_collision(self, service, sample_job_posting_data):
-        service.add_job_posting(sample_job_posting_data, "job-1")
-        service.add_job_posting(sample_job_posting_data, "job-2")
+        service.add("job-postings/job-1", sample_job_posting_data)
+        service.add("job-postings/job-2", sample_job_posting_data)
         with pytest.raises(ValueError, match="already exists"):
             service.rename_job_posting("job-1", "job-2")
 
     def test_data_accessible_at_new_identifier(self, service, sample_job_posting_data):
-        service.add_job_posting(sample_job_posting_data, "old-id")
+        service.add("job-postings/old-id", sample_job_posting_data)
         service.rename_job_posting("old-id", "new-id")
         assert service.get_job_posting("old-id") is None
         assert service.get_job_posting("new-id") is not None
 
     def test_moves_markdown(self, service, sample_job_posting_data, temp_data_dir):
-        service.add_job_posting(sample_job_posting_data, "old-id")
+        service.add("job-postings/old-id", sample_job_posting_data)
         service.add_document(
             "job-postings/old-id/job-posting.md", b"# Existing document\n"
         )
@@ -260,19 +260,19 @@ class TestRenameCv:
             service.rename_cv("nonexistent", "new-id")
 
     def test_raises_on_collision(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "cv-1")
-        service.add_cv(sample_cv_data, "cv-2")
+        service.add("cvs/cv-1", sample_cv_data)
+        service.add("cvs/cv-2", sample_cv_data)
         with pytest.raises(ValueError, match="already exists"):
             service.rename_cv("cv-1", "cv-2")
 
     def test_data_accessible_at_new_identifier(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "old-id")
+        service.add("cvs/old-id", sample_cv_data)
         service.rename_cv("old-id", "new-id")
         assert service.get_cv("old-id") is None
         assert service.get_cv("new-id") is not None
 
     def test_moves_markdown(self, service, sample_cv_data, temp_data_dir):
-        service.add_cv(sample_cv_data, "old-id")
+        service.add("cvs/old-id", sample_cv_data)
         service.add_document("cvs/old-id/curriculum-vitae.md", b"# Existing document\n")
         service.rename_cv("old-id", "new-id")
         assert not (Path(temp_data_dir) / "cvs" / "old-id").exists()
@@ -285,8 +285,8 @@ class TestRenameCv:
         sample_cv_data,
         build_optimized_cv_record,
     ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
-        service.add_cv(sample_cv_data, "old-cv")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
+        service.add("cvs/old-cv", sample_cv_data)
         service.repository.add_optimized_cv(
             service.repository.get_job_posting_record("acme-swe"),
             build_optimized_cv_record("opt-1", "acme-swe", "old-cv"),
@@ -335,7 +335,7 @@ class TestTransitionDocuments:
     def test_preserves_moved_document_and_returns_persisted_record(
         self, service, sample_job_posting_data, method, arguments, location, path
     ):
-        service.add_job_posting(sample_job_posting_data, "test-job")
+        service.add("job-postings/test-job", sample_job_posting_data)
         if method == "unarchive_job_posting":
             service.archive_job_posting("test-job")
         content = (
@@ -396,8 +396,8 @@ class TestListingDictionaries:
         expected_identifier,
         build_optimized_cv_record,
     ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
+        service.add("cvs/jane-doe", sample_cv_data)
         service.repository.add_optimized_cv(
             service.repository.get_job_posting_record("acme-swe"),
             build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
@@ -415,7 +415,7 @@ class TestListingDictionaries:
 
     @pytest.mark.parametrize("query", ["ACME", "software", "MID-LEVEL", "example.com"])
     def test_job_posting_keyword_filters(self, service, sample_job_posting_data, query):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
 
         results = service.get_job_postings(query=query)
 
@@ -423,7 +423,8 @@ class TestListingDictionaries:
         assert service.get_job_postings(query="no match") == []
 
     def test_job_posting_date_filter(self, service, sample_job_posting_data):
-        record = service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
+        [record] = service.get("job-postings")
 
         results = service.get_job_postings(query=record.created_at.date().isoformat())
 
@@ -431,7 +432,7 @@ class TestListingDictionaries:
 
     @pytest.mark.parametrize("query", ["JANE", "base-cv"])
     def test_cv_keyword_filters(self, service, sample_cv_data, query):
-        service.add_cv(sample_cv_data, "base-cv")
+        service.add("cvs/base-cv", sample_cv_data)
 
         results = service.get_cvs(query=query)
 
@@ -456,8 +457,8 @@ class TestGetOptimizedCvs:
         file_job_posting,
         build_optimized_cv_record,
     ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
+        service.add("cvs/jane-doe", sample_cv_data)
         service.repository.add_optimized_cv(
             service.repository.get_job_posting_record("acme-swe"),
             build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
@@ -474,8 +475,8 @@ class TestGetOptimizedCvs:
         sample_cv_data,
         build_optimized_cv_record,
     ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
+        service.add("cvs/jane-doe", sample_cv_data)
         service.repository.add_optimized_cv(
             service.repository.get_job_posting_record("acme-swe"),
             build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
@@ -493,7 +494,7 @@ class TestRemoveOptimizedCv:
         sample_cv_data,
         build_optimized_cv_record,
     ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
         service.repository.add_optimized_cv(
             service.repository.get_job_posting_record("acme-swe"),
             build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
@@ -502,7 +503,7 @@ class TestRemoveOptimizedCv:
         assert service.remove_optimized_cv("acme-swe", "opt-1") is True
 
     def test_returns_false_when_not_found(self, service, sample_job_posting_data):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
         assert service.remove_optimized_cv("acme-swe", "nonexistent") is False
 
     def test_removes_from_repository(
@@ -512,7 +513,7 @@ class TestRemoveOptimizedCv:
         sample_cv_data,
         build_optimized_cv_record,
     ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
         service.repository.add_optimized_cv(
             service.repository.get_job_posting_record("acme-swe"),
             build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
@@ -530,7 +531,7 @@ class TestRenameOptimizedCv:
         sample_cv_data,
         build_optimized_cv_record,
     ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
         service.repository.add_optimized_cv(
             service.repository.get_job_posting_record("acme-swe"),
             build_optimized_cv_record("opt-1", "acme-swe", "jane-doe"),
@@ -548,23 +549,28 @@ class TestRenameOptimizedCv:
 # ---------------------------------------------------------------------------
 
 
-class TestSaveOptimizedCvUsesParentPath:
+class TestLoadOptimizedCvUsesParentPath:
     """Optimized CV content and its plan are stored under the parent's current path."""
 
-    def test_saves_to_parent_stored_path(
+    def test_loads_into_parent_stored_path(
         self, service, sample_job_posting_data, sample_cv_data, temp_data_dir
     ):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
         service.archive_job_posting("acme-swe")
 
-        cv = CurriculumVitae(**sample_cv_data)
         plan = CvTransformationPlan(job_title="Software Engineer", company="Acme Corp")
 
-        record = service.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv, plan)
+        uri = service.load(
+            "job-postings/acme-swe/cvs/opt-1",
+            {
+                "curriculum-vitae.json": sample_cv_data,
+                "cv-transformation-plan.json": plan.model_dump(mode="json"),
+            },
+        )
 
-        assert record.path == "job-postings/archived/acme-swe/cvs/opt-1"
-        uri = "job-postings/acme-swe/cvs/opt-1"
-        assert service.get(uri) == cv
+        directory = Path(temp_data_dir) / "job-postings/archived/acme-swe/cvs/opt-1"
+        assert (directory / "curriculum-vitae.json").exists()
+        assert service.get(uri) == CurriculumVitae(**sample_cv_data)
         assert (
             json.loads(service.get_document(f"{uri}/cv-transformation-plan.json"))[
                 "job_title"
@@ -575,11 +581,11 @@ class TestSaveOptimizedCvUsesParentPath:
 
 class TestObjectExists:
     def test_true_for_existing_job_posting(self, service, sample_job_posting_data):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
+        service.add("job-postings/acme-swe", sample_job_posting_data)
         assert service.object_exists("job-postings/acme-swe") is True
 
     def test_true_for_existing_cv(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("cvs/jane-doe", sample_cv_data)
         assert service.object_exists("cvs/jane-doe") is True
 
     def test_false_for_missing(self, service):
@@ -589,7 +595,7 @@ class TestObjectExists:
         assert service.object_exists("not a uri") is False
 
     def test_false_for_document_uri(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("cvs/jane-doe", sample_cv_data)
         assert service.object_exists("cvs/jane-doe/resume.pdf") is False
 
 
@@ -598,18 +604,18 @@ class TestUniquifyEntityUri:
         assert service.uniquify_entity_uri("cvs/jane-doe") == "cvs/jane-doe"
 
     def test_bumps_to_2_on_collision(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "jane-doe")
+        service.add("cvs/jane-doe", sample_cv_data)
         assert service.uniquify_entity_uri("cvs/jane-doe") == "cvs/jane-doe-2"
 
     def test_bumps_past_existing_suffix(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "jane-doe")
-        service.add_cv(sample_cv_data, "jane-doe-2")
+        service.add("cvs/jane-doe", sample_cv_data)
+        service.add("cvs/jane-doe-2", sample_cv_data)
         assert service.uniquify_entity_uri("cvs/jane-doe") == "cvs/jane-doe-3"
 
     def test_scoped_per_namespace(
         self, service, sample_job_posting_data, sample_cv_data
     ):
-        service.add_cv(sample_cv_data, "shared")
+        service.add("cvs/shared", sample_cv_data)
         # same identifier in a different namespace does not collide
         assert (
             service.uniquify_entity_uri("job-postings/shared") == "job-postings/shared"
@@ -632,7 +638,7 @@ class TestGenerateDefaultEntityUri:
         )
 
     def test_avoids_collision(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "software-engineer")
+        service.add("cvs/software-engineer", sample_cv_data)
         assert (
             service.generate_default_entity_uri("cvs", sample_cv_data)
             == "cvs/software-engineer-2"
@@ -656,129 +662,9 @@ class TestGenerateDefaultEntityUri:
         assert service.generate_default_entity_uri("widgets", {}) is None
 
 
-class TestAddRaisesOnCollision:
-    def test_job_posting(self, service, sample_job_posting_data):
-        service.add_job_posting(sample_job_posting_data, "acme-swe")
-        with pytest.raises(ValueError, match="already exists"):
-            service.add_job_posting(sample_job_posting_data, "acme-swe")
-
-    def test_cv(self, service, sample_cv_data):
-        service.add_cv(sample_cv_data, "jane-doe")
-        with pytest.raises(ValueError, match="already exists"):
-            service.add_cv(sample_cv_data, "jane-doe")
-
-
-@pytest.fixture
-def mock_repository_service():
-    service = ApplicationService(repository=MagicMock())
-    service.markdown_exporter = MagicMock()
-    return service
-
-
-class TestAddJobPostingBuildsRecord:
-    def test_builds_unpersisted_record(
-        self, mock_repository_service, sample_job_posting_data
-    ):
-        mock_repository_service.add_job_posting(sample_job_posting_data, "acme-swe")
-
-        record, job_posting = (
-            mock_repository_service.repository.add_job_posting.call_args.args
-        )
-        assert record.identifier == "acme-swe"
-        assert record.path is None
-        assert record.url == "https://example.com/job/123"
-        assert record.company == "Acme Corp"
-        assert record.title == "Software Engineer"
-        assert record.experience_level == "Mid-level"
-        assert record.location is None
-        assert record.created_at == record.updated_at
-        assert job_posting == JobPosting(**sample_job_posting_data)
-
-    def test_returns_persisted_record(
-        self, mock_repository_service, sample_job_posting_data
-    ):
-        result = mock_repository_service.add_job_posting(
-            sample_job_posting_data, "acme-swe"
-        )
-
-        persisted = mock_repository_service.repository.add_job_posting.return_value
-        assert result is persisted
-
-
-class TestAddCvBuildsRecord:
-    def test_builds_unpersisted_record(self, mock_repository_service, sample_cv_data):
-        mock_repository_service.add_cv(sample_cv_data, "jane-doe")
-
-        record, cv = mock_repository_service.repository.add_cv.call_args.args
-        assert record.identifier == "jane-doe"
-        assert record.path is None
-        assert record.name == "Jane Doe"
-        assert record.profession == "Software Engineer"
-        assert record.created_at == record.updated_at
-        assert cv == CurriculumVitae(**sample_cv_data)
-
-    def test_returns_persisted_record(self, mock_repository_service, sample_cv_data):
-        result = mock_repository_service.add_cv(sample_cv_data, "jane-doe")
-
-        persisted = mock_repository_service.repository.add_cv.return_value
-        assert result is persisted
-
-
-class TestAddOptimizedCvBuildsRecord:
-    @pytest.fixture
-    def parent(self, mock_repository_service, build_job_posting_record):
-        parent = build_job_posting_record(
-            "acme-swe",
-            path="job-postings/acme-swe",
-            title="Staff Engineer",
-            company="Initech",
-        )
-        mock_repository_service.repository.get_job_posting_record.return_value = parent
-        return parent
-
-    def test_builds_unpersisted_record_under_parent(
-        self, mock_repository_service, parent, sample_cv_data
-    ):
-        cv = CurriculumVitae(**sample_cv_data)
-        mock_repository_service.add_optimized_cv("acme-swe", "opt-1", "jane-doe", cv)
-
-        mock_repository_service.repository.get_job_posting_record.assert_called_once_with(
-            "acme-swe"
-        )
-        passed_parent, record, passed_cv = (
-            mock_repository_service.repository.add_optimized_cv.call_args.args
-        )
-        assert passed_parent is parent
-        assert passed_cv is cv
-        assert record.identifier == "opt-1"
-        assert record.path is None
-        assert record.job_posting_identifier == "acme-swe"
-        assert record.base_cv_identifier == "jane-doe"
-        assert record.name == "Jane Doe"
-        assert record.profession == "Software Engineer"
-        assert record.job_title == "Staff Engineer"
-        assert record.company == "Initech"
-        assert record.created_at == record.updated_at
-
-    def test_saves_plan_with_persisted_record(
-        self, mock_repository_service, parent, sample_cv_data
-    ):
-        cv = CurriculumVitae(**sample_cv_data)
-        plan = CvTransformationPlan(job_title="Staff Engineer", company="Initech")
-        result = mock_repository_service.add_optimized_cv(
-            "acme-swe", "opt-1", "jane-doe", cv, plan
-        )
-
-        persisted = mock_repository_service.repository.add_optimized_cv.return_value
-        assert result is persisted
-        mock_repository_service.repository.save_object.assert_called_once_with(
-            persisted, plan
-        )
-
-
 @pytest.fixture
 def service_with_job_posting(service, sample_job_posting_data):
-    service.add_job_posting(sample_job_posting_data, "acme-swe")
+    service.add("job-postings/acme-swe", sample_job_posting_data)
     return service
 
 
