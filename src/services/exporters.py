@@ -120,12 +120,18 @@ class MarkdownExporter:
             "cvs",
             "curriculum-vitae",
             "optimizations",
+            "cover-letters",
         ):
             raise ValueError(f"Unknown collection: {collection_name}")
         if collection_name == "curriculum-vitae":
             collection_name = "cvs"
 
         count = 0
+        if collection_name is None or collection_name == "cover-letters":
+            for record in self.repository.get_cover_letter_records():
+                letter = self.repository.get_cover_letter(record.identifier)
+                self._save(record, letter)
+                count += 1
         if collection_name is None or collection_name == "job-postings":
             for record in self.repository.get_job_posting_records(all=True):
                 job_posting = self.repository.get_job_posting(record.identifier)

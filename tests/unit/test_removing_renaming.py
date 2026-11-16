@@ -146,7 +146,7 @@ def test_document_mutations_are_raw_and_preserve_records(
         "cvs/backend",
         "job-postings/acme/cvs",
         "optimized-cvs/backend/notes.txt",
-        "cover-letters/backend/notes.txt",
+        "cover-letters/missing/notes.txt",
     ],
 )
 def test_document_mutations_reject_invalid_or_missing_sources(
@@ -258,7 +258,7 @@ def test_rename_entity_preserves_content_documents_and_relationships(
         "optimized-cvs",
         "optimized-cvs/archived",
         "optimized-cvs/backend",
-        "cover-letters/backend",
+        "cover-letters/missing",
         "cvs/missing",
         "job-postings/missing",
         "job-postings/acme/cvs/missing",

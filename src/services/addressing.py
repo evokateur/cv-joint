@@ -26,7 +26,7 @@ def parse_document_uri(uri: str) -> tuple[str, str] | None:
     parts = uri.strip("/").split("/")
     if (
         len(parts) == 3
-        and parts[0] in ("job-postings", "cvs")
+        and parts[0] in ("job-postings", "cvs", "cover-letters")
         and not (parts[0] == "job-postings" and parts[2] == "cvs")
     ) or (len(parts) == 5 and parts[0] == "job-postings" and parts[2] == "cvs"):
         return "/".join(parts[:-1]), parts[-1]
