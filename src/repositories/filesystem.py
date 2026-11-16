@@ -752,6 +752,19 @@ class FileSystemRepository:
             document.write(content)
             document.truncate()
 
+    def remove_document(self, record: Record, filename: str) -> None:
+        """Remove exactly one existing document."""
+        (self.directory_for(record) / filename).unlink()
+
+    def rename_document(self, record: Record, filename: str, new_filename: str) -> None:
+        """Rename an existing document within its entity's directory."""
+        directory = self.directory_for(record)
+        if self.document_exists(record, new_filename):
+            raise DocumentExistsError(
+                f"Document already exists: {record.path}/{new_filename}"
+            )
+        (directory / filename).rename(directory / new_filename)
+
     def load_document(self, record: Record, filename: str) -> str:
         return (self.directory_for(record) / filename).read_text()
 

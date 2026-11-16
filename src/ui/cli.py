@@ -318,37 +318,30 @@ def render(args, fmt, output, template):
     _emit_render(data, doc_type, fmt, output, base_name, template)
 
 
-@main.command("remove")
-@click.argument("uri", shell_complete=_complete_uri)
-def remove(uri):
-    """Remove an object by URI and exit."""
+def _complete_target(ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
     from services.application import ApplicationService
 
-    service = ApplicationService()
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [CompletionItem(uri) for uri in service.complete_targets(incomplete)]
+
+
+@main.command("remove")
+@click.argument("uri", shell_complete=_complete_target)
+@click.pass_context
+def remove(ctx, uri):
+    """Remove an entity or document and print its URI."""
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
     try:
-        parsed = parse_uri(uri)
-    except ValueError:
-        raise click.UsageError(
-            f"unrecognised URI '{uri}'\n"
-            "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
-        )
-
-    if parsed["collection"] == "optimized-cvs":
-        removed = service.remove_optimized_cv(
-            parsed["job_posting_identifier"], parsed["identifier"]
-        )
-    elif parsed["collection"] == "job-postings":
-        removed = service.remove_job_posting(parsed["identifier"])
-    elif parsed["collection"] == "cvs":
-        removed = service.remove_cv(parsed["identifier"])
-    else:
-        raise click.UsageError(f"remove is not implemented for {parsed['collection']}")
-
-    if removed:
-        click.echo(f"Removed {uri}")
-    else:
-        click.echo(f"Not found: {uri}", err=True)
-        sys.exit(1)
+        if parse_document_uri(uri) is not None:
+            affected_uri = service.remove_document(uri)
+        else:
+            affected_uri = service.remove(uri)
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(affected_uri)
 
 
 def _strip_uri_prefix(old_uri: str, old_identifier: str, new_value: str) -> str:
@@ -362,58 +355,24 @@ def _strip_uri_prefix(old_uri: str, old_identifier: str, new_value: str) -> str:
 
 
 @main.command("rename")
-@click.argument("uri", shell_complete=_complete_uri)
-@click.argument("new_id")
-def rename(uri, new_id):
-    """Rename an object by URI and exit."""
-    from services.application import ApplicationService
-
-    service = ApplicationService()
-    try:
-        parsed = parse_uri(uri)
-    except ValueError:
-        raise click.UsageError(
-            f"unrecognised URI '{uri}'\n"
-            "Expected: job-postings/{{id}}, cvs/{{id}}, or job-postings/{{id}}/cvs/{{id}}"
-        )
-
-    new_id = _strip_uri_prefix(uri, parsed["identifier"], new_id)
-    try:
-        validate_identifier(new_id)
-    except ValueError:
-        raise click.UsageError(
-            f"illegal new identifier '{new_id}'\n"
-            "Expected a bare identifier (no '/' or spaces), optionally prefixed with the source collection"
-        )
-
-    try:
-        if parsed["collection"] == "job-postings":
-            service.rename_job_posting(parsed["identifier"], new_id)
-        elif parsed["collection"] == "cvs":
-            service.rename_cv(parsed["identifier"], new_id)
-        elif parsed["collection"] == "optimized-cvs":
-            service.rename_optimized_cv(
-                parsed["job_posting_identifier"], parsed["identifier"], new_id
-            )
-        else:
-            raise click.UsageError(
-                f"rename is not implemented for {parsed['collection']}"
-            )
-    except click.UsageError:
-        raise
-    except ValueError as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
-
-    click.echo(f"Renamed {uri} to {new_id}")
-
-
-def _complete_target(ctx, _param, incomplete):
-    from click.shell_completion import CompletionItem
+@click.argument("uri", shell_complete=_complete_target)
+@click.argument("new_name")
+@click.pass_context
+def rename(ctx, uri, new_name):
+    """Rename an entity or document and print its new URI."""
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
-    return [CompletionItem(uri) for uri in service.complete_targets(incomplete)]
+    try:
+        if parse_document_uri(uri) is not None:
+            affected_uri = service.rename_document(uri, new_name)
+        else:
+            parsed = parse_uri(uri)
+            new_identifier = _strip_uri_prefix(uri, parsed["identifier"], new_name)
+            affected_uri = service.rename(uri, new_identifier)
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo(affected_uri)
 
 
 def _complete_add_destination(ctx, _param, incomplete):

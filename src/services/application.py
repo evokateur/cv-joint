@@ -312,6 +312,32 @@ class ApplicationService:
             raise ValueError(f"Unrecognised target: {target}")
         return resolve_record(self.repository, target)
 
+    def remove_document(self, document_uri: str) -> str:
+        """Remove a document without changing its entity's record."""
+        address = parse_document_uri(document_uri)
+        if address is None:
+            raise ValueError(f"Unrecognised document URI: {document_uri}")
+        entity_uri, filename = address
+        validate_filename(filename)
+        record = self._entity_record(entity_uri)
+        self.repository.remove_document(record, filename)
+        return f"{self._record_uri(record)}/{filename}"
+
+    def rename_document(self, document_uri: str, new_filename: str) -> str:
+        """Rename a document without interpreting its bytes or changing its record."""
+        address = parse_document_uri(document_uri)
+        if address is None:
+            raise ValueError(f"Unrecognised document URI: {document_uri}")
+        entity_uri, filename = address
+        validate_filename(filename)
+        validate_filename(new_filename)
+        new_uri = f"{entity_uri}/{new_filename}"
+        if parse_document_uri(new_uri) is None:
+            raise ValueError(f"Not a document address: {new_uri}")
+        record = self._entity_record(entity_uri)
+        self.repository.rename_document(record, filename, new_filename)
+        return f"{self._record_uri(record)}/{new_filename}"
+
     def update_document(self, document_uri: str, content: bytes) -> str:
         """Replace a document's bytes without changing its entity's record."""
         address = parse_document_uri(document_uri)
@@ -665,6 +691,43 @@ class ApplicationService:
                 if any(q in (r.get(f) or "").lower() for f in ("name", "identifier"))
             ]
         return results
+
+    def remove(self, entity_uri: str) -> str:
+        """Remove an entity and its documents, returning its canonical URI."""
+        if self._select_records(entity_uri) is not None:
+            raise ValueError(
+                f"Cannot remove collection, location or view: {entity_uri}"
+            )
+        record = self._entity_record(entity_uri)
+        if isinstance(record, JobPostingRecord):
+            self.repository.remove_job_posting(record.identifier)
+        elif isinstance(record, OptimizedCvRecord):
+            self.repository.remove_optimized_cv(
+                record.job_posting_identifier, record.identifier
+            )
+        else:
+            self.repository.remove_cv(record.identifier)
+        return self._record_uri(record)
+
+    def rename(self, entity_uri: str, new_identifier: str) -> str:
+        """Rename an entity, preserving its documents and relationships."""
+        if self._select_records(entity_uri) is not None:
+            raise ValueError(
+                f"Cannot rename collection, location or view: {entity_uri}"
+            )
+        validate_identifier(new_identifier)
+        record = self._entity_record(entity_uri)
+        if isinstance(record, JobPostingRecord):
+            renamed = self.repository.rename_job_posting(
+                record.identifier, new_identifier
+            )
+        elif isinstance(record, OptimizedCvRecord):
+            renamed = self.repository.rename_optimized_cv(
+                record.job_posting_identifier, record.identifier, new_identifier
+            )
+        else:
+            renamed = self.repository.rename_cv(record.identifier, new_identifier)
+        return self._record_uri(renamed)
 
     def remove_job_posting(self, identifier: str) -> bool:
         """
