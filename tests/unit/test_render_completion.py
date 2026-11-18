@@ -1,50 +1,79 @@
+import pytest
 from click.shell_completion import ShellComplete
 
-from ui import cli as cli_mod
+from models import Contact, CurriculumVitae, JobPosting
+from repositories import FileSystemRepository
+from services import ApplicationService
 from ui.cli import main
 
 
-def _items(args, incomplete):
-    sc = ShellComplete(main, {}, "cv-joint", "_CV_JOINT_COMPLETE")
-    return sc.get_completions(list(args), incomplete)
+@pytest.fixture
+def service(tmp_path):
+    return ApplicationService(repository=FileSystemRepository(str(tmp_path)))
 
 
-def _values(args, incomplete):
-    return [c.value for c in _items(args, incomplete)]
-
-
-def test_position1_offers_type_literals(monkeypatch):
-    monkeypatch.setattr(cli_mod, "_load_collection", lambda name: [])
-    assert "cv" in _values(["render"], "cv")
-    assert "cover-letter" in _values(["render"], "cover")
-
-
-def test_position1_offers_renderable_cv_uris(monkeypatch):
-    monkeypatch.setattr(
-        cli_mod,
-        "_load_collection",
-        lambda name: [{"identifier": "my-cv"}] if name == "cvs" else [],
+@pytest.fixture
+def posting():
+    return JobPosting(
+        company="Acme",
+        title="Engineer",
+        experience_level="Senior",
+        industry="Software",
+        description="Build tools",
     )
-    assert "cvs/my-cv" in _values(["render"], "cvs/")
 
 
-def test_position1_prunes_bare_job_postings(monkeypatch):
-    # a job posting with no optimized CVs is not a renderable target
-    monkeypatch.setattr(
-        cli_mod,
-        "_load_collection",
-        lambda name: [{"identifier": "acme"}] if name == "job-postings" else [],
+@pytest.fixture
+def cv():
+    return CurriculumVitae(
+        name="Jane Doe",
+        profession="Engineer",
+        contact=Contact(
+            city="Oakland", state="CA", email="jane@example.com", phone="555-1234"
+        ),
+        core_expertise=[],
+        qualifications=[],
+        education=[],
+        experience=[],
+        additional_experience=[],
+        areas_of_expertise=[],
+        languages=[],
     )
-    assert _values(["render"], "job") == []
 
 
-def test_position2_file_mode_offers_stdin_and_files(monkeypatch):
-    monkeypatch.setattr(cli_mod, "_load_collection", lambda name: [])
-    items = _items(["render", "cv"], "")
-    assert "-" in [c.value for c in items]
-    assert "file" in [c.type for c in items]
+def _items(service, args, incomplete):
+    shell = ShellComplete(main, {"obj": service}, "cv-joint", "_CV_JOINT_COMPLETE")
+    return shell.get_completions(list(args), incomplete)
 
 
-def test_position2_uri_mode_offers_nothing(monkeypatch):
-    monkeypatch.setattr(cli_mod, "_load_collection", lambda name: [])
-    assert _items(["render", "cvs/my-cv"], "") == []
+def _values(service, args, incomplete):
+    return [item.value for item in _items(service, args, incomplete)]
+
+
+def test_position1_offers_type_literals(service):
+    assert "cv" in _values(service, ["render"], "cv")
+    assert "cover-letter" in _values(service, ["render"], "cover")
+
+
+def test_position1_offers_renderable_cv_uris(service, posting, cv):
+    service.add("cvs/my-cv", cv.model_dump())
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("job-postings/acme/cvs/tailored", cv.model_dump())
+
+    assert _values(service, ["render"], "cvs/") == ["cvs/my-cv"]
+    assert _values(service, ["render"], "job") == ["job-postings/acme/cvs/tailored"]
+
+
+def test_position1_prunes_bare_job_postings(service, posting):
+    service.add("job-postings/acme", posting.model_dump())
+    assert _values(service, ["render"], "job") == []
+
+
+def test_position2_file_mode_offers_stdin_and_files(service):
+    items = _items(service, ["render", "cv"], "")
+    assert "-" in [item.value for item in items]
+    assert "file" in [item.type for item in items]
+
+
+def test_position2_uri_mode_offers_nothing(service):
+    assert _items(service, ["render", "cvs/my-cv"], "") == []

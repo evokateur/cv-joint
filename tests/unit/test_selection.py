@@ -313,6 +313,7 @@ def test_add_completion_offers_destination_prefixes_ending_in_a_slash(
     service.transition_job_posting("acme", "applied")
 
     assert service.complete_add_destinations("") == [
+        "cover-letters/",
         "cvs/",
         "cvs/base/",
         "job-postings/",
@@ -405,4 +406,9 @@ def test_cli_exact_entity_prints_content_and_ignores_selection_flags(service, cv
 
 
 def test_completion_offers_collections_without_any_records(service):
-    assert service.complete_targets("") == ["cvs", "job-postings", "optimized-cvs"]
+    assert service.complete_targets("") == [
+        "cover-letters",
+        "cvs",
+        "job-postings",
+        "optimized-cvs",
+    ]

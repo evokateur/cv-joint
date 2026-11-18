@@ -149,21 +149,6 @@ def export_schema(path):
         click.echo(f"Wrote {written}")
 
 
-def _renderable_uris() -> list[str]:
-    """URIs that resolve to a CV (the only renderable targets today).
-
-    Never a bare job-postings/{id} — that is not a CV, so it is pruned; only its
-    cvs/{id} leaves are offered. Invariant: if it completes, it renders.
-    """
-    uris = [f"cvs/{item['identifier']}" for item in _load_collection("cvs")]
-    uris += [
-        f"job-postings/{item['job_posting_identifier']}/cvs/{item['identifier']}"
-        for item in _load_collection("optimized-cvs")
-        if item.get("job_posting_identifier") and item.get("identifier")
-    ]
-    return uris
-
-
 def _complete_render_target(ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
     from renderers.latex import RENDERERS
@@ -171,8 +156,12 @@ def _complete_render_target(ctx, _param, incomplete):
     typed = ctx.params.get("args") or ()
     if len(typed) == 0:
         # position 1: type literals (cv, cover-letter) + renderable URIs
-        candidates = list(RENDERERS) + _renderable_uris()
-        return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+        from services.application import ApplicationService
+
+        service = ctx.obj if ctx.obj is not None else ApplicationService()
+        types = [name for name in RENDERERS if name.startswith(incomplete)]
+        candidates = types + service.complete_render_targets(incomplete)
+        return [CompletionItem(c) for c in candidates]
     if len(typed) == 1 and typed[0] in RENDERERS:
         # position 2, file mode: stdin sentinel + hand off to shell file globbing
         items = []
@@ -204,8 +193,9 @@ def _render_target_from_file(doc_type: str, input_path: str):
     return load_data(input_path), doc_type, path.stem
 
 
-def _render_target_from_uri(uri: str):
-    """Resolve a stored CV URI to (data, type, default base name)."""
+def _render_target_from_uri(uri: str, service=None):
+    """Resolve a stored entity to (data, type, default base name)."""
+    from models import CoverLetter, CurriculumVitae
     from services.application import ApplicationService
 
     try:
@@ -213,29 +203,27 @@ def _render_target_from_uri(uri: str):
     except ValueError:
         raise click.UsageError(
             f"unrecognised URI '{uri}'\n"
-            "Expected a CV (cvs/{{id}} or job-postings/{{id}}/cvs/{{id}}), "
+            "Expected a CV or cover letter URI, "
             "or file mode: render <type> <input>"
         )
 
-    service = ApplicationService()
-    if parsed["collection"] == "cvs":
-        obj = service.get_cv(parsed["identifier"])
-        base_name = parsed["identifier"]
-    elif parsed["collection"] == "optimized-cvs":
-        obj = service.get_optimized_cv(
-            parsed["job_posting_identifier"], parsed["identifier"]
-        )
-        base_name = f"{parsed['job_posting_identifier']}-{parsed['identifier']}"
+    service = service if service is not None else ApplicationService()
+    try:
+        obj = service.get(uri)
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
+    if isinstance(obj, CoverLetter):
+        doc_type = "cover-letter"
+    elif isinstance(obj, CurriculumVitae):
+        doc_type = "cv"
     else:
         raise click.UsageError(
-            f"not a renderable CV target: {uri}\n"
-            "Expected cvs/{{id}} or job-postings/{{id}}/cvs/{{id}}"
+            f"not a renderable target: {uri}\nExpected a CV or cover letter URI"
         )
-
-    if obj is None:
-        click.echo(f"Not found: {uri}", err=True)
-        sys.exit(1)
-    return obj.model_dump(), "cv", base_name
+    base_name = parsed["identifier"]
+    if parsed["collection"] == "optimized-cvs":
+        base_name = f"{parsed['job_posting_identifier']}-{base_name}"
+    return obj.model_dump(), doc_type, base_name
 
 
 def _default_render_filename(base_name: str, fmt: str) -> str:
@@ -302,15 +290,16 @@ def _emit_render(data, doc_type, fmt, output, default_base_name, template):
     help="Override the type's default template.",
     shell_complete=_complete_template,
 )
-def render(args, fmt, output, template):
+@click.pass_context
+def render(ctx, args, fmt, output, template):
     """Render a document to PDF or TeX.
 
     \b
-    cv-joint render <uri>            a stored CV, e.g. cvs/my-cv
+    cv-joint render <uri>            a stored CV or cover letter
     cv-joint render <type> <input>   a data file or '-' (stdin), e.g. cv data/cv.yaml
     """
     if len(args) == 1:
-        data, doc_type, base_name = _render_target_from_uri(args[0])
+        data, doc_type, base_name = _render_target_from_uri(args[0], ctx.obj)
     elif len(args) == 2:
         data, doc_type, base_name = _render_target_from_file(args[0], args[1])
     else:
@@ -726,7 +715,7 @@ def _ingest(service, collection: str, identifier: str | None, analyze) -> str:
 
     An explicit identifier is validated before any analysis runs.
     """
-    from services.application import PRIMARY_FILES
+    from services.application import PRODUCER_OUTPUT_PRIMARY_FILES
 
     if identifier is not None:
         try:
@@ -736,7 +725,7 @@ def _ingest(service, collection: str, identifier: str | None, analyze) -> str:
     outputs = analyze()
     if identifier is None:
         entity_uri = service.generate_default_entity_uri(
-            collection, outputs[PRIMARY_FILES[collection]]
+            collection, outputs[PRODUCER_OUTPUT_PRIMARY_FILES[collection]]
         )
     else:
         entity_uri = f"{collection}/{identifier}"

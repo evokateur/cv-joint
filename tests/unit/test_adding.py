@@ -96,7 +96,6 @@ def test_adding_to_a_postings_cvs_creates_an_optimized_cv(service, posting, cv):
     [
         "optimized-cvs/backend",
         "optimized-cvs/applied/backend",
-        "cover-letters/backend",
         "nowhere/backend",
     ],
 )

@@ -258,7 +258,7 @@ def test_invalid_content_leaves_entity_and_record_unchanged(service, cv, data):
         "optimized-cvs",
         "optimized-cvs/archived",
         "optimized-cvs/backend",
-        "cover-letters/backend",
+        "cover-letters/missing",
         "cvs/missing",
         "job-postings/missing",
         "job-postings/acme/cvs/missing",
@@ -288,7 +288,7 @@ def test_update_requires_an_existing_writable_entity(service, posting, cv, targe
         "cvs/backend",
         "job-postings/acme/cvs",
         "optimized-cvs/backend/notes.txt",
-        "cover-letters/backend/notes.txt",
+        "cover-letters/missing/notes.txt",
     ],
 )
 def test_document_update_requires_an_existing_writable_document(service, cv, target):

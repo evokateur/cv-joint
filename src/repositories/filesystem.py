@@ -612,6 +612,19 @@ class FileSystemRepository:
             for item in self._load_collection(self.cover_letters_collection)
         ]
 
+    def update_cover_letter_record(self, record: CoverLetterRecord) -> None:
+        """Replace a cover letter's listing record."""
+        collection = self._load_collection(self.cover_letters_collection)
+        stored = next(
+            (item for item in collection if item["identifier"] == record.identifier),
+            None,
+        )
+        if stored is None:
+            raise ValueError(f"Cover letter not found: {record.identifier}")
+        stored.clear()
+        stored.update(record.model_dump(mode="json"))
+        self._save_collection(self.cover_letters_collection, collection)
+
     def remove_cover_letter(self, identifier: str) -> bool:
         """
         Remove a cover letter from the collection and delete its data directory.

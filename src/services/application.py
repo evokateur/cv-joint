@@ -8,6 +8,8 @@ from typing import Any, Callable, Optional
 
 from config.root import get_settings
 from models import (
+    CoverLetter,
+    CoverLetterRecord,
     CurriculumVitae,
     CurriculumVitaeRecord,
     JobPosting,
@@ -29,12 +31,15 @@ from services.addressing import (
 )
 from renderers.latex import render_tex, tex_to_pdf
 
-# The named output holding each loadable collection's entity content.
-PRIMARY_FILES = {
+# The named output holding the entity content in a producer's outputs.
+PRODUCER_OUTPUT_PRIMARY_FILES = {
     "cvs": "curriculum-vitae.json",
     "job-postings": "job-posting.json",
     "optimized-cvs": "curriculum-vitae.json",
 }
+
+# Collections load accepts. Cover letters have no producer yet.
+LOADABLE_COLLECTIONS = {"cvs", "job-postings", "optimized-cvs"}
 
 
 def _document_bytes(content: Any) -> bytes:
@@ -50,8 +55,6 @@ def _parse_new_entity_uri(entity_uri: str) -> dict[str, str]:
         parsed = parse_uri(entity_uri)
     except ValueError:
         raise ValueError(f"Cannot add to {entity_uri}") from None
-    if parsed["collection"] == "cover-letters":
-        raise ValueError(f"Cannot add to {entity_uri}")
     return parsed
 
 
@@ -138,6 +141,8 @@ class ApplicationService:
             raise ValueError(f"Already exists: {entity_uri}")
         if parsed["collection"] == "job-postings":
             record = self._add_job_posting(data, identifier)
+        elif parsed["collection"] == "cover-letters":
+            record = self._add_cover_letter(data, identifier)
         elif parsed["collection"] == "optimized-cvs":
             posting = parsed["job_posting_identifier"]
             resolve_record(self.repository, f"job-postings/{posting}")
@@ -202,9 +207,9 @@ class ApplicationService:
             collection = parse_uri(entity_uri)["collection"]
         except ValueError:
             collection = None
-        if collection not in PRIMARY_FILES:
+        if collection not in LOADABLE_COLLECTIONS:
             raise ValueError(f"Cannot load into {entity_uri}")
-        primary_file = PRIMARY_FILES[collection]
+        primary_file = PRODUCER_OUTPUT_PRIMARY_FILES[collection]
         if primary_file not in outputs:
             raise ValueError(f"Missing {primary_file}")
         for filename in outputs:
@@ -225,6 +230,9 @@ class ApplicationService:
         if isinstance(record, JobPostingRecord):
             content = JobPosting(**data)
             fields = ("url", "company", "title", "experience_level")
+        elif isinstance(record, CoverLetterRecord):
+            content = CoverLetter(**data)
+            fields = ("name", "company", "position")
         else:
             content = CurriculumVitae(**data)
             fields = ("name", "profession")
@@ -235,6 +243,8 @@ class ApplicationService:
         self.repository.save_object(record, content)
         if isinstance(record, JobPostingRecord):
             self.repository.update_job_posting_record(replacement)
+        elif isinstance(record, CoverLetterRecord):
+            self.repository.update_cover_letter_record(replacement)
         else:
             self.repository.update_cv_record(replacement)
         return self._record_uri(record)
@@ -245,7 +255,12 @@ class ApplicationService:
         if records is not None:
             return records
         record = self._entity_record(target)
-        model = JobPosting if isinstance(record, JobPostingRecord) else CurriculumVitae
+        if isinstance(record, JobPostingRecord):
+            model = JobPosting
+        elif isinstance(record, CoverLetterRecord):
+            model = CoverLetter
+        else:
+            model = CurriculumVitae
         content = self.repository.load_object(record, model)
         if content is None:
             raise FileNotFoundError(f"Content not found: {target}")
@@ -265,6 +280,8 @@ class ApplicationService:
             )
         elif parts == ["cvs"]:
             records = self.repository.get_cv_records()
+        elif parts == ["cover-letters"]:
+            records = self.repository.get_cover_letter_records()
         elif parts == ["optimized-cvs"] or (
             len(parts) == 2
             and parts[0] == "optimized-cvs"
@@ -308,7 +325,11 @@ class ApplicationService:
         return uris
 
     def _entity_record(self, target: str):
-        if target.strip("/").split("/")[0] not in ("job-postings", "cvs"):
+        if target.strip("/").split("/")[0] not in (
+            "job-postings",
+            "cvs",
+            "cover-letters",
+        ):
             raise ValueError(f"Unrecognised target: {target}")
         return resolve_record(self.repository, target)
 
@@ -361,24 +382,29 @@ class ApplicationService:
     def complete_add_destinations(self, incomplete: str) -> list[str]:
         """Complete add destinations: collection prefixes and entities, ending in '/'."""
         entities = {f"{self._record_uri(record)}/" for record in self._entity_records()}
-        candidates = self._collection_prefixes() | entities
+        candidates = self._collection_prefixes().keys() | entities
         return sorted(
             candidate for candidate in candidates if candidate.startswith(incomplete)
         )
 
     def complete_load_destinations(self, incomplete: str) -> list[str]:
-        """Complete load destinations: collection prefixes ending in '/'."""
+        """Complete load destinations: loadable collection prefixes ending in '/'."""
         return sorted(
-            candidate
-            for candidate in self._collection_prefixes()
-            if candidate.startswith(incomplete)
+            prefix
+            for prefix, collection in self._collection_prefixes().items()
+            if collection in LOADABLE_COLLECTIONS and prefix.startswith(incomplete)
         )
 
-    def _collection_prefixes(self) -> set[str]:
-        """Writable collections as URI prefixes ending in '/'."""
+    def _collection_prefixes(self) -> dict[str, str]:
+        """Writable collections, keyed by URI prefix ending in '/'."""
         postings = self.repository.get_job_posting_records(all=True)
-        return {"cvs/", "job-postings/"} | {
-            f"job-postings/{record.identifier}/cvs/" for record in postings
+        return {
+            "cvs/": "cvs",
+            "job-postings/": "job-postings",
+            "cover-letters/": "cover-letters",
+        } | {
+            f"job-postings/{record.identifier}/cvs/": "optimized-cvs"
+            for record in postings
         }
 
     def _entity_records(self) -> list:
@@ -387,11 +413,12 @@ class ApplicationService:
             self.repository.get_job_posting_records(all=True)
             + self.repository.get_cv_records()
             + self.repository.get_optimized_cv_records()
+            + self.repository.get_cover_letter_records()
         )
 
     def complete_targets(self, incomplete: str) -> list[str]:
         """Complete logical reading targets across every location."""
-        candidates = {"job-postings", "cvs", "optimized-cvs"}
+        candidates = {"job-postings", "cvs", "optimized-cvs", "cover-letters"}
         for location in self.list_locations():
             candidates.update((f"job-postings/{location}", f"optimized-cvs/{location}"))
         for record in self._entity_records():
@@ -407,8 +434,21 @@ class ApplicationService:
             candidate for candidate in candidates if candidate.startswith(incomplete)
         )
 
+    def complete_render_targets(self, incomplete: str) -> list[str]:
+        """Complete stored CV and cover-letter URIs suitable for rendering."""
+        return sorted(
+            uri
+            for record in self._entity_records()
+            if isinstance(
+                record, (CurriculumVitaeRecord, OptimizedCvRecord, CoverLetterRecord)
+            )
+            if (uri := self._record_uri(record)).startswith(incomplete)
+        )
+
     @staticmethod
     def _record_uri(record) -> str:
+        if isinstance(record, CoverLetterRecord):
+            return f"cover-letters/{record.identifier}"
         if isinstance(record, OptimizedCvRecord):
             return (
                 f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
@@ -487,7 +527,11 @@ class ApplicationService:
             tmp.flush()
             posting = self.job_posting_analyzer.analyze(tmp.name)
         posting = posting.model_copy(update={"url": url or source_url})
-        return {PRIMARY_FILES["job-postings"]: posting.model_dump(mode="json")}
+        return {
+            PRODUCER_OUTPUT_PRIMARY_FILES["job-postings"]: posting.model_dump(
+                mode="json"
+            )
+        }
 
     def analyze_job_posting(
         self, content: str, *, url: str | None = None
@@ -499,7 +543,11 @@ class ApplicationService:
             posting = self.job_posting_analyzer.analyze(source.name)
         if url is not None:
             posting = posting.model_copy(update={"url": url})
-        return {PRIMARY_FILES["job-postings"]: posting.model_dump(mode="json")}
+        return {
+            PRODUCER_OUTPUT_PRIMARY_FILES["job-postings"]: posting.model_dump(
+                mode="json"
+            )
+        }
 
     def _add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
         """
@@ -640,7 +688,7 @@ class ApplicationService:
             source.write(content)
             source.flush()
             cv = self.cv_analyzer.analyze(source.name)
-        return {PRIMARY_FILES["cvs"]: cv.model_dump(mode="json")}
+        return {PRODUCER_OUTPUT_PRIMARY_FILES["cvs"]: cv.model_dump(mode="json")}
 
     def _add_cv(self, cv_data: dict[str, Any], identifier: str):
         """
@@ -669,6 +717,20 @@ class ApplicationService:
         )
         record = self.repository.add_cv(record, cv)
         return record
+
+    def _add_cover_letter(self, data: dict[str, Any], identifier: str):
+        """Add a validated cover letter with its listing summary."""
+        letter = CoverLetter(**data)
+        now = datetime.now()
+        record = CoverLetterRecord(
+            identifier=identifier,
+            name=letter.name,
+            company=letter.company,
+            position=letter.position,
+            created_at=now,
+            updated_at=now,
+        )
+        return self.repository.add_cover_letter(record, letter)
 
     def get_cv(self, identifier: str):
         """Retrieve a CV by identifier."""
@@ -705,6 +767,8 @@ class ApplicationService:
             self.repository.remove_optimized_cv(
                 record.job_posting_identifier, record.identifier
             )
+        elif isinstance(record, CoverLetterRecord):
+            self.repository.remove_cover_letter(record.identifier)
         else:
             self.repository.remove_cv(record.identifier)
         return self._record_uri(record)
@@ -724,6 +788,10 @@ class ApplicationService:
         elif isinstance(record, OptimizedCvRecord):
             renamed = self.repository.rename_optimized_cv(
                 record.job_posting_identifier, record.identifier, new_identifier
+            )
+        elif isinstance(record, CoverLetterRecord):
+            renamed = self.repository.rename_cover_letter(
+                record.identifier, new_identifier
             )
         else:
             renamed = self.repository.rename_cv(record.identifier, new_identifier)
@@ -834,7 +902,7 @@ class ApplicationService:
         )
         return {
             "base_cv_uri": cv_uri,
-            PRIMARY_FILES["cvs"]: output.cv.model_dump(mode="json"),
+            PRODUCER_OUTPUT_PRIMARY_FILES["cvs"]: output.cv.model_dump(mode="json"),
             **{
                 filename: artifact.model_dump(mode="json")
                 for filename, artifact in output.artifacts.items()
