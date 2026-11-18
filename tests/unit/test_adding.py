@@ -131,9 +131,10 @@ def test_adding_requires_a_valid_identifier(service, cv, identifier):
     assert service.list("cvs") == []
 
 
-def test_adding_an_optimized_cv_requires_an_existing_posting(service, cv):
-    with pytest.raises(ValueError, match="Not found"):
-        service.add("job-postings/missing/cvs/backend", cv.model_dump())
+@pytest.mark.parametrize("identifier", ["backend", "back end"])
+def test_adding_an_optimized_cv_requires_an_existing_posting(service, cv, identifier):
+    with pytest.raises(ValueError, match="^Not found: job-postings/missing$"):
+        service.add(f"job-postings/missing/cvs/{identifier}", cv.model_dump())
 
     assert service.list("optimized-cvs", recursive=True) == []
 

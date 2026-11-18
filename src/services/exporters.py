@@ -1,11 +1,11 @@
 import logging
-import re
 from typing import Optional
 
 import yaml
 from pydantic import BaseModel, ValidationError
 
 from models import (
+    kebab_case,
     CoverLetterRecord,
     JobPosting,
     JobPostingRecord,
@@ -53,11 +53,6 @@ RECORD_DOCUMENTS: dict[type, set[str]] = {
 }
 
 
-def _to_kebab_case(name: str) -> str:
-    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1-\2", name)
-    return re.sub("([a-z0-9])([A-Z])", r"\1-\2", s1).lower()
-
-
 class MarkdownExporter:
     """Converts domain objects to markdown and writes them via the repository."""
 
@@ -96,7 +91,7 @@ class MarkdownExporter:
         markdown = self.converter.convert(obj)
         if markdown is None:
             return
-        filename = f"{_to_kebab_case(type(obj).__name__)}.md"
+        filename = f"{kebab_case(type(obj).__name__)}.md"
         markdown = self.compose_document(record, filename, markdown)
         self.repository.add_or_replace_document(record, filename, markdown)
 

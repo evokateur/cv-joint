@@ -6,7 +6,7 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from pydantic import BaseModel
 
-from models import CurriculumVitae, CvTransformationPlan, JobPosting
+from models import CurriculumVitae, CvTransformationPlan, JobPosting, kebab_case
 
 
 def insert_json_as_frontmatter(data: dict, markdown: str) -> str:
@@ -16,11 +16,6 @@ def insert_json_as_frontmatter(data: dict, markdown: str) -> str:
 URL_PATTERN = re.compile(r'https?://[^\s<>"{}|\\^`\[\]]+')
 
 _TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates" / "markdown"
-
-
-def _to_kebab_case(name: str) -> str:
-    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1-\2", name)
-    return re.sub("([a-z0-9])([A-Z])", r"\1-\2", s1).lower()
 
 
 def _linkify(text: str) -> str:
@@ -47,7 +42,7 @@ class MarkdownConverter:
 
     def convert(self, obj: BaseModel) -> Optional[str]:
         """Convert a domain object to markdown. Returns None if no template exists."""
-        template_name = _to_kebab_case(type(obj).__name__) + ".md"
+        template_name = kebab_case(type(obj).__name__) + ".md"
         try:
             template = self._env.get_template(template_name)
         except TemplateNotFound:

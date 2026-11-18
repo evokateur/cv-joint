@@ -8,8 +8,6 @@ from typing import Any, Callable, Optional
 
 from config.root import get_settings
 from models import (
-    CoverLetter,
-    CoverLetterRecord,
     CurriculumVitae,
     CurriculumVitaeRecord,
     JobPosting,
@@ -29,17 +27,21 @@ from services.addressing import (
     validate_filename,
     validate_identifier,
 )
+from services.entity_types import (
+    ENTITY_TYPES,
+    OPTIMIZED_CVS,
+    TOP_LEVEL_COLLECTIONS,
+    entity_type_of,
+)
 from renderers.latex import render_tex, tex_to_pdf
 
-# The named output holding the entity content in a producer's outputs.
+# The named output holding the entity content in a producer's outputs, for each
+# collection load accepts.
 PRODUCER_OUTPUT_PRIMARY_FILES = {
-    "cvs": "curriculum-vitae.json",
-    "job-postings": "job-posting.json",
-    "optimized-cvs": "curriculum-vitae.json",
+    collection: entity_type.content_file
+    for collection, entity_type in ENTITY_TYPES.items()
+    if entity_type.loadable
 }
-
-# Collections load accepts. Cover letters have no producer yet.
-LOADABLE_COLLECTIONS = {"cvs", "job-postings", "optimized-cvs"}
 
 
 def _document_bytes(content: Any) -> bytes:
@@ -67,20 +69,6 @@ def _next_identifier(identifier: str, exists: Callable[[str], Any]) -> str:
         counter += 1
         candidate = f"{base}-{counter}"
     return candidate
-
-
-def _slugify(text: str) -> str:
-    """Lowercase, drop punctuation, and hyphenate whitespace."""
-    text = text.lower()
-    text = re.sub(r"[^\w\s-]", "", text)
-    text = re.sub(r"[-\s]+", "-", text)
-    return text.strip("-")
-
-
-def _slugify_job(company: str, title: str) -> str:
-    if company.lower() == "not specified":
-        return _slugify(title)
-    return f"{_slugify(company)}-{_slugify(title)}"
 
 
 class ApplicationService:
@@ -136,21 +124,34 @@ class ApplicationService:
         if not isinstance(data, dict):
             raise ValueError("Entity content must be a JSON object")
         parsed = _parse_new_entity_uri(entity_uri)
+        entity_type = ENTITY_TYPES[parsed["collection"]]
+        if entity_type.collection == OPTIMIZED_CVS:
+            posting = parsed["job_posting_identifier"]
+            parent = resolve_record(self.repository, f"job-postings/{posting}")
         identifier = validate_identifier(parsed["identifier"])
         if self.object_exists(entity_uri):
             raise ValueError(f"Already exists: {entity_uri}")
-        if parsed["collection"] == "job-postings":
-            record = self._add_job_posting(data, identifier)
-        elif parsed["collection"] == "cover-letters":
-            record = self._add_cover_letter(data, identifier)
-        elif parsed["collection"] == "optimized-cvs":
-            posting = parsed["job_posting_identifier"]
-            resolve_record(self.repository, f"job-postings/{posting}")
-            record = self._add_optimized_cv(
-                posting, identifier, base_cv_identifier, CurriculumVitae(**data)
+        content = entity_type.content_model(**data)
+        now = datetime.now()
+        fields = {
+            "identifier": identifier,
+            **entity_type.summary(content),
+            "created_at": now,
+            "updated_at": now,
+        }
+        if entity_type.collection == OPTIMIZED_CVS:
+            record = OptimizedCvRecord(
+                **fields,
+                job_posting_identifier=posting,
+                base_cv_identifier=base_cv_identifier,
+                job_title=parent.title,
+                company=parent.company,
             )
+            record = self.repository.add_optimized_cv(parent, record, content)
         else:
-            record = self._add_cv(data, identifier)
+            record = entity_type.add(
+                self.repository, entity_type.record_model(**fields), content
+            )
         return self._record_uri(record)
 
     def load(self, entity_uri: str, outputs: dict[str, Any] | str) -> str:
@@ -207,7 +208,7 @@ class ApplicationService:
             collection = parse_uri(entity_uri)["collection"]
         except ValueError:
             collection = None
-        if collection not in LOADABLE_COLLECTIONS:
+        if collection not in PRODUCER_OUTPUT_PRIMARY_FILES:
             raise ValueError(f"Cannot load into {entity_uri}")
         primary_file = PRODUCER_OUTPUT_PRIMARY_FILES[collection]
         if primary_file not in outputs:
@@ -227,26 +228,13 @@ class ApplicationService:
             data = json.loads(data)
         if not isinstance(data, dict):
             raise ValueError("Entity content must be a JSON object")
-        if isinstance(record, JobPostingRecord):
-            content = JobPosting(**data)
-            fields = ("url", "company", "title", "experience_level")
-        elif isinstance(record, CoverLetterRecord):
-            content = CoverLetter(**data)
-            fields = ("name", "company", "position")
-        else:
-            content = CurriculumVitae(**data)
-            fields = ("name", "profession")
-        summary = {field: getattr(content, field) for field in fields}
+        entity_type = entity_type_of(record)
+        content = entity_type.content_model(**data)
         replacement = record.model_copy(
-            update={**summary, "updated_at": datetime.now()}
+            update={**entity_type.summary(content), "updated_at": datetime.now()}
         )
         self.repository.save_object(record, content)
-        if isinstance(record, JobPostingRecord):
-            self.repository.update_job_posting_record(replacement)
-        elif isinstance(record, CoverLetterRecord):
-            self.repository.update_cover_letter_record(replacement)
-        else:
-            self.repository.update_cv_record(replacement)
+        entity_type.update_record(self.repository, replacement)
         return self._record_uri(record)
 
     def get(self, target: str, *, recursive=False, query=None):
@@ -255,13 +243,9 @@ class ApplicationService:
         if records is not None:
             return records
         record = self._entity_record(target)
-        if isinstance(record, JobPostingRecord):
-            model = JobPosting
-        elif isinstance(record, CoverLetterRecord):
-            model = CoverLetter
-        else:
-            model = CurriculumVitae
-        content = self.repository.load_object(record, model)
+        content = self.repository.load_object(
+            record, entity_type_of(record).content_model
+        )
         if content is None:
             raise FileNotFoundError(f"Content not found: {target}")
         return content
@@ -278,10 +262,8 @@ class ApplicationService:
             records = self.repository.get_job_posting_records(
                 location=location, all=recursive
             )
-        elif parts == ["cvs"]:
-            records = self.repository.get_cv_records()
-        elif parts == ["cover-letters"]:
-            records = self.repository.get_cover_letter_records()
+        elif len(parts) == 1 and parts[0] in TOP_LEVEL_COLLECTIONS:
+            records = ENTITY_TYPES[parts[0]].get_records(self.repository)
         elif parts == ["optimized-cvs"] or (
             len(parts) == 2
             and parts[0] == "optimized-cvs"
@@ -320,16 +302,13 @@ class ApplicationService:
         uris = [
             f"{uri}/{filename}" for filename in self.repository.list_documents(record)
         ]
-        if isinstance(record, JobPostingRecord):
-            uris.append(f"{uri}/cvs")
+        uris.extend(
+            f"{uri}/{child}" for child in entity_type_of(record).child_collections
+        )
         return uris
 
     def _entity_record(self, target: str):
-        if target.strip("/").split("/")[0] not in (
-            "job-postings",
-            "cvs",
-            "cover-letters",
-        ):
+        if target.strip("/").split("/")[0] not in TOP_LEVEL_COLLECTIONS:
             raise ValueError(f"Unrecognised target: {target}")
         return resolve_record(self.repository, target)
 
@@ -392,33 +371,31 @@ class ApplicationService:
         return sorted(
             prefix
             for prefix, collection in self._collection_prefixes().items()
-            if collection in LOADABLE_COLLECTIONS and prefix.startswith(incomplete)
+            if collection in PRODUCER_OUTPUT_PRIMARY_FILES
+            and prefix.startswith(incomplete)
         )
 
     def _collection_prefixes(self) -> dict[str, str]:
         """Writable collections, keyed by URI prefix ending in '/'."""
         postings = self.repository.get_job_posting_records(all=True)
         return {
-            "cvs/": "cvs",
-            "job-postings/": "job-postings",
-            "cover-letters/": "cover-letters",
+            f"{collection}/": collection for collection in TOP_LEVEL_COLLECTIONS
         } | {
-            f"job-postings/{record.identifier}/cvs/": "optimized-cvs"
+            f"job-postings/{record.identifier}/cvs/": OPTIMIZED_CVS
             for record in postings
         }
 
     def _entity_records(self) -> list:
         """Records of every entity in every location."""
-        return (
-            self.repository.get_job_posting_records(all=True)
-            + self.repository.get_cv_records()
-            + self.repository.get_optimized_cv_records()
-            + self.repository.get_cover_letter_records()
-        )
+        return [
+            record
+            for entity_type in ENTITY_TYPES.values()
+            for record in entity_type.get_records(self.repository)
+        ]
 
     def complete_targets(self, incomplete: str) -> list[str]:
         """Complete logical reading targets across every location."""
-        candidates = {"job-postings", "cvs", "optimized-cvs", "cover-letters"}
+        candidates = set(ENTITY_TYPES)
         for location in self.list_locations():
             candidates.update((f"job-postings/{location}", f"optimized-cvs/{location}"))
         for record in self._entity_records():
@@ -428,8 +405,9 @@ class ApplicationService:
                 f"{uri}/{filename}"
                 for filename in self.repository.list_documents(record)
             )
-            if isinstance(record, JobPostingRecord):
-                candidates.add(f"{uri}/cvs")
+            candidates.update(
+                f"{uri}/{child}" for child in entity_type_of(record).child_collections
+            )
         return sorted(
             candidate for candidate in candidates if candidate.startswith(incomplete)
         )
@@ -439,22 +417,13 @@ class ApplicationService:
         return sorted(
             uri
             for record in self._entity_records()
-            if isinstance(
-                record, (CurriculumVitaeRecord, OptimizedCvRecord, CoverLetterRecord)
-            )
+            if entity_type_of(record).renderable
             if (uri := self._record_uri(record)).startswith(incomplete)
         )
 
     @staticmethod
     def _record_uri(record) -> str:
-        if isinstance(record, CoverLetterRecord):
-            return f"cover-letters/{record.identifier}"
-        if isinstance(record, OptimizedCvRecord):
-            return (
-                f"job-postings/{record.job_posting_identifier}/cvs/{record.identifier}"
-            )
-        collection = "job-postings" if isinstance(record, JobPostingRecord) else "cvs"
-        return f"{collection}/{record.identifier}"
+        return entity_type_of(record).uri(record)
 
     def object_exists(self, uri: str) -> bool:
         """Whether an object exists at uri. The collision check, keyed on the URI.
@@ -467,21 +436,13 @@ class ApplicationService:
             parsed = parse_uri(uri)
         except ValueError:
             return False
-        collection = parsed["collection"]
-        if collection == "job-postings":
-            return self.repository.get_job_posting(parsed["identifier"]) is not None
-        if collection == "cvs":
-            return self.repository.get_cv(parsed["identifier"]) is not None
-        if collection == "cover-letters":
-            return self.repository.get_cover_letter(parsed["identifier"]) is not None
-        if collection == "optimized-cvs":
-            return (
-                self.repository.get_optimized_cv(
-                    parsed["job_posting_identifier"], parsed["identifier"]
-                )
-                is not None
-            )
-        return False
+        entity_type = ENTITY_TYPES[parsed["collection"]]
+        record = entity_type.get_record(self.repository, *entity_type.key_of(parsed))
+        return (
+            record is not None
+            and self.repository.load_object(record, entity_type.content_model)
+            is not None
+        )
 
     def uniquify_entity_uri(self, new_uri: str) -> str:
         """new_uri when it's free, or with a -N suffix when it's taken. Reserves nothing."""
@@ -501,13 +462,12 @@ class ApplicationService:
 
         None when the collection has no default identifier defined.
         """
-        if collection_uri == "job-postings":
-            slug = _slugify_job(data["company"], data["title"])
-        elif collection_uri == "cvs":
-            slug = _slugify(data["profession"])
-        else:
+        entity_type = ENTITY_TYPES.get(collection_uri)
+        if entity_type is None or entity_type.default_slug is None:
             return None
-        return self.uniquify_entity_uri(f"{collection_uri}/{slug}")
+        return self.uniquify_entity_uri(
+            f"{collection_uri}/{entity_type.default_slug(data)}"
+        )
 
     def analyze_job_posting_url(
         self, source_url: str, *, url: str | None = None
@@ -548,36 +508,6 @@ class ApplicationService:
                 mode="json"
             )
         }
-
-    def _add_job_posting(self, job_posting_data: dict[str, Any], identifier: str):
-        """
-        Add a job posting to the repository under identifier.
-
-        Args:
-            job_posting_data: Job posting data dict
-            identifier: Identifier to use for this job posting
-
-        Returns:
-            JobPostingRecord
-
-        Raises:
-            ValueError: if identifier already exists
-        """
-        from models import JobPosting, JobPostingRecord
-
-        job_posting = JobPosting(**job_posting_data)
-        now = datetime.now()
-        record = JobPostingRecord(
-            identifier=identifier,
-            url=job_posting.url,
-            company=job_posting.company,
-            title=job_posting.title,
-            experience_level=job_posting.experience_level,
-            created_at=now,
-            updated_at=now,
-        )
-        record = self.repository.add_job_posting(record, job_posting)
-        return record
 
     def get_job_posting(self, identifier: str):
         """Retrieve a job posting by identifier."""
@@ -690,48 +620,6 @@ class ApplicationService:
             cv = self.cv_analyzer.analyze(source.name)
         return {PRODUCER_OUTPUT_PRIMARY_FILES["cvs"]: cv.model_dump(mode="json")}
 
-    def _add_cv(self, cv_data: dict[str, Any], identifier: str):
-        """
-        Add a CV to the repository under identifier.
-
-        Args:
-            cv_data: CV data dict (from analyze_cv)
-            identifier: Identifier to use for this CV
-
-        Returns:
-            CurriculumVitaeRecord
-
-        Raises:
-            ValueError: if identifier already exists
-        """
-        from models import CurriculumVitae, CurriculumVitaeRecord
-
-        cv = CurriculumVitae(**cv_data)
-        now = datetime.now()
-        record = CurriculumVitaeRecord(
-            identifier=identifier,
-            name=cv.name,
-            profession=cv.profession,
-            created_at=now,
-            updated_at=now,
-        )
-        record = self.repository.add_cv(record, cv)
-        return record
-
-    def _add_cover_letter(self, data: dict[str, Any], identifier: str):
-        """Add a validated cover letter with its listing summary."""
-        letter = CoverLetter(**data)
-        now = datetime.now()
-        record = CoverLetterRecord(
-            identifier=identifier,
-            name=letter.name,
-            company=letter.company,
-            position=letter.position,
-            created_at=now,
-            updated_at=now,
-        )
-        return self.repository.add_cover_letter(record, letter)
-
     def get_cv(self, identifier: str):
         """Retrieve a CV by identifier."""
         return self.repository.get_cv(identifier)
@@ -761,16 +649,8 @@ class ApplicationService:
                 f"Cannot remove collection, location or view: {entity_uri}"
             )
         record = self._entity_record(entity_uri)
-        if isinstance(record, JobPostingRecord):
-            self.repository.remove_job_posting(record.identifier)
-        elif isinstance(record, OptimizedCvRecord):
-            self.repository.remove_optimized_cv(
-                record.job_posting_identifier, record.identifier
-            )
-        elif isinstance(record, CoverLetterRecord):
-            self.repository.remove_cover_letter(record.identifier)
-        else:
-            self.repository.remove_cv(record.identifier)
+        entity_type = entity_type_of(record)
+        entity_type.remove(self.repository, *entity_type.key(record))
         return self._record_uri(record)
 
     def rename(self, entity_uri: str, new_identifier: str) -> str:
@@ -781,91 +661,11 @@ class ApplicationService:
             )
         validate_identifier(new_identifier)
         record = self._entity_record(entity_uri)
-        if isinstance(record, JobPostingRecord):
-            renamed = self.repository.rename_job_posting(
-                record.identifier, new_identifier
-            )
-        elif isinstance(record, OptimizedCvRecord):
-            renamed = self.repository.rename_optimized_cv(
-                record.job_posting_identifier, record.identifier, new_identifier
-            )
-        elif isinstance(record, CoverLetterRecord):
-            renamed = self.repository.rename_cover_letter(
-                record.identifier, new_identifier
-            )
-        else:
-            renamed = self.repository.rename_cv(record.identifier, new_identifier)
-        return self._record_uri(renamed)
-
-    def remove_job_posting(self, identifier: str) -> bool:
-        """
-        Remove a job posting and all nested cv optimizations.
-
-        Args:
-            identifier: Identifier of the job posting
-
-        Returns:
-            True if removed, False if not found
-        """
-        return self.repository.remove_job_posting(identifier)
-
-    def remove_cv(self, identifier: str) -> bool:
-        """
-        Remove a CV.
-
-        Args:
-            identifier: Identifier of the CV
-
-        Returns:
-            True if removed, False if not found
-
-        """
-        return self.repository.remove_cv(identifier)
-
-    def remove_optimized_cv(self, job_posting_identifier: str, identifier: str) -> bool:
-        """
-        Remove a saved cv optimization.
-
-        Args:
-            job_posting_identifier: Identifier of the parent job posting
-            identifier: Identifier of the optimization
-
-        Returns:
-            True if removed, False if not found
-        """
-        return self.repository.remove_optimized_cv(job_posting_identifier, identifier)
-
-    def rename_job_posting(self, identifier: str, new_identifier: str):
-        """
-        Rename a job posting, moving its data and markdown to the new identifier.
-
-        Raises:
-            ValueError: If not found or new identifier already exists
-        """
-        return self.repository.rename_job_posting(identifier, new_identifier)
-
-    def rename_cv(self, identifier: str, new_identifier: str):
-        """
-        Rename a CV, moving its data and markdown to the new identifier.
-        Also repairs any cv optimization records that reference this CV.
-
-        Raises:
-            ValueError: If not found or new identifier already exists
-        """
-        return self.repository.rename_cv(identifier, new_identifier)
-
-    def rename_optimized_cv(
-        self, job_posting_identifier: str, identifier: str, new_identifier: str
-    ):
-        """
-        Rename a CV optimization, moving its data and markdown to the new identifier.
-
-        Raises:
-            ValueError: If not found or new identifier already exists
-        """
-        return self.repository.rename_optimized_cv(
-            job_posting_identifier, identifier, new_identifier
+        entity_type = entity_type_of(record)
+        renamed = entity_type.rename(
+            self.repository, *entity_type.key(record), new_identifier
         )
+        return self._record_uri(renamed)
 
     def export_markdown(self, collection_name: Optional[str] = None) -> int:
         """
@@ -908,42 +708,6 @@ class ApplicationService:
                 for filename, artifact in output.artifacts.items()
             },
         }
-
-    def _add_optimized_cv(
-        self,
-        job_posting_identifier: str,
-        identifier: str,
-        base_cv_identifier: str | None,
-        cv: CurriculumVitae,
-    ):
-        """
-        Add an optimized CV to the repository.
-
-        Args:
-            job_posting_identifier: Identifier of the job posting
-            identifier: Identifier for this optimized CV
-            base_cv_identifier: Identifier of the base CV, or None if not recorded
-            cv: The optimized CV
-
-        Returns:
-            OptimizedCvRecord
-        """
-        from models import OptimizedCvRecord
-
-        parent = self.repository.get_job_posting_record(job_posting_identifier)
-        now = datetime.now()
-        record = OptimizedCvRecord(
-            identifier=identifier,
-            job_posting_identifier=job_posting_identifier,
-            base_cv_identifier=base_cv_identifier,
-            name=cv.name,
-            profession=cv.profession,
-            job_title=parent.title,
-            company=parent.company,
-            created_at=now,
-            updated_at=now,
-        )
-        return self.repository.add_optimized_cv(parent, record, cv)
 
     def get_optimized_cvs(self) -> list[dict[str, Any]]:
         """

@@ -1,13 +1,13 @@
 import json
-import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 from pydantic import BaseModel
 
 from models import (
+    kebab_case,
     JobPosting,
     JobPostingRecord,
     CurriculumVitae,
@@ -33,9 +33,9 @@ CVS_DIR = "cvs"
 COVER_LETTERS_DIR = "cover-letters"
 
 
-def _to_kebab_case(name: str) -> str:
-    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1-\2", name)
-    return re.sub("([a-z0-9])([A-Z])", r"\1-\2", s1).lower()
+def content_filename(model_class: type[BaseModel]) -> str:
+    """Name of the file holding an entity's content of the given class."""
+    return kebab_case(model_class.__name__) + ".json"
 
 
 def _job_posting_canonical_path(identifier: str, location: str | None = None) -> str:
@@ -198,28 +198,53 @@ class FileSystemRepository:
             if item.get("location") == location
         ]
 
-    def update_job_posting_record(self, record: JobPostingRecord) -> JobPostingRecord:
-        """Replace a job posting record, moving its files and child paths as needed."""
-        collection = self._load_collection(self.job_postings_collection)
-        stored = next(
-            (item for item in collection if item["identifier"] == record.identifier),
-            None,
-        )
+    def _replace_record(
+        self,
+        collection_file: Path,
+        record: Record,
+        kind: str,
+        matches: Callable[[dict[str, Any]], bool] | None = None,
+        before_save: Callable[[dict[str, Any]], Record] | None = None,
+    ) -> Record:
+        """Replace the stored item for record in collection_file.
+
+        Items match on identifier unless matches is given. before_save receives the
+        stored item before it's replaced and returns the record to store.
+        """
+        if matches is None:
+            identifier = record.identifier
+
+            def matches(item: dict[str, Any]) -> bool:
+                return item["identifier"] == identifier
+
+        collection = self._load_collection(collection_file)
+        stored = next((item for item in collection if matches(item)), None)
         if stored is None:
-            raise ValueError(f"Job posting not found: {record.identifier}")
-
-        target_path = _job_posting_canonical_path(record.identifier, record.location)
-        if target_path != stored["path"]:
-            destination = self._resolve_path(target_path)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(self._resolve_path(stored["path"])), str(destination))
-            self._update_optimized_cv_paths(record.identifier, target_path)
-
-        record = record.model_copy(update={"path": target_path})
+            raise ValueError(f"{kind} not found: {record.identifier}")
+        if before_save is not None:
+            record = before_save(stored)
         stored.clear()
         stored.update(record.model_dump(mode="json"))
-        self._save_collection(self.job_postings_collection, collection)
+        self._save_collection(collection_file, collection)
         return record
+
+    def update_job_posting_record(self, record: JobPostingRecord) -> JobPostingRecord:
+        """Replace a job posting record, moving its files and child paths as needed."""
+
+        def move(stored: dict[str, Any]) -> JobPostingRecord:
+            target_path = _job_posting_canonical_path(
+                record.identifier, record.location
+            )
+            if target_path != stored["path"]:
+                destination = self._resolve_path(target_path)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(self._resolve_path(stored["path"])), str(destination))
+                self._update_optimized_cv_paths(record.identifier, target_path)
+            return record.model_copy(update={"path": target_path})
+
+        return self._replace_record(
+            self.job_postings_collection, record, "Job posting", before_save=move
+        )
 
     def _update_optimized_cv_paths(
         self,
@@ -373,28 +398,16 @@ class FileSystemRepository:
         self, record: CurriculumVitaeRecord | OptimizedCvRecord
     ) -> None:
         """Replace a CV record within its owning collection."""
-        optimized = isinstance(record, OptimizedCvRecord)
-        collection_file = (
-            self.optimized_cvs_collection if optimized else self.cvs_collection
-        )
-        collection = self._load_collection(collection_file)
-        stored = next(
-            (
-                item
-                for item in collection
-                if item["identifier"] == record.identifier
-                and (
-                    not optimized
-                    or item["job_posting_identifier"] == record.job_posting_identifier
-                )
-            ),
-            None,
-        )
-        if stored is None:
-            raise ValueError(f"CV not found: {record.identifier}")
-        stored.clear()
-        stored.update(record.model_dump(mode="json"))
-        self._save_collection(collection_file, collection)
+        if isinstance(record, OptimizedCvRecord):
+            self._replace_record(
+                self.optimized_cvs_collection,
+                record,
+                "CV",
+                matches=lambda item: item["identifier"] == record.identifier
+                and item["job_posting_identifier"] == record.job_posting_identifier,
+            )
+        else:
+            self._replace_record(self.cvs_collection, record, "CV")
 
     def remove_cv(self, identifier: str) -> bool:
         """
@@ -614,16 +627,7 @@ class FileSystemRepository:
 
     def update_cover_letter_record(self, record: CoverLetterRecord) -> None:
         """Replace a cover letter's listing record."""
-        collection = self._load_collection(self.cover_letters_collection)
-        stored = next(
-            (item for item in collection if item["identifier"] == record.identifier),
-            None,
-        )
-        if stored is None:
-            raise ValueError(f"Cover letter not found: {record.identifier}")
-        stored.clear()
-        stored.update(record.model_dump(mode="json"))
-        self._save_collection(self.cover_letters_collection, collection)
+        self._replace_record(self.cover_letters_collection, record, "Cover letter")
 
     def remove_cover_letter(self, identifier: str) -> bool:
         """
@@ -713,9 +717,7 @@ class FileSystemRepository:
 
     def file_for(self, record: Record, model_class: type[BaseModel]) -> Path:
         """Absolute path of a record's stored object of the given class."""
-        return self.directory_for(record) / (
-            _to_kebab_case(model_class.__name__) + ".json"
-        )
+        return self.directory_for(record) / content_filename(model_class)
 
     # -------------------------------------------------------------------------
     # Generic object storage (record-addressed, self-describing JSON)

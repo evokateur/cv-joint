@@ -1,6 +1,7 @@
 """Resolve logical document addresses to repository records."""
 
 from repositories.filesystem import FileSystemRepository, Record
+from services.entity_types import ENTITY_TYPES, OPTIMIZED_CVS, TOP_LEVEL_COLLECTIONS
 
 
 def validate_identifier(value: str) -> str:
@@ -26,8 +27,8 @@ def parse_document_uri(uri: str) -> tuple[str, str] | None:
     parts = uri.strip("/").split("/")
     if (
         len(parts) == 3
-        and parts[0] in ("job-postings", "cvs", "cover-letters")
-        and not (parts[0] == "job-postings" and parts[2] == "cvs")
+        and parts[0] in TOP_LEVEL_COLLECTIONS
+        and parts[2] not in ENTITY_TYPES[parts[0]].child_collections
     ) or (len(parts) == 5 and parts[0] == "job-postings" and parts[2] == "cvs"):
         return "/".join(parts[:-1]), parts[-1]
     return None
@@ -35,15 +36,11 @@ def parse_document_uri(uri: str) -> tuple[str, str] | None:
 
 def parse_uri(uri: str) -> dict[str, str]:
     parts = uri.strip("/").split("/")
-    if parts[0] == "job-postings" and len(parts) == 2:
-        return {"collection": "job-postings", "identifier": parts[1]}
-    if parts[0] == "cvs" and len(parts) == 2:
-        return {"collection": "cvs", "identifier": parts[1]}
-    if parts[0] == "cover-letters" and len(parts) == 2:
-        return {"collection": "cover-letters", "identifier": parts[1]}
+    if len(parts) == 2 and parts[0] in TOP_LEVEL_COLLECTIONS:
+        return {"collection": parts[0], "identifier": parts[1]}
     if parts[0] == "job-postings" and len(parts) == 4 and parts[2] == "cvs":
         return {
-            "collection": "optimized-cvs",
+            "collection": OPTIMIZED_CVS,
             "job_posting_identifier": parts[1],
             "identifier": parts[3],
         }
@@ -53,29 +50,8 @@ def parse_uri(uri: str) -> dict[str, str]:
 def resolve_record(repository: FileSystemRepository, uri: str) -> Record:
     """Return the governing record for a URI. Raises ValueError if not found."""
     parsed = parse_uri(uri)
-    collection = parsed["collection"]
-
-    if collection == "job-postings":
-        record = repository.get_job_posting_record(parsed["identifier"])
-        if record is None:
-            raise ValueError(f"Not found: {uri}")
-        return record
-
-    if collection == "cvs":
-        record = repository.get_cv_record(parsed["identifier"])
-        if record is None:
-            raise ValueError(f"Not found: {uri}")
-        return record
-
-    if collection == "cover-letters":
-        record = repository.get_cover_letter_record(parsed["identifier"])
-        if record is None:
-            raise ValueError(f"Not found: {uri}")
-        return record
-
-    record = repository.get_optimized_cv_record(
-        parsed["job_posting_identifier"], parsed["identifier"]
-    )
+    entity_type = ENTITY_TYPES[parsed["collection"]]
+    record = entity_type.get_record(repository, *entity_type.key_of(parsed))
     if record is None:
         raise ValueError(f"Not found: {uri}")
     return record

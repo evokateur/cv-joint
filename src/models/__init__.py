@@ -15,6 +15,7 @@ from .schema import (
     Language,
     OptimizedCvRecord,
 )
+from .naming import kebab_case
 
 __all__ = [
     "CurriculumVitae",
@@ -32,4 +33,5 @@ __all__ = [
     "JobPostingRecord",
     "Language",
     "OptimizedCvRecord",
+    "kebab_case",
 ]
