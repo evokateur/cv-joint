@@ -437,13 +437,11 @@ class ApplicationService:
 
     def complete_job_posting_uris(self, incomplete: str) -> list[str]:
         """Complete canonical job posting URIs across every location."""
-        return sorted(
-            uri
-            for record in self.repository.get_job_posting_records(all=True)
-            if (uri := self._record_uri(record)).startswith(incomplete)
+        return self._complete_record_uris(
+            self.repository.get_job_posting_records(all=True), incomplete
         )
 
-    def complete_cv_identifiers(
+    def complete_cv_uris(
         self, incomplete: str, *, job_posting_uri: str | None = None
     ) -> list[str]:
         """Complete base CV URIs and, optionally, one posting's optimized CVs."""
@@ -454,20 +452,25 @@ class ApplicationService:
             parsed = {}
         if parsed.get("collection") == "job-postings":
             records += self.repository.get_optimized_cv_records(parsed["identifier"])
-        return sorted(
-            uri
-            for record in records
-            if (uri := self._record_uri(record)).startswith(incomplete)
-        )
+        return self._complete_record_uris(records, incomplete)
 
     def complete_render_targets(self, incomplete: str) -> list[str]:
         """Complete stored CV and cover-letter URIs suitable for rendering."""
+        renderable = (CurriculumVitaeRecord, OptimizedCvRecord, CoverLetterRecord)
+        return self._complete_record_uris(
+            (
+                record
+                for record in self._entity_records()
+                if isinstance(record, renderable)
+            ),
+            incomplete,
+        )
+
+    def _complete_record_uris(self, records, incomplete: str) -> list[str]:
+        """Sorted canonical URIs of the records that start with incomplete."""
         return sorted(
             uri
-            for record in self._entity_records()
-            if isinstance(
-                record, (CurriculumVitaeRecord, OptimizedCvRecord, CoverLetterRecord)
-            )
+            for record in records
             if (uri := self._record_uri(record)).startswith(incomplete)
         )
 

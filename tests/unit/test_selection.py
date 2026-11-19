@@ -111,11 +111,11 @@ def test_cv_completion_uses_canonical_uris_for_selected_posting(
 ):
     service.transition_job_posting("acme", "archived")
 
-    assert service.complete_cv_identifiers("", job_posting_uri=job_posting_uri) == [
+    assert service.complete_cv_uris("", job_posting_uri=job_posting_uri) == [
         "cvs/backend",
         "job-postings/acme/cvs/backend",
     ]
-    assert service.complete_cv_identifiers("job", job_posting_uri=job_posting_uri) == [
+    assert service.complete_cv_uris("job", job_posting_uri=job_posting_uri) == [
         "job-postings/acme/cvs/backend",
     ]
 
@@ -123,7 +123,7 @@ def test_cv_completion_uses_canonical_uris_for_selected_posting(
 @pytest.mark.usefixtures("two_postings")
 @pytest.mark.parametrize("job_posting_uri", [None, "", "cvs/backend", "nonsense"])
 def test_cv_completion_offers_only_base_cvs_without_a_posting(service, job_posting_uri):
-    assert service.complete_cv_identifiers("", job_posting_uri=job_posting_uri) == [
+    assert service.complete_cv_uris("", job_posting_uri=job_posting_uri) == [
         "cvs/backend"
     ]
 

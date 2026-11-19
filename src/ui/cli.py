@@ -28,7 +28,7 @@ def _complete_cv_identifier(ctx, _param, incomplete):
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
-    candidates = service.complete_cv_identifiers(
+    candidates = service.complete_cv_uris(
         incomplete, job_posting_uri=ctx.params.get("uri")
     )
     return [CompletionItem(c) for c in candidates]
@@ -40,7 +40,7 @@ def _complete_base_cv(ctx, _param, incomplete):
     from services.application import ApplicationService
 
     service = ctx.obj if ctx.obj is not None else ApplicationService()
-    return [CompletionItem(c) for c in service.complete_cv_identifiers(incomplete)]
+    return [CompletionItem(c) for c in service.complete_cv_uris(incomplete)]
 
 
 def _normalize_cv_identifier(value: str) -> str:
