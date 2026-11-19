@@ -29,7 +29,7 @@ from services.addressing import (
     validate_filename,
     validate_identifier,
 )
-from renderers.latex import render_tex, tex_to_pdf
+from renderers.latex import render_tex, template_names, tex_to_pdf
 
 # The named output holding the entity content in a producer's outputs.
 PRODUCER_OUTPUT_PRIMARY_FILES = {
@@ -435,16 +435,28 @@ class ApplicationService:
             candidate for candidate in candidates if candidate.startswith(incomplete)
         )
 
+    def complete_job_posting_uris(self, incomplete: str) -> list[str]:
+        """Complete canonical job posting URIs across every location."""
+        return sorted(
+            uri
+            for record in self.repository.get_job_posting_records(all=True)
+            if (uri := self._record_uri(record)).startswith(incomplete)
+        )
+
     def complete_cv_identifiers(
         self, incomplete: str, *, job_posting_uri: str | None = None
     ) -> list[str]:
         """Complete base CV URIs and, optionally, one posting's optimized CVs."""
         records = list(self.repository.get_cv_records())
-        if job_posting_uri:
+        try:
+            parsed = parse_uri(job_posting_uri) if job_posting_uri else {}
+        except ValueError:
+            parsed = {}
+        if parsed.get("collection") == "job-postings":
             records += [
                 record
                 for record in self.repository.get_optimized_cv_records()
-                if f"job-postings/{record.job_posting_identifier}" == job_posting_uri
+                if record.job_posting_identifier == parsed["identifier"]
             ]
         return sorted(
             uri
@@ -462,6 +474,10 @@ class ApplicationService:
             )
             if (uri := self._record_uri(record)).startswith(incomplete)
         )
+
+    def complete_templates(self, incomplete: str) -> list[str]:
+        """Complete the template filenames the renderer can load."""
+        return [name for name in template_names() if name.startswith(incomplete)]
 
     @staticmethod
     def _record_uri(record) -> str:
@@ -1030,11 +1046,7 @@ class ApplicationService:
         return results
 
     def get_cv_template_names(self) -> list[str]:
-        from pathlib import Path
-
-        project_root = Path(__file__).parent.parent.parent
-        templates_dir = project_root / "templates"
-        return [str(p.name) for p in templates_dir.glob("*cv*.tex")]
+        return [name for name in template_names() if "cv" in name]
 
     def to_markdown(self, domain_object) -> str:
         return self.markdown_converter.convert(domain_object) or ""
