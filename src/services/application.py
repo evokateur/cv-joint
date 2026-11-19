@@ -453,11 +453,7 @@ class ApplicationService:
         except ValueError:
             parsed = {}
         if parsed.get("collection") == "job-postings":
-            records += [
-                record
-                for record in self.repository.get_optimized_cv_records()
-                if record.job_posting_identifier == parsed["identifier"]
-            ]
+            records += self.repository.get_optimized_cv_records(parsed["identifier"])
         return sorted(
             uri
             for record in records
