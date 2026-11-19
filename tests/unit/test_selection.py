@@ -1,9 +1,11 @@
 """Reading contracts through the application and a real repository."""
 
 import json
+from datetime import datetime
 
 import pytest
 import click
+from click.shell_completion import ShellComplete
 from click.testing import CliRunner
 
 from models import Contact, CurriculumVitae, JobPosting
@@ -44,6 +46,58 @@ def cv():
         areas_of_expertise=[],
         languages=[],
     )
+
+
+def test_cv_completion_uses_canonical_uris_for_selected_posting(service, posting, cv):
+    service.add("cvs/backend", cv.model_dump())
+    for identifier in ("acme", "other"):
+        service.add(f"job-postings/{identifier}", posting.model_dump())
+        service.add(f"job-postings/{identifier}/cvs/backend", cv.model_dump())
+    service.transition_job_posting("acme", "archived")
+
+    assert service.complete_cv_identifiers("", job_posting_uri="job-postings/acme") == [
+        "cvs/backend",
+        "job-postings/acme/cvs/backend",
+    ]
+    assert service.complete_cv_identifiers(
+        "job", job_posting_uri="job-postings/acme"
+    ) == [
+        "job-postings/acme/cvs/backend",
+    ]
+    assert service.complete_cv_identifiers("") == ["cvs/backend"]
+
+
+def test_apply_completion_offers_selected_postings_optimized_cv(service, posting, cv):
+    service.add("cvs/backend", cv.model_dump())
+    for identifier in ("acme", "other"):
+        service.add(f"job-postings/{identifier}", posting.model_dump())
+        service.add(f"job-postings/{identifier}/cvs/backend", cv.model_dump())
+    shell = ShellComplete(main, {"obj": service}, "cv-joint", "_CV_JOINT_COMPLETE")
+    assert [
+        item.value for item in shell.get_completions(["apply", "job-postings/acme"], "")
+    ] == ["cvs/backend", "job-postings/acme/cvs/backend"]
+
+
+def test_optimize_completion_offers_only_base_cvs(service, posting, cv):
+    service.add("cvs/backend", cv.model_dump())
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
+    shell = ShellComplete(main, {"obj": service}, "cv-joint", "_CV_JOINT_COMPLETE")
+    assert [item.value for item in shell.get_completions(["optimize"], "")] == [
+        "cvs/backend"
+    ]
+
+
+def test_apply_completed_optimized_cv_preserves_posting_reference(service, posting, cv):
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("job-postings/acme/cvs/backend", cv.model_dump())
+    shell = ShellComplete(main, {"obj": service}, "cv-joint", "_CV_JOINT_COMPLETE")
+    candidate = shell.get_completions(["apply", "job-postings/acme"], "job")[0].value
+    result = CliRunner().invoke(
+        main, ["apply", "job-postings/acme", candidate], obj=service
+    )
+    assert result.exit_code == 0, result.output
+    assert service.get("job-postings/applied")[0].applied_with == "acme/backend"
 
 
 def test_get_and_list_select_unfiled_postings(service, posting):
@@ -412,3 +466,31 @@ def test_completion_offers_collections_without_any_records(service):
         "job-postings",
         "optimized-cvs",
     ]
+
+
+@pytest.mark.parametrize(
+    ("reference", "expected"),
+    [
+        ("missing", "missing"),
+        ("acme/missing", "acme/missing"),
+        ("cvs/missing", "missing"),
+        ("job-postings/acme/cvs/missing", "acme/missing"),
+    ],
+)
+def test_apply_normalizes_unvalidated_references(service, posting, reference, expected):
+    service.add("job-postings/acme", posting.model_dump())
+    result = CliRunner().invoke(
+        main,
+        ["apply", "job-postings/acme", reference, "--date", "2025-01-15"],
+        obj=service,
+    )
+    assert result.exit_code == 0, result.output
+    record = service.get("job-postings/applied")[0]
+    assert record.applied_with == expected
+    assert record.applied_at == datetime(2025, 1, 15)
+    assert result.output == f"Marked job-postings/acme as applied with {expected}\n"
+
+
+def test_apply_rejects_non_posting_uri(service):
+    result = CliRunner().invoke(main, ["apply", "cvs/backend", "backend"], obj=service)
+    assert result.exit_code != 0

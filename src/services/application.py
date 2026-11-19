@@ -435,6 +435,23 @@ class ApplicationService:
             candidate for candidate in candidates if candidate.startswith(incomplete)
         )
 
+    def complete_cv_identifiers(
+        self, incomplete: str, *, job_posting_uri: str | None = None
+    ) -> list[str]:
+        """Complete base CV URIs and, optionally, one posting's optimized CVs."""
+        records = list(self.repository.get_cv_records())
+        if job_posting_uri:
+            records += [
+                record
+                for record in self.repository.get_optimized_cv_records()
+                if f"job-postings/{record.job_posting_identifier}" == job_posting_uri
+            ]
+        return sorted(
+            uri
+            for record in records
+            if (uri := self._record_uri(record)).startswith(incomplete)
+        )
+
     def complete_render_targets(self, incomplete: str) -> list[str]:
         """Complete stored CV and cover-letter URIs suitable for rendering."""
         return sorted(

@@ -2,7 +2,6 @@
 Unit tests for CLI commands.
 """
 
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,74 +32,6 @@ class TestArchiveCommand:
     def test_unrecognised_uri_exits(self, runner):
         with patch("services.application.ApplicationService"):
             result = runner.invoke(main, ["archive", "cvs/my-cv"])
-        assert result.exit_code != 0
-
-
-class TestApplyCommand:
-    def test_calls_service(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "my-cv"])
-        assert result.exit_code == 0
-        mock_service.mark_applied.assert_called_once_with(
-            "acme-swe", "my-cv", applied_at=None
-        )
-
-    def test_with_date(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(
-                main,
-                ["apply", "job-postings/acme-swe", "my-cv", "--date", "2025-01-15"],
-            )
-        assert result.exit_code == 0
-        mock_service.mark_applied.assert_called_once_with(
-            "acme-swe", "my-cv", applied_at=datetime(2025, 1, 15)
-        )
-
-    def test_prints_confirmation(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            MockService.return_value = MagicMock()
-            result = runner.invoke(main, ["apply", "job-postings/acme-swe", "my-cv"])
-        assert "acme-swe" in result.output
-
-    def test_full_composite_cv_identifier(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(
-                main, ["apply", "job-postings/acme-swe", "acme-swe/my-cv"]
-            )
-        assert result.exit_code == 0
-        mock_service.mark_applied.assert_called_once_with(
-            "acme-swe", "acme-swe/my-cv", applied_at=None
-        )
-
-    def test_normalizes_base_cv_uri(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(
-                main, ["apply", "job-postings/acme-swe", "cvs/my-cv"]
-            )
-        assert result.exit_code == 0
-        mock_service.mark_applied.assert_called_once_with(
-            "acme-swe", "my-cv", applied_at=None
-        )
-
-    def test_normalizes_optimized_cv_uri(self, runner):
-        with patch("services.application.ApplicationService") as MockService:
-            mock_service = MockService.return_value
-            result = runner.invoke(
-                main,
-                ["apply", "job-postings/acme-swe", "job-postings/acme-swe/cvs/my-cv"],
-            )
-        assert result.exit_code == 0
-        mock_service.mark_applied.assert_called_once_with(
-            "acme-swe", "acme-swe/my-cv", applied_at=None
-        )
-
-    def test_unrecognised_uri_exits(self, runner):
-        with patch("services.application.ApplicationService"):
-            result = runner.invoke(main, ["apply", "cvs/my-cv", "my-cv"])
         assert result.exit_code != 0
 
 
