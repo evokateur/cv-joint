@@ -136,6 +136,9 @@ class ApplicationService:
         if not isinstance(data, dict):
             raise ValueError("Entity content must be a JSON object")
         parsed = _parse_new_entity_uri(entity_uri)
+        if parsed["collection"] == "optimized-cvs":
+            posting = parsed["job_posting_identifier"]
+            resolve_record(self.repository, f"job-postings/{posting}")
         identifier = validate_identifier(parsed["identifier"])
         if self.object_exists(entity_uri):
             raise ValueError(f"Already exists: {entity_uri}")
@@ -144,8 +147,6 @@ class ApplicationService:
         elif parsed["collection"] == "cover-letters":
             record = self._add_cover_letter(data, identifier)
         elif parsed["collection"] == "optimized-cvs":
-            posting = parsed["job_posting_identifier"]
-            resolve_record(self.repository, f"job-postings/{posting}")
             record = self._add_optimized_cv(
                 posting, identifier, base_cv_identifier, CurriculumVitae(**data)
             )
