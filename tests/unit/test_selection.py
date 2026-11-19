@@ -399,11 +399,55 @@ def test_cli_completion_uses_canonical_targets(service, posting, command):
     candidates = cli_command.params[0].shell_complete(context, "job-postings/")
     assert [candidate.value for candidate in candidates] == [
         "job-postings/acme",
-        "job-postings/acme/cvs",
         "job-postings/acme/job-posting.json",
         "job-postings/acme/job-posting.md",
         "job-postings/applied",
     ]
+
+
+@pytest.fixture
+def empty_and_populated_postings(service, posting, cv):
+    """acme has no optimized CVs; alpha has two and is moved to applied."""
+    service.add("job-postings/acme", posting.model_dump())
+    service.add("job-postings/alpha", posting.model_dump())
+    service.add("job-postings/alpha/cvs/backend", cv.model_dump())
+    service.add("job-postings/alpha/cvs/frontend", cv.model_dump())
+    service.transition_job_posting("alpha", "applied")
+
+
+@pytest.mark.usefixtures("empty_and_populated_postings")
+@pytest.mark.parametrize("command", ["get", "list", "ls"])
+def test_reading_completion_offers_cvs_only_for_postings_with_optimized_cvs(
+    complete, command
+):
+    assert complete([command], "job-postings/a") == [
+        "job-postings/acme",
+        "job-postings/acme/job-posting.json",
+        "job-postings/alpha",
+        "job-postings/alpha/cvs",
+        "job-postings/alpha/cvs/backend",
+        "job-postings/alpha/cvs/backend/curriculum-vitae.json",
+        "job-postings/alpha/cvs/frontend",
+        "job-postings/alpha/cvs/frontend/curriculum-vitae.json",
+        "job-postings/alpha/job-posting.json",
+        "job-postings/applied",
+    ]
+    assert complete([command], "job-postings/acme/") == [
+        "job-postings/acme/job-posting.json",
+    ]
+
+
+@pytest.mark.usefixtures("empty_and_populated_postings")
+def test_export_completion_offers_cvs_only_for_postings_with_optimized_cvs(complete):
+    assert complete(["export-markdown"], "job-postings/a") == [
+        "job-postings/acme",
+        "job-postings/alpha",
+        "job-postings/alpha/cvs",
+        "job-postings/alpha/cvs/backend",
+        "job-postings/alpha/cvs/frontend",
+        "job-postings/applied",
+    ]
+    assert complete(["export-markdown"], "job-postings/acme/") == []
 
 
 def test_add_completion_offers_destination_prefixes_ending_in_a_slash(

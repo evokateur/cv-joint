@@ -429,8 +429,8 @@ class ApplicationService:
                 f"{uri}/{filename}"
                 for filename in self.repository.list_documents(record)
             )
-            if isinstance(record, JobPostingRecord):
-                candidates.add(f"{uri}/cvs")
+            if isinstance(record, OptimizedCvRecord):
+                candidates.add(uri.rsplit("/", 1)[0])
         return sorted(
             candidate for candidate in candidates if candidate.startswith(incomplete)
         )
