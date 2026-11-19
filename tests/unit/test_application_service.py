@@ -149,7 +149,7 @@ class TestExportMarkdown:
         job_md = Path(temp_data_dir) / "job-postings" / "job-1" / "job-posting.md"
         cv_md = Path(temp_data_dir) / "cvs" / "cv-1" / "curriculum-vitae.md"
 
-        count = service.export_markdown(collection_name="job-postings")
+        count = service.export_markdown(target="job-postings")
         assert count == 1
         assert job_md.exists()
         assert not cv_md.exists()
@@ -169,12 +169,12 @@ class TestExportMarkdown:
             CurriculumVitae(**sample_cv_data),
         )
 
-        count = service.export_markdown(collection_name="cvs")
+        count = service.export_markdown(target="cvs")
         assert count == 1
 
     def test_unknown_collection_raises(self, service):
-        with pytest.raises(ValueError, match="Unknown collection: invalid"):
-            service.export_markdown(collection_name="invalid")
+        with pytest.raises(ValueError, match="Unrecognised target: invalid"):
+            service.export_markdown(target="invalid")
 
 
 class TestGetJobPostings:
@@ -569,3 +569,34 @@ class TestTransitionAuditLog:
         record = service_with_job_posting.transition_job_posting("acme-swe", ".")
         assert record.location is None
         assert record.transitions[-1]["location"] == "."
+
+
+def test_export_single_cv(service, sample_cv_data):
+    service.add("cvs/selected", sample_cv_data)
+    service.add("cvs/other", sample_cv_data)
+
+    assert service.export_markdown("cvs/selected") == 1
+
+    assert b"# Jane Doe" in service.get_document("cvs/selected/curriculum-vitae.md")
+    with pytest.raises(FileNotFoundError):
+        service.get_document("cvs/other/curriculum-vitae.md")
+
+
+@pytest.mark.parametrize("target", ["cvs/missing-content", "cvs", None])
+def test_export_missing_content_raises(service, sample_cv_data, target):
+    service.add("cvs/missing-content", sample_cv_data)
+    service.remove_document("cvs/missing-content/curriculum-vitae.json")
+
+    with pytest.raises(FileNotFoundError, match="missing-content"):
+        service.export_markdown(target)
+
+
+def test_export_counts_only_written_files(service, sample_cv_data, tmp_path):
+    from services.converters import MarkdownConverter
+
+    service.add("cvs/no-template", sample_cv_data)
+    service.markdown_exporter.converter = MarkdownConverter(templates_dir=str(tmp_path))
+
+    assert service.export_markdown("cvs") == 0
+    with pytest.raises(FileNotFoundError):
+        service.get_document("cvs/no-template/curriculum-vitae.md")

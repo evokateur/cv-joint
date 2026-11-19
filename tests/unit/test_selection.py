@@ -159,16 +159,20 @@ def test_location_selection_and_recursive_scope(service, posting):
     service.transition_job_posting("filed", "applied")
     service.transition_job_posting("old", "archived")
 
-    assert service.list("job-postings/applied") == ["job-postings/filed"]
-    for target in ("job-postings", "job-postings/applied"):
-        assert [
-            record.identifier for record in service.get(target, recursive=True)
-        ] == ["active", "filed", "old"]
-        assert service.list(target, recursive=True) == [
-            "job-postings/active",
-            "job-postings/filed",
-            "job-postings/old",
-        ]
+    assert service.list("job-postings/applied", recursive=True) == [
+        "job-postings/filed"
+    ]
+    assert [
+        r.identifier for r in service.get("job-postings/applied", recursive=True)
+    ] == ["filed"]
+    assert [
+        record.identifier for record in service.get("job-postings", recursive=True)
+    ] == ["active", "filed", "old"]
+    assert service.list("job-postings", recursive=True) == [
+        "job-postings/active",
+        "job-postings/filed",
+        "job-postings/old",
+    ]
 
 
 @pytest.mark.parametrize("query", ["REFERRAL", '"channel":"referral"', "transitions"])
@@ -202,7 +206,7 @@ def test_base_cv_collection_selects_records_and_canonical_uris(service, cv):
         ("optimized-cvs", False, ["active"]),
         ("optimized-cvs/applied", False, ["filed"]),
         ("optimized-cvs", True, ["active", "filed"]),
-        ("optimized-cvs/applied", True, ["active", "filed"]),
+        ("optimized-cvs/applied", True, ["filed"]),
         ("job-postings/filed/cvs", False, ["filed"]),
         ("job-postings/filed/cvs", True, ["filed"]),
     ],
@@ -510,3 +514,155 @@ def test_completion_offers_collections_without_any_records(service):
         "job-postings",
         "optimized-cvs",
     ]
+
+
+def test_cli_export_selects_named_location_with_flags(service, posting):
+    for identifier in ("active", "filed", "other"):
+        service.add(f"job-postings/{identifier}", posting.model_dump())
+    service.transition_job_posting("filed", "applied", fields={"channel": "Referral"})
+    service.transition_job_posting("other", "applied")
+
+    result = CliRunner().invoke(
+        main,
+        ["export-markdown", "job-postings/applied", "-r", "-q", "REFERRAL"],
+        obj=service,
+    )
+
+    assert result.exit_code == 0, result.output
+    assert result.stdout == "Re-exported 1 markdown file(s)\n"
+    assert b"Engineer at Acme" in service.get_document(
+        "job-postings/filed/job-posting.md"
+    )
+    for identifier in ("active", "other"):
+        with pytest.raises(FileNotFoundError):
+            service.get_document(f"job-postings/{identifier}/job-posting.md")
+
+
+@pytest.mark.usefixtures("two_postings")
+def test_export_completion_offers_entities_locations_and_collections(service):
+    service.transition_job_posting("acme", "applied")
+    service.add_document("job-postings/acme/notes.md", b"Notes")
+
+    assert service.complete_export_targets("job-postings/") == [
+        "job-postings/acme",
+        "job-postings/acme/cvs",
+        "job-postings/acme/cvs/backend",
+        "job-postings/applied",
+        "job-postings/other",
+        "job-postings/other/cvs",
+        "job-postings/other/cvs/backend",
+    ]
+    assert service.complete_export_targets("cvs") == ["cvs", "cvs/backend"]
+    assert service.complete_export_targets("optimized-cvs") == [
+        "optimized-cvs",
+        "optimized-cvs/applied",
+    ]
+    assert service.complete_export_targets("cover") == ["cover-letters"]
+
+
+@pytest.mark.usefixtures("two_postings")
+def test_cli_export_completion_excludes_documents(complete):
+    assert complete(["export-markdown"], "cvs") == ["cvs", "cvs/backend"]
+
+
+@pytest.mark.usefixtures("two_postings")
+@pytest.mark.parametrize(
+    "target,recursive,query,expected",
+    [
+        (
+            None,
+            False,
+            None,
+            [
+                "cvs/backend",
+                "job-postings/acme",
+                "job-postings/acme/cvs/backend",
+                "job-postings/other",
+                "job-postings/other/cvs/backend",
+            ],
+        ),
+        ("job-postings", False, None, ["job-postings/other"]),
+        ("job-postings", True, None, ["job-postings/acme", "job-postings/other"]),
+        ("job-postings/applied", True, None, ["job-postings/acme"]),
+        ("job-postings", True, '"identifier":"acme"', ["job-postings/acme"]),
+        ("optimized-cvs", False, None, ["job-postings/other/cvs/backend"]),
+        (
+            "optimized-cvs",
+            True,
+            None,
+            ["job-postings/acme/cvs/backend", "job-postings/other/cvs/backend"],
+        ),
+        ("optimized-cvs/applied", True, None, ["job-postings/acme/cvs/backend"]),
+        ("job-postings/acme/cvs", False, None, ["job-postings/acme/cvs/backend"]),
+        (
+            "job-postings/acme/cvs/backend",
+            True,
+            "ignored",
+            ["job-postings/acme/cvs/backend"],
+        ),
+        ("job-postings/acme", False, "ignored", ["job-postings/acme"]),
+        ("cvs", False, "no match", []),
+    ],
+)
+def test_export_writes_only_selected_entities(
+    service, target, recursive, query, expected
+):
+    service.transition_job_posting("acme", "applied")
+
+    assert service.export_markdown(target, recursive=recursive, query=query) == len(
+        expected
+    )
+
+    documents = {
+        "cvs/backend": "curriculum-vitae.md",
+        "job-postings/acme": "job-posting.md",
+        "job-postings/acme/cvs/backend": "curriculum-vitae.md",
+        "job-postings/other": "job-posting.md",
+        "job-postings/other/cvs/backend": "curriculum-vitae.md",
+    }
+    for uri, filename in documents.items():
+        if uri in expected:
+            assert b"Engineer" in service.get_document(f"{uri}/{filename}")
+        else:
+            with pytest.raises(FileNotFoundError):
+                service.get_document(f"{uri}/{filename}")
+
+
+@pytest.mark.usefixtures("two_postings")
+@pytest.mark.parametrize(
+    "target",
+    [
+        "curriculum-vitae",
+        "optimizations",
+        "cvs/missing",
+        "job-postings/missing/cvs",
+        "cvs/backend/curriculum-vitae.json",
+        "job-postings/acme/job-posting.json",
+        "job-postings/acme/cvs/backend/curriculum-vitae.json",
+    ],
+)
+def test_export_rejects_missing_entities_aliases_and_documents(service, target):
+    with pytest.raises(ValueError):
+        service.export_markdown(target)
+
+    result = CliRunner(mix_stderr=False).invoke(
+        main,
+        ["export-markdown", target],
+        obj=service,
+    )
+    assert result.exit_code != 0
+    assert result.stdout == ""
+    assert "Error:" in result.stderr
+
+
+@pytest.mark.usefixtures("two_postings")
+def test_cli_export_missing_content_reports_error(service):
+    service.remove_document("cvs/backend/curriculum-vitae.json")
+    result = CliRunner(mix_stderr=False).invoke(
+        main,
+        ["export-markdown", "cvs/backend"],
+        obj=service,
+    )
+    assert result.exit_code != 0
+    assert result.stdout == ""
+    assert "Content not found" in result.stderr

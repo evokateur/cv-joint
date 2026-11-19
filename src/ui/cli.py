@@ -82,16 +82,27 @@ def show_config():
     yaml.dump(config, sys.stdout, default_flow_style=False, sort_keys=False)
 
 
+def _complete_export_target(ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [CompletionItem(c) for c in service.complete_export_targets(incomplete)]
+
+
 @main.command("export-markdown")
-@click.argument("collection", required=False)
-def export_markdown(collection):
+@click.argument("target", required=False, shell_complete=_complete_export_target)
+@click.option("-r", "--recursive", is_flag=True)
+@click.option("-q", "--query")
+@click.pass_context
+def export_markdown(ctx, target, recursive, query):
     """Re-export markdown files from stored data and exit."""
     from services.application import ApplicationService
 
-    service = ApplicationService()
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
     try:
-        count = service.export_markdown(collection)
-    except ValueError as e:
+        count = service.export_markdown(target, recursive=recursive, query=query)
+    except (ValueError, FileNotFoundError) as e:
         raise click.UsageError(str(e))
     click.echo(f"Re-exported {count} markdown file(s)")
 

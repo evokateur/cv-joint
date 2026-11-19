@@ -275,7 +275,7 @@ class ApplicationService:
             and parts[0] == "job-postings"
             and parts[1] in self.list_locations()
         ):
-            location = parts[1] if len(parts) == 2 and not recursive else None
+            location = parts[1] if len(parts) == 2 else None
             records = self.repository.get_job_posting_records(
                 location=location, all=recursive
             )
@@ -288,7 +288,7 @@ class ApplicationService:
             and parts[0] == "optimized-cvs"
             and parts[1] in self.list_locations()
         ):
-            location = parts[1] if len(parts) == 2 and not recursive else None
+            location = parts[1] if len(parts) == 2 else None
             parents = {
                 record.identifier
                 for record in self.repository.get_job_posting_records(
@@ -434,6 +434,14 @@ class ApplicationService:
         return sorted(
             candidate for candidate in candidates if candidate.startswith(incomplete)
         )
+
+    def complete_export_targets(self, incomplete: str) -> list[str]:
+        """Complete reading targets that name entities or selections, not documents."""
+        return [
+            target
+            for target in self.complete_targets(incomplete)
+            if parse_document_uri(target) is None
+        ]
 
     def complete_job_posting_uris(self, incomplete: str) -> list[str]:
         """Complete canonical job posting URIs across every location."""
@@ -900,13 +908,17 @@ class ApplicationService:
             job_posting_identifier, identifier, new_identifier
         )
 
-    def export_markdown(self, collection_name: Optional[str] = None) -> int:
-        """
-        Re-export all markdown files from stored domain objects.
-
-        This overwrites any existing markdown files, including manual edits.
-        """
-        return self.markdown_exporter.export(collection_name)
+    def export_markdown(
+        self, target: str | None = None, *, recursive=False, query=None
+    ) -> int:
+        """Regenerate selected entities' Markdown, overwriting existing files."""
+        if target is None:
+            records = self._entity_records()
+        else:
+            records = self._select_records(target, recursive=recursive, query=query)
+            if records is None:
+                records = [self._entity_record(target)]
+        return self.markdown_exporter.export(records)
 
     def add_document(self, document_uri: str, content: bytes) -> str:
         """Create exactly the document at document_uri from raw bytes. Returns its URI."""
