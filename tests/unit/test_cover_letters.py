@@ -172,7 +172,9 @@ def test_removing_cover_letter_removes_its_documents(service, letter):
     assert service.list(uri) == [f"{uri}/cover-letter.json"]
 
 
-@pytest.mark.parametrize("collection", ["cover-letters", None])
+@pytest.mark.parametrize(
+    "collection", ["cover-letters", "cover-letters/jane-acme", None]
+)
 def test_export_cover_letter_writes_readable_markdown_with_record_metadata(
     service, letter, collection
 ):
@@ -371,17 +373,10 @@ def test_primary_cover_letter_document_mutations_are_raw(service, letter):
     assert service.get("cover-letters") == before
 
 
-def test_cli_exports_cover_letters_from_configured_repository(
-    service, letter, tmp_path, monkeypatch
-):
-    from config import root
-
-    settings = root.get_settings()
-    settings.repositories.filesystem.data_dir = str(tmp_path)
-    monkeypatch.setattr("services.application.get_settings", lambda: settings)
+def test_cli_exports_cover_letters_through_application(service, letter):
     uri = service.add("cover-letters/draft", letter.model_dump())
 
-    result = CliRunner().invoke(main, ["export-markdown", "cover-letters"])
+    result = CliRunner().invoke(main, ["export-markdown", "cover-letters"], obj=service)
 
     assert result.exit_code == 0, result.output
     assert "Re-exported 1 markdown file(s)" in result.stdout

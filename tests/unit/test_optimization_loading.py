@@ -284,7 +284,7 @@ def test_reading_an_optimization_skips_a_plan_that_does_not_parse(service, caplo
 def test_exporting_optimizations_converts_a_plan_found_by_filename(service, tmp_path):
     load_optimization_with_plan(service, PLAN)
 
-    count = service.export_markdown(collection_name="optimizations")
+    count = service.export_markdown("optimized-cvs", recursive=True)
 
     directory = tmp_path / "job-postings/archived/acme/cvs/tailored"
     assert count == 2
@@ -297,9 +297,31 @@ def test_exporting_optimizations_skips_a_plan_that_does_not_parse(
 ):
     load_optimization_with_plan(service, "not a plan")
 
-    count = service.export_markdown(collection_name="optimizations")
+    count = service.export_markdown("optimized-cvs", recursive=True)
 
     directory = tmp_path / "job-postings/archived/acme/cvs/tailored"
     assert count == 1
     assert not (directory / "cv-transformation-plan.md").exists()
     assert "cv-transformation-plan.json" in caplog.text
+
+
+def test_export_counts_cv_when_plan_has_no_markdown_template(service, tmp_path):
+    from pathlib import Path
+    from shutil import copyfile
+    from services.converters import MarkdownConverter
+
+    load_optimization_with_plan(service, PLAN)
+    templates = tmp_path / "templates"
+    templates.mkdir()
+    copyfile(
+        Path(__file__).parents[2] / "templates/markdown/curriculum-vitae.md",
+        templates / "curriculum-vitae.md",
+    )
+    service.markdown_exporter.converter = MarkdownConverter(str(templates))
+
+    assert service.export_markdown("job-postings/acme/cvs/tailored") == 1
+    assert b"Engineer" in service.get_document(
+        "job-postings/acme/cvs/tailored/curriculum-vitae.md"
+    )
+    with pytest.raises(FileNotFoundError):
+        service.get_document("job-postings/acme/cvs/tailored/cv-transformation-plan.md")

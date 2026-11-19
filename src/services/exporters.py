@@ -6,6 +6,7 @@ import yaml
 from pydantic import BaseModel, ValidationError
 
 from models import (
+    CoverLetter,
     CoverLetterRecord,
     JobPosting,
     JobPostingRecord,
@@ -92,66 +93,31 @@ class MarkdownExporter:
             new_fm = f"---\n{yaml.dump(existing, default_flow_style=False, allow_unicode=True, sort_keys=False)}---\n"
             self.repository.add_or_replace_document(record, filename, new_fm + body)
 
-    def _save(self, record: BaseModel, obj: BaseModel):
+    def _save(self, record: BaseModel, obj: BaseModel) -> int:
         markdown = self.converter.convert(obj)
         if markdown is None:
-            return
+            return 0
         filename = f"{_to_kebab_case(type(obj).__name__)}.md"
         markdown = self.compose_document(record, filename, markdown)
         self.repository.add_or_replace_document(record, filename, markdown)
+        return 1
 
-    def export_job_posting(self, record: JobPostingRecord, job_posting: JobPosting):
-        self._save(record, job_posting)
-
-    def export_cv(
-        self, record: CurriculumVitaeRecord | OptimizedCvRecord, cv: CurriculumVitae
-    ):
-        self._save(record, cv)
-
-    def export_cv_transformation_plan(
-        self, record: OptimizedCvRecord, plan: CvTransformationPlan
-    ):
-        self._save(record, plan)
-
-    def export(self, collection_name: Optional[str] = None) -> int:
-        """Bulk export (regeneration). Iterates repository, exports each object."""
-        if collection_name and collection_name not in (
-            "job-postings",
-            "cvs",
-            "curriculum-vitae",
-            "optimizations",
-            "cover-letters",
-        ):
-            raise ValueError(f"Unknown collection: {collection_name}")
-        if collection_name == "curriculum-vitae":
-            collection_name = "cvs"
-
+    def export(self, records) -> int:
+        """Regenerate Markdown for the selected records and their supported outputs."""
+        content_models = {
+            JobPostingRecord: JobPosting,
+            CurriculumVitaeRecord: CurriculumVitae,
+            OptimizedCvRecord: CurriculumVitae,
+            CoverLetterRecord: CoverLetter,
+        }
         count = 0
-        if collection_name is None or collection_name == "cover-letters":
-            for record in self.repository.get_cover_letter_records():
-                letter = self.repository.get_cover_letter(record.identifier)
-                self._save(record, letter)
-                count += 1
-        if collection_name is None or collection_name == "job-postings":
-            for record in self.repository.get_job_posting_records(all=True):
-                job_posting = self.repository.get_job_posting(record.identifier)
-                self.export_job_posting(record, job_posting)
-                count += 1
-        if collection_name is None or collection_name == "cvs":
-            for record in self.repository.get_cv_records():
-                cv = self.repository.get_cv(record.identifier)
-                self.export_cv(record, cv)
-                count += 1
-        if collection_name is None or collection_name == "optimizations":
-            for record in self.repository.get_optimized_cv_records():
-                cv = self.repository.get_optimized_cv(
-                    record.job_posting_identifier, record.identifier
-                )
-                if cv:
-                    self.export_cv(record, cv)
-                    count += 1
+        for record in records:
+            content = self.repository.load_object(record, content_models[type(record)])
+            if content is None:
+                raise FileNotFoundError(f"Content not found: {record.identifier}")
+            count += self._save(record, content)
+            if isinstance(record, OptimizedCvRecord):
                 plan = read_transformation_plan(self.repository, record)
-                if plan:
-                    self.export_cv_transformation_plan(record, plan)
-                    count += 1
+                if plan is not None:
+                    count += self._save(record, plan)
         return count
