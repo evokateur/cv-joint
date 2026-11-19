@@ -379,7 +379,7 @@ def test_cli_exports_cover_letters_through_application(service, letter):
     result = CliRunner().invoke(main, ["export-markdown", "cover-letters"], obj=service)
 
     assert result.exit_code == 0, result.output
-    assert "Re-exported 1 markdown file(s)" in result.stdout
+    assert "Exported 1 markdown file(s)" in result.stdout
     assert b"I build reliable tools." in service.get_document(f"{uri}/cover-letter.md")
 
 

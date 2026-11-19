@@ -529,7 +529,7 @@ def test_cli_export_selects_named_location_with_flags(service, posting):
     )
 
     assert result.exit_code == 0, result.output
-    assert result.stdout == "Re-exported 1 markdown file(s)\n"
+    assert result.stdout == "Exported 1 markdown file(s)\n"
     assert b"Engineer at Acme" in service.get_document(
         "job-postings/filed/job-posting.md"
     )
