@@ -255,14 +255,14 @@ class ApplicationService:
         records = self._select_records(target, recursive=recursive, query=query)
         if records is not None:
             return records
+        content_models = {
+            JobPostingRecord: JobPosting,
+            CurriculumVitaeRecord: CurriculumVitae,
+            OptimizedCvRecord: CurriculumVitae,
+            CoverLetterRecord: CoverLetter,
+        }
         record = self._entity_record(target)
-        if isinstance(record, JobPostingRecord):
-            model = JobPosting
-        elif isinstance(record, CoverLetterRecord):
-            model = CoverLetter
-        else:
-            model = CurriculumVitae
-        content = self.repository.load_object(record, model)
+        content = self.repository.load_object(record, content_models[type(record)])
         if content is None:
             raise FileNotFoundError(f"Content not found: {target}")
         return content

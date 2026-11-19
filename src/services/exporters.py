@@ -104,15 +104,15 @@ class MarkdownExporter:
 
     def export(self, records) -> int:
         """Regenerate Markdown for the selected records and their supported outputs."""
+        content_models = {
+            JobPostingRecord: JobPosting,
+            CurriculumVitaeRecord: CurriculumVitae,
+            OptimizedCvRecord: CurriculumVitae,
+            CoverLetterRecord: CoverLetter,
+        }
         count = 0
         for record in records:
-            if isinstance(record, JobPostingRecord):
-                model = JobPosting
-            elif isinstance(record, CoverLetterRecord):
-                model = CoverLetter
-            else:
-                model = CurriculumVitae
-            content = self.repository.load_object(record, model)
+            content = self.repository.load_object(record, content_models[type(record)])
             if content is None:
                 raise FileNotFoundError(f"Content not found: {record.identifier}")
             count += self._save(record, content)

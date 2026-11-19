@@ -102,8 +102,8 @@ def export_markdown(ctx, target, recursive, query):
     service = ctx.obj if ctx.obj is not None else ApplicationService()
     try:
         count = service.export_markdown(target, recursive=recursive, query=query)
-    except (ValueError, FileNotFoundError) as e:
-        raise click.UsageError(str(e))
+    except (ValueError, OSError) as error:
+        raise click.ClickException(str(error)) from error
     click.echo(f"Re-exported {count} markdown file(s)")
 
 
