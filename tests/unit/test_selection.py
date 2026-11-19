@@ -4,6 +4,7 @@ import json
 
 import pytest
 import click
+from click.shell_completion import ShellComplete
 from click.testing import CliRunner
 
 from models import Contact, CurriculumVitae, JobPosting
@@ -44,6 +45,103 @@ def cv():
         areas_of_expertise=[],
         languages=[],
     )
+
+
+@pytest.fixture
+def complete(service):
+    """Complete a command line through Click with the real application."""
+    shell = ShellComplete(main, {"obj": service}, "cv-joint", "_CV_JOINT_COMPLETE")
+
+    def values(args, incomplete):
+        return [item.value for item in shell.get_completions(args, incomplete)]
+
+    return values
+
+
+@pytest.fixture
+def two_postings(service, posting, cv):
+    """A base CV and two postings, each with an optimized CV named backend."""
+    service.add("cvs/backend", cv.model_dump())
+    for identifier in ("acme", "other"):
+        service.add(f"job-postings/{identifier}", posting.model_dump())
+        service.add(f"job-postings/{identifier}/cvs/backend", cv.model_dump())
+
+
+def test_job_posting_completion_offers_canonical_uris_in_every_location(
+    service, posting
+):
+    for identifier in ("acme", "beta", "other"):
+        service.add(f"job-postings/{identifier}", posting.model_dump())
+    service.transition_job_posting("acme", "applied")
+    service.archive_job_posting("beta")
+
+    assert service.complete_job_posting_uris("") == [
+        "job-postings/acme",
+        "job-postings/beta",
+        "job-postings/other",
+    ]
+    assert service.complete_job_posting_uris("job-postings/b") == ["job-postings/beta"]
+    assert service.complete_job_posting_uris("cvs/") == []
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["transition"],
+        ["archive"],
+        ["unarchive"],
+        ["apply"],
+        ["optimize", "cvs/backend"],
+    ],
+)
+def test_cli_job_posting_completion_uses_canonical_uris(
+    service, posting, cv, complete, args
+):
+    service.add("cvs/backend", cv.model_dump())
+    service.add("job-postings/acme", posting.model_dump())
+    service.transition_job_posting("acme", "applied")
+
+    assert complete(args, "job") == ["job-postings/acme"]
+
+
+@pytest.mark.usefixtures("two_postings")
+@pytest.mark.parametrize("job_posting_uri", ["job-postings/acme", "job-postings/acme/"])
+def test_cv_completion_uses_canonical_uris_for_selected_posting(
+    service, job_posting_uri
+):
+    service.transition_job_posting("acme", "archived")
+
+    assert service.complete_cv_uris("", job_posting_uri=job_posting_uri) == [
+        "cvs/backend",
+        "job-postings/acme/cvs/backend",
+    ]
+    assert service.complete_cv_uris("job", job_posting_uri=job_posting_uri) == [
+        "job-postings/acme/cvs/backend",
+    ]
+
+
+@pytest.mark.usefixtures("two_postings")
+@pytest.mark.parametrize("job_posting_uri", [None, "", "cvs/backend", "nonsense"])
+def test_cv_completion_offers_only_base_cvs_without_a_posting(service, job_posting_uri):
+    assert service.complete_cv_uris("", job_posting_uri=job_posting_uri) == [
+        "cvs/backend"
+    ]
+
+
+@pytest.mark.usefixtures("two_postings")
+@pytest.mark.parametrize("job_posting_uri", ["job-postings/acme", "job-postings/acme/"])
+def test_apply_completion_offers_selected_postings_optimized_cv(
+    complete, job_posting_uri
+):
+    assert complete(["apply", job_posting_uri], "") == [
+        "cvs/backend",
+        "job-postings/acme/cvs/backend",
+    ]
+
+
+@pytest.mark.usefixtures("two_postings")
+def test_optimize_completion_offers_only_base_cvs(complete):
+    assert complete(["optimize"], "") == ["cvs/backend"]
 
 
 def test_get_and_list_select_unfiled_postings(service, posting):

@@ -12,65 +12,35 @@ from pydantic import ValidationError
 from services.addressing import parse_document_uri, parse_uri, validate_identifier
 
 
-def _load_collection(name: str) -> list[dict]:
-    from config.root import get_settings
-
-    path = (
-        Path(get_settings().repositories.filesystem.data_dir)
-        / "collections"
-        / f"{name}.json"
-    )
-    if not path.exists():
-        return []
-    return json.loads(path.read_text())
-
-
-def _complete_uri(_ctx, _param, incomplete):
+def _complete_job_posting_uri(ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
 
-    candidates = (
-        [
-            f"job-postings/{item['identifier']}"
-            for item in _load_collection("job-postings")
-        ]
-        + [f"cvs/{item['identifier']}" for item in _load_collection("cvs")]
-        + [
-            f"job-postings/{item['job_posting_identifier']}/cvs/{item['identifier']}"
-            for item in _load_collection("optimized-cvs")
-            if item.get("job_posting_identifier") and item.get("identifier")
-        ]
-    )
-    return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+    from services.application import ApplicationService
 
-
-def _complete_job_posting_uri(_ctx, _param, incomplete):
-    from click.shell_completion import CompletionItem
-
-    candidates = [
-        f"job-postings/{item['identifier']}"
-        for item in _load_collection("job-postings")
-    ]
-    return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [CompletionItem(c) for c in service.complete_job_posting_uris(incomplete)]
 
 
 def _complete_cv_identifier(ctx, _param, incomplete):
+    """Complete base CVs plus the optimized CVs of the posting in the uri argument."""
     from click.shell_completion import CompletionItem
 
-    candidates = []
-    try:
-        parsed = parse_uri(ctx.params.get("uri", ""))
-        if parsed["collection"] == "job-postings":
-            jp_id = parsed["identifier"]
-            candidates += [
-                f"cvs/{item['identifier']}"
-                for item in _load_collection("optimized-cvs")
-                if item.get("job_posting_identifier") == jp_id
-                and item.get("identifier")
-            ]
-    except ValueError:
-        pass
-    candidates += [f"cvs/{item['identifier']}" for item in _load_collection("cvs")]
-    return [CompletionItem(c) for c in candidates if c.startswith(incomplete)]
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    candidates = service.complete_cv_uris(
+        incomplete, job_posting_uri=ctx.params.get("uri")
+    )
+    return [CompletionItem(c) for c in candidates]
+
+
+def _complete_base_cv(ctx, _param, incomplete):
+    from click.shell_completion import CompletionItem
+
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [CompletionItem(c) for c in service.complete_cv_uris(incomplete)]
 
 
 def _normalize_cv_identifier(value: str) -> str:
@@ -173,12 +143,13 @@ def _complete_render_target(ctx, _param, incomplete):
     return []
 
 
-def _complete_template(_ctx, _param, incomplete):
+def _complete_template(ctx, _param, incomplete):
     from click.shell_completion import CompletionItem
 
-    templates_dir = Path(__file__).parents[2] / "templates"
-    names = sorted(p.name for p in templates_dir.glob("*.tex"))
-    return [CompletionItem(n) for n in names if n.startswith(incomplete)]
+    from services.application import ApplicationService
+
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
+    return [CompletionItem(n) for n in service.complete_templates(incomplete)]
 
 
 def _render_target_from_file(doc_type: str, input_path: str):
@@ -528,17 +499,17 @@ def unarchive(uri):
 @click.option(
     "--date", metavar="YYYY-MM-DD", help="Application date (defaults to today)"
 )
-def apply(uri, cv_identifier, date):
+@click.pass_context
+def apply(ctx, uri, cv_identifier, date):
     """Mark a job posting as applied to and exit."""
     identifier = _require_job_posting_uri(uri)
     applied_at = datetime.strptime(date, "%Y-%m-%d") if date else None
     cv_identifier = _normalize_cv_identifier(cv_identifier)
     from services.application import ApplicationService
 
+    service = ctx.obj if ctx.obj is not None else ApplicationService()
     try:
-        ApplicationService().mark_applied(
-            identifier, cv_identifier, applied_at=applied_at
-        )
+        service.mark_applied(identifier, cv_identifier, applied_at=applied_at)
     except ValueError as e:
         raise click.UsageError(str(e))
     click.echo(f"Marked {uri} as applied with {cv_identifier}")
@@ -669,7 +640,7 @@ def _existing_entity(collection: str, kind: str):
 @click.argument(
     "cv_uri",
     callback=_existing_entity("cvs", "base CV"),
-    shell_complete=_complete_uri,
+    shell_complete=_complete_base_cv,
 )
 @click.argument(
     "job_posting_uri",

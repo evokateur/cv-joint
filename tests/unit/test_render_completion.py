@@ -77,3 +77,13 @@ def test_position2_file_mode_offers_stdin_and_files(service):
 
 def test_position2_uri_mode_offers_nothing(service):
     assert _items(service, ["render", "cvs/my-cv"], "") == []
+
+
+def test_template_completion_offers_renderer_templates(service):
+    assert {"cv.tex", "cover-letter.tex"} <= set(service.complete_templates(""))
+    assert service.complete_templates("cover") == ["cover-letter.tex"]
+    assert service.complete_templates("missing") == []
+
+
+def test_template_option_completes_renderer_templates(service):
+    assert _values(service, ["render", "--template"], "cover") == ["cover-letter.tex"]

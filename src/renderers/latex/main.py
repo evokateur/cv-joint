@@ -22,6 +22,11 @@ def load_data(input_file: str) -> dict:
         return yaml.safe_load(f)
 
 
+def template_names() -> list[str]:
+    """Filenames of the templates render_tex can load."""
+    return sorted(path.name for path in Path(TEMPLATES_DIR).glob("*.tex"))
+
+
 def render_tex(data: dict, template_name: str) -> str:
     """Render a template to a TeX string from a prepared data dict."""
     env = get_tex_env(TEMPLATES_DIR)

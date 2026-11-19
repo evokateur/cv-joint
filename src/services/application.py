@@ -29,7 +29,7 @@ from services.addressing import (
     validate_filename,
     validate_identifier,
 )
-from renderers.latex import render_tex, tex_to_pdf
+from renderers.latex import render_tex, template_names, tex_to_pdf
 
 # The named output holding the entity content in a producer's outputs.
 PRODUCER_OUTPUT_PRIMARY_FILES = {
@@ -435,16 +435,48 @@ class ApplicationService:
             candidate for candidate in candidates if candidate.startswith(incomplete)
         )
 
+    def complete_job_posting_uris(self, incomplete: str) -> list[str]:
+        """Complete canonical job posting URIs across every location."""
+        return self._complete_record_uris(
+            self.repository.get_job_posting_records(all=True), incomplete
+        )
+
+    def complete_cv_uris(
+        self, incomplete: str, *, job_posting_uri: str | None = None
+    ) -> list[str]:
+        """Complete base CV URIs and, optionally, one posting's optimized CVs."""
+        records = list(self.repository.get_cv_records())
+        try:
+            parsed = parse_uri(job_posting_uri) if job_posting_uri else {}
+        except ValueError:
+            parsed = {}
+        if parsed.get("collection") == "job-postings":
+            records += self.repository.get_optimized_cv_records(parsed["identifier"])
+        return self._complete_record_uris(records, incomplete)
+
     def complete_render_targets(self, incomplete: str) -> list[str]:
         """Complete stored CV and cover-letter URIs suitable for rendering."""
+        renderable = (CurriculumVitaeRecord, OptimizedCvRecord, CoverLetterRecord)
+        return self._complete_record_uris(
+            (
+                record
+                for record in self._entity_records()
+                if isinstance(record, renderable)
+            ),
+            incomplete,
+        )
+
+    def _complete_record_uris(self, records, incomplete: str) -> list[str]:
+        """Sorted canonical URIs of the records that start with incomplete."""
         return sorted(
             uri
-            for record in self._entity_records()
-            if isinstance(
-                record, (CurriculumVitaeRecord, OptimizedCvRecord, CoverLetterRecord)
-            )
+            for record in records
             if (uri := self._record_uri(record)).startswith(incomplete)
         )
+
+    def complete_templates(self, incomplete: str) -> list[str]:
+        """Complete the template filenames the renderer can load."""
+        return [name for name in template_names() if name.startswith(incomplete)]
 
     @staticmethod
     def _record_uri(record) -> str:
@@ -1013,11 +1045,7 @@ class ApplicationService:
         return results
 
     def get_cv_template_names(self) -> list[str]:
-        from pathlib import Path
-
-        project_root = Path(__file__).parent.parent.parent
-        templates_dir = project_root / "templates"
-        return [str(p.name) for p in templates_dir.glob("*cv*.tex")]
+        return [name for name in template_names() if "cv" in name]
 
     def to_markdown(self, domain_object) -> str:
         return self.markdown_converter.convert(domain_object) or ""
