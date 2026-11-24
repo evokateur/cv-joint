@@ -58,16 +58,18 @@ def test_knowledge_search_tool_result_is_json():
 @pytest.mark.slow
 @pytest.mark.integration
 def test_knowledge_search_tool_multiple_calls():
-    """Test that the tool works across multiple sequential calls.
+    """Sequential searches reuse the cached MCP session.
 
-    Regression test: asyncio.run() closes the event loop after each call,
-    killing the MCP server process. McpManager must not cache a session
-    that belongs to a closed event loop.
+    The module-level event loop stays alive between calls so the session
+    can serve the second search.
     """
     tool = _make_tool()
     try:
         result1 = tool._run("Python experience")
+        session = tool._manager._session
         result2 = tool._run("API development")
+        assert session is not None
+        assert tool._manager._session is session
     finally:
         tool.close()
 

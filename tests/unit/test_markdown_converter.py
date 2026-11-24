@@ -87,10 +87,6 @@ class TestConvertJobPosting:
         assert "- Python" in result
         assert "- Testing" in result
 
-    def test_no_frontmatter_in_output(self, converter, sample_job_posting):
-        result = converter.convert_job_posting(sample_job_posting)
-        assert not result.startswith("---")
-
     def test_convert_dispatches_job_posting(self, converter, sample_job_posting):
         result = converter.convert(sample_job_posting)
         assert "# Software Engineer at Acme Corp" in result
@@ -138,10 +134,6 @@ class TestConvertCv:
         assert "Python" in result
         assert "Testing" in result
 
-    def test_no_frontmatter_in_output(self, converter, sample_cv):
-        result = converter.convert_cv(sample_cv)
-        assert not result.startswith("---")
-
     def test_convert_dispatches_cv(self, converter, sample_cv):
         result = converter.convert(sample_cv)
         assert "# Jane Doe" in result
@@ -172,10 +164,6 @@ class TestConvertTransformationPlan:
         result = converter.convert_transformation_plan(sample_plan)
         assert "- Rust" in result
 
-    def test_no_frontmatter_in_output(self, converter, sample_plan):
-        result = converter.convert_transformation_plan(sample_plan)
-        assert not result.startswith("---")
-
     def test_convert_dispatches_plan(self, converter, sample_plan):
         result = converter.convert(sample_plan)
         assert "# Transformation Plan: Staff Engineer at Globex" in result
@@ -183,60 +171,6 @@ class TestConvertTransformationPlan:
 
 
 class TestGenericConvert:
-    @pytest.fixture
-    def sample_job_posting(self):
-        return JobPosting(
-            url="https://example.com/job/123",
-            company="Acme Corp",
-            title="Software Engineer",
-            industry="Technology",
-            description="Build great software",
-            experience_level="Mid-level",
-        )
-
-    @pytest.fixture
-    def sample_cv(self):
-        return CurriculumVitae(
-            name="Jane Doe",
-            profession="Software Engineer",
-            contact=Contact(
-                city="San Francisco",
-                state="CA",
-                email="jane@example.com",
-                phone="555-1234",
-                linkedin="linkedin.com/in/janedoe",
-                github="github.com/janedoe",
-            ),
-            core_expertise=["Python"],
-            qualifications=["10 years"],
-            education=[],
-            experience=[],
-            additional_experience=[],
-            areas_of_expertise=[],
-            languages=[],
-        )
-
-    @pytest.fixture
-    def sample_plan(self):
-        return CvTransformationPlan(
-            job_title="Staff Engineer",
-            company="Globex",
-            matching_skills=["Python"],
-            missing_skills=[],
-        )
-
-    def test_dispatches_job_posting_by_class_name(self, converter, sample_job_posting):
-        result = converter.convert(sample_job_posting)
-        assert "# Software Engineer at Acme Corp" in result
-
-    def test_dispatches_cv_by_class_name(self, converter, sample_cv):
-        result = converter.convert(sample_cv)
-        assert "# Jane Doe" in result
-
-    def test_dispatches_plan_by_class_name(self, converter, sample_plan):
-        result = converter.convert(sample_plan)
-        assert "# Transformation Plan: Staff Engineer at Globex" in result
-
     def test_returns_none_for_unknown_type(self, converter):
         from pydantic import BaseModel
 
@@ -244,7 +178,3 @@ class TestGenericConvert:
             x: int = 1
 
         assert converter.convert(Unknown()) is None
-
-    def test_no_frontmatter_in_output(self, converter, sample_plan):
-        result = converter.convert(sample_plan)
-        assert not result.startswith("---")

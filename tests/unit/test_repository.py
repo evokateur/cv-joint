@@ -150,10 +150,11 @@ class TestFileSystemRepositoryInit:
         repo = FileSystemRepository(data_dir=temp_data_dir)
         assert repo.data_dir == Path(temp_data_dir)
 
-    def test_expands_user_path(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            repo = FileSystemRepository(data_dir=tmpdir)
-            assert "~" not in str(repo.data_dir)
+    def test_expands_user_path(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        repo = FileSystemRepository(data_dir="~/data")
+        assert repo.data_dir == tmp_path / "data"
 
 
 class TestJobPostingOperations:
@@ -676,9 +677,7 @@ class TestOptimizedCvRecord:
     def test_has_no_transformation_plan_filepath(self):
         from models import OptimizedCvRecord
 
-        assert not hasattr(
-            OptimizedCvRecord.model_fields, "transformation_plan_filepath"
-        )
+        assert "transformation_plan_filepath" not in OptimizedCvRecord.model_fields
 
     def test_optional_job_title_and_company(self):
         from models import OptimizedCvRecord
