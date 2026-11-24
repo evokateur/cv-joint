@@ -58,7 +58,7 @@ def test_knowledge_search_tool_result_is_json():
 @pytest.mark.slow
 @pytest.mark.integration
 def test_knowledge_search_tool_multiple_calls():
-    """Sequential searches can reuse the cached MCP session.
+    """Sequential searches reuse the cached MCP session.
 
     The module-level event loop stays alive between calls so the session
     can serve the second search.
@@ -66,7 +66,10 @@ def test_knowledge_search_tool_multiple_calls():
     tool = _make_tool()
     try:
         result1 = tool._run("Python experience")
+        session = tool._manager._session
         result2 = tool._run("API development")
+        assert session is not None
+        assert tool._manager._session is session
     finally:
         tool.close()
 

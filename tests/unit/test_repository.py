@@ -152,7 +152,7 @@ class TestFileSystemRepositoryInit:
 
     def test_expands_user_path(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))
-        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
         repo = FileSystemRepository(data_dir="~/data")
         assert repo.data_dir == tmp_path / "data"
 

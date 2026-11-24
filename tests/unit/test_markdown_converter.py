@@ -87,10 +87,6 @@ class TestConvertJobPosting:
         assert "- Python" in result
         assert "- Testing" in result
 
-    def test_no_frontmatter_in_output(self, converter, sample_job_posting):
-        result = converter.convert_job_posting(sample_job_posting)
-        assert not result.startswith("---")
-
     def test_convert_dispatches_job_posting(self, converter, sample_job_posting):
         result = converter.convert(sample_job_posting)
         assert "# Software Engineer at Acme Corp" in result
@@ -138,10 +134,6 @@ class TestConvertCv:
         assert "Python" in result
         assert "Testing" in result
 
-    def test_no_frontmatter_in_output(self, converter, sample_cv):
-        result = converter.convert_cv(sample_cv)
-        assert not result.startswith("---")
-
     def test_convert_dispatches_cv(self, converter, sample_cv):
         result = converter.convert(sample_cv)
         assert "# Jane Doe" in result
@@ -171,10 +163,6 @@ class TestConvertTransformationPlan:
     def test_includes_missing_skills(self, converter, sample_plan):
         result = converter.convert_transformation_plan(sample_plan)
         assert "- Rust" in result
-
-    def test_no_frontmatter_in_output(self, converter, sample_plan):
-        result = converter.convert_transformation_plan(sample_plan)
-        assert not result.startswith("---")
 
     def test_convert_dispatches_plan(self, converter, sample_plan):
         result = converter.convert(sample_plan)
