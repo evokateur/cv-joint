@@ -288,21 +288,17 @@ class TestGetSettings:
                 s2 = get_settings()
         assert s2.chat.model == "test-model"
 
-    def test_raw_config_cache_clear_causes_reload(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp = Path(tmpdir)
-            repo_dir = tmp / "repositories"
-            (repo_dir / "config").mkdir(parents=True)
-            (repo_dir / "config" / "settings.yaml").write_text(
-                "filesystem:\n  data_dir: ./data\n"
-            )
-            p1, p2, p3, p4, p5 = self._patch_dirs(tmp)
-            with p1, p2, p3, p4, p5:
-                s1 = get_settings()
-                _load_merged_config.cache_clear()
-                s2 = get_settings()
-        assert s1 is not s2
-        assert s1.chat.model == s2.chat.model
+    def test_raw_config_cache_clear_causes_reload(self, tmp_path):
+        repo_config = tmp_path / "repositories" / "config" / "settings.yaml"
+        repo_config.parent.mkdir(parents=True)
+        repo_config.write_text("filesystem:\n  data_dir: ./before\n")
+        p1, p2, p3, p4, p5 = self._patch_dirs(tmp_path)
+        with p1, p2, p3, p4, p5:
+            assert get_settings().repositories.filesystem.data_dir == "./before"
+            repo_config.write_text("filesystem:\n  data_dir: ./after\n")
+            assert get_settings().repositories.filesystem.data_dir == "./before"
+            _load_merged_config.cache_clear()
+            assert get_settings().repositories.filesystem.data_dir == "./after"
 
 
 class TestTypedConfigWrappers:
